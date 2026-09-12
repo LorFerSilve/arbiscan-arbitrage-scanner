@@ -23,8 +23,13 @@ def run(command: Sequence[str]) -> None:
 
 
 def uvx(package: str, executable: str, *args: str) -> list[str]:
-    """Build a uvx command with an exactly pinned tool package."""
+    """Build an isolated uvx command with an exactly pinned tool package."""
     return ["uvx", "--from", package, executable, *args]
+
+
+def project_tool(package: str, executable: str, *args: str) -> list[str]:
+    """Run a pinned tool inside the project environment."""
+    return ["uv", "run", "--with", package, executable, *args]
 
 
 def run_fast_checks() -> None:
@@ -33,7 +38,7 @@ def run_fast_checks() -> None:
     run(uvx(f"ruff=={RUFF_VERSION}", "ruff", "format", "--check", "."))
     run(uvx(f"ruff=={RUFF_VERSION}", "ruff", "check", "."))
     run(uvx(f"mypy=={MYPY_VERSION}", "mypy", "src", "tests", "scripts"))
-    run(uvx(f"pytest=={PYTEST_VERSION}", "pytest"))
+    run(project_tool(f"pytest=={PYTEST_VERSION}", "pytest"))
 
 
 def run_security_checks() -> None:
