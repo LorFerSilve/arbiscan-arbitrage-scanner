@@ -1,8 +1,12 @@
 # Phase 1 completion record
 
-Status: **Complete pending CI verification on the Phase 1 pull request**
+Status: **Complete**
 
 Phase 1 establishes the reproducible engineering baseline required before Phase 2 domain implementation.
+
+## Verification
+
+PR #3 successfully validated the Phase 1 baseline in GitHub Actions after correcting the test-runner environment. The successful `quality` job verified a clean checkout, pinned uv/Python setup, `uv sync --locked`, Ruff formatting and linting, strict mypy type checking, pytest execution, and dependency vulnerability auditing.
 
 ## Exit criteria mapping
 
@@ -20,7 +24,7 @@ The refined `.gitignore`, `.env.example`, `SECURITY.md`, credential-rotation pro
 
 ### `main` accepts changes only through the protected PR workflow
 
-Satisfied by the active repository ruleset established before Phase 1. The new CI workflow creates a `quality` check context that can be made a required status check after its first successful run.
+Satisfied by the active repository ruleset established before Phase 1. The new CI workflow now provides a stable `quality` check context that can be configured as a required status check in the repository ruleset.
 
 ## Deferred by design
 
