@@ -1,0 +1,18 @@
+minimum_pre_commit_version: "4.6.2"
+default_install_hook_types: [pre-commit, pre-push]
+
+repos:
+  - repo: local
+    hooks:
+      - id: arbiscan-fast-quality
+        name: ArbiScan fast quality gates
+        entry: uv run python scripts/quality.py --fast
+        language: system
+        pass_filenames: false
+        stages: [pre-commit]
+      - id: arbiscan-full-quality
+        name: ArbiScan full quality gates
+        entry: uv run python scripts/quality.py --all
+        language: system
+        pass_filenames: false
+        stages: [pre-push]
