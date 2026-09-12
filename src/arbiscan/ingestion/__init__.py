@@ -1,0 +1,1 @@
+"""ArbiScan ingestion package."""
