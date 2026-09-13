@@ -40,6 +40,8 @@ rate_limit()
 
 Streaming is part of the interface even when unsupported. A provider that does not declare `ODDS_STREAMING` must fail the stream operation with generic `ProviderErrorKind.UNSUPPORTED` rather than exposing an implementation-specific exception.
 
+Capability declaration is independent of current data availability. A provider may declare `ODDS_STREAMING` while yielding no updates during a quiet interval; an empty stream is not evidence that streaming is unsupported.
+
 ## Source records
 
 The adapter validates untrusted/raw provider payloads and emits immutable provider-neutral records:
@@ -89,6 +91,8 @@ The executor provides:
 - no retry for non-retryable errors;
 - fail-closed wrapping of untranslated exceptions;
 - unmodified propagation of task cancellation.
+
+`max_backoff_seconds` caps the locally calculated exponential delay **after jitter is applied**. A provider-supplied `retry_after` is treated as an upstream minimum wait and may therefore exceed the local backoff cap.
 
 A retry always invokes a fresh call factory. Coroutine objects must not be reused across attempts.
 
