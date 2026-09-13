@@ -141,6 +141,7 @@ def test_market_selection_and_quote_round_trip_preserve_decimal_precision() -> N
         source_timestamp=datetime(2026, 10, 20, 11, 0, 0, tzinfo=UTC),
         ingested_at=datetime(2026, 10, 20, 11, 0, 1, tzinfo=UTC),
         status=QuoteStatus.ACTIVE,
+        raw_source_reference="fixture://provider-a/tennis-100",
     )
 
     assert loads(dumps(market), Market) == market
@@ -203,3 +204,37 @@ def test_decoder_rejects_unknown_types_versions_and_root_type_mismatch() -> None
         lambda: loads('{"schema_version":999,"payload":{"$type":"Event"}}', Event)
     )
     expect_validation_error(lambda: loads(dumps(build_event()), Market))
+
+
+def test_decoder_rejects_missing_defaulted_model_fields() -> None:
+    missing_period = (
+        '{"schema_version":1,"payload":{'
+        '"$type":"Market",'
+        '"id":{"$type":"MarketId","value":"market:1"},'
+        '"event_id":{"$type":"EventId","value":"event:1"},'
+        '"kind":{"$enum":"MarketKind","value":"match_winner_2_way"},'
+        '"line":null,'
+        '"period_index":null,'
+        '"provider_references":{"$tuple":[]}'
+        '}}'
+    )
+
+    expect_validation_error(lambda: loads(missing_period, Market))
+
+
+def test_decoder_rejects_unexpected_model_fields() -> None:
+    unexpected_field = (
+        '{"schema_version":1,"payload":{'
+        '"$type":"Market",'
+        '"id":{"$type":"MarketId","value":"market:1"},'
+        '"event_id":{"$type":"EventId","value":"event:1"},'
+        '"kind":{"$enum":"MarketKind","value":"match_winner_2_way"},'
+        '"period":{"$enum":"MarketPeriod","value":"full_event"},'
+        '"line":null,'
+        '"period_index":null,'
+        '"provider_references":{"$tuple":[]},'
+        '"provider_label":"Home/Away"'
+        '}}'
+    )
+
+    expect_validation_error(lambda: loads(unexpected_field, Market))
