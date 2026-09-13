@@ -97,9 +97,7 @@ async def run_vertical_slice(
     """
     fixed_as_of = None if as_of is None else _aware_utc(as_of)
     ingestion = await collect_snapshots(adapters, sport, policy=provider_policy)
-    detected_at = (
-        _aware_utc(clock(), field_name="clock") if fixed_as_of is None else fixed_as_of
-    )
+    detected_at = _aware_utc(clock(), field_name="clock") if fixed_as_of is None else fixed_as_of
 
     normalized_quotes: list[OddsQuote] = []
     normalization_issues: list[NormalizationIssue] = []
