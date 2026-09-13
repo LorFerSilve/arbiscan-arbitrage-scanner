@@ -19,7 +19,7 @@ Satisfied by:
 - `docs/domain/canonical-model.md`;
 - `docs/domain/serialization.md`;
 - ADR-0003;
-- unit coverage for construction validation, immutable/type-sensitive identity, non-team events, explicit market semantics, provider semantics, source provenance, timezone normalization, exact decimal precision, serialization round trips, malformed data, and fail-closed decoding.
+- unit coverage for construction validation, immutable/type-sensitive identity, non-team events, explicit market semantics, provider semantics, source provenance, timezone normalization, exact decimal precision, serialization round trips, malformed data, strict serialized field sets, and fail-closed decoding.
 
 ## Verification
 
@@ -28,8 +28,15 @@ The Phase 2 pull request was validated on the pinned Python 3.13.15 / uv toolcha
 - `uv lock --check`;
 - Ruff formatting and linting;
 - strict mypy;
-- pytest: 16 tests passed;
-- `pip-audit`: no known vulnerabilities found.
+- pytest: **20 tests passed**;
+- `pip-audit`: **no known vulnerabilities found**.
+
+PR review also identified and verified two additional correctness invariants before merge:
+
+1. serialized canonical objects must contain exactly the complete field set for their schema version, so omitted defaulted fields cannot silently change semantics during restoration;
+2. every `OddsQuote` must retain at least one trace ID or raw-source reference so the originating observation remains auditable.
+
+Both findings are covered by regression tests.
 
 GitHub CodeQL default setup is already enabled for the repository. An attempted duplicate advanced CodeQL workflow completed analysis but GitHub rejected its SARIF upload specifically because default setup was enabled; the duplicate workflow was therefore removed rather than disabling the repository's existing default security configuration.
 
