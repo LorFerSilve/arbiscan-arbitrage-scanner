@@ -216,7 +216,7 @@ def test_decoder_rejects_missing_defaulted_model_fields() -> None:
         '"line":null,'
         '"period_index":null,'
         '"provider_references":{"$tuple":[]}'
-        '}}'
+        "}}"
     )
 
     expect_validation_error(lambda: loads(missing_period, Market))
@@ -234,7 +234,7 @@ def test_decoder_rejects_unexpected_model_fields() -> None:
         '"period_index":null,'
         '"provider_references":{"$tuple":[]},'
         '"provider_label":"Home/Away"'
-        '}}'
+        "}}"
     )
 
     expect_validation_error(lambda: loads(unexpected_field, Market))
