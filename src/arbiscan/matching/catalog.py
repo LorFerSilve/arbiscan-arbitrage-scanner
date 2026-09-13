@@ -130,11 +130,7 @@ class CanonicalRegistry:
         """Return deterministic expected outcomes for one canonical market."""
         return tuple(
             sorted(
-                (
-                    selection.id
-                    for selection in self.selections
-                    if selection.market_id == market_id
-                ),
+                (selection.id for selection in self.selections if selection.market_id == market_id),
                 key=lambda selection_id: selection_id.value,
             )
         )
@@ -199,6 +195,4 @@ class StaticCanonicalIdHooks(CanonicalIdHooks):
         market: SourceMarket,
         record: SourceSelectionQuote,
     ) -> SelectionId | None:
-        return self.selection_ids.get(
-            (market.external_market_id, record.external_selection_id)
-        )
+        return self.selection_ids.get((market.external_market_id, record.external_selection_id))

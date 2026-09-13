@@ -37,24 +37,16 @@ def test_vertical_slice_detects_only_the_cross_provider_arbitrage() -> None:
     selected_providers = {
         quote.selection_id.value: quote.provider_id for quote in evaluation.quotes
     }
-    assert selected_providers["selection:phase5:arb:home"] == ProviderId(
-        "provider:synthetic-beta"
-    )
-    assert selected_providers["selection:phase5:arb:draw"] == ProviderId(
-        "provider:synthetic-alpha"
-    )
-    assert selected_providers["selection:phase5:arb:away"] == ProviderId(
-        "provider:synthetic-beta"
-    )
+    assert selected_providers["selection:phase5:arb:home"] == ProviderId("provider:synthetic-beta")
+    assert selected_providers["selection:phase5:arb:draw"] == ProviderId("provider:synthetic-alpha")
+    assert selected_providers["selection:phase5:arb:away"] == ProviderId("provider:synthetic-beta")
 
 
 def test_no_arbitrage_market_is_evaluated_without_emitting_opportunity() -> None:
     result = _run()
 
     evaluation = next(
-        value
-        for value in result.evaluations
-        if value.event_id == EventId("event:phase5:noarb")
+        value for value in result.evaluations if value.event_id == EventId("event:phase5:noarb")
     )
     assert not evaluation.is_arbitrage
     assert evaluation.implied_probability_sum > Decimal("1")
@@ -78,9 +70,7 @@ def test_failure_matrix_fails_closed_without_blocking_healthy_data() -> None:
     assert not any(quote.source_event_id == "beta:lookalike" for quote in result.quotes)
     assert len(result.quotes) == 14
     assert len(result.evaluations) == 2
-    assert {issue.code for issue in result.book_issues} == {
-        BookIssueCode.INCOMPLETE_MARKET
-    }
+    assert {issue.code for issue in result.book_issues} == {BookIssueCode.INCOMPLETE_MARKET}
     assert len(result.book_issues) == 3
 
 
@@ -100,8 +90,6 @@ def test_minimum_profit_threshold_can_suppress_theoretical_opportunity() -> None
 
     assert result.opportunities == ()
     arb_evaluation = next(
-        value
-        for value in result.evaluations
-        if value.event_id == EventId("event:phase5:arb")
+        value for value in result.evaluations if value.event_id == EventId("event:phase5:arb")
     )
     assert not arb_evaluation.is_arbitrage

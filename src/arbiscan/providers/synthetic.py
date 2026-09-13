@@ -194,22 +194,27 @@ def _hooks(
         competition_ids={f"{prefix}:epl": CompetitionId("competition:premier-league")},
         event_ids={f"{prefix}:{definition.key}": definition.event_id for definition in selected},
         market_ids={
-            f"{prefix}:{definition.key}:1x2": definition.market_id
-            for definition in selected
+            f"{prefix}:{definition.key}:1x2": definition.market_id for definition in selected
         },
         selection_ids={
-            (f"{prefix}:{definition.key}:1x2", f"{prefix}:{definition.key}:home"):
-                definition.home_selection_id
+            (
+                f"{prefix}:{definition.key}:1x2",
+                f"{prefix}:{definition.key}:home",
+            ): definition.home_selection_id
             for definition in selected
         }
         | {
-            (f"{prefix}:{definition.key}:1x2", f"{prefix}:{definition.key}:draw"):
-                definition.draw_selection_id
+            (
+                f"{prefix}:{definition.key}:1x2",
+                f"{prefix}:{definition.key}:draw",
+            ): definition.draw_selection_id
             for definition in selected
         }
         | {
-            (f"{prefix}:{definition.key}:1x2", f"{prefix}:{definition.key}:away"):
-                definition.away_selection_id
+            (
+                f"{prefix}:{definition.key}:1x2",
+                f"{prefix}:{definition.key}:away",
+            ): definition.away_selection_id
             for definition in selected
         },
     )

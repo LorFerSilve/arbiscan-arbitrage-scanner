@@ -180,7 +180,10 @@ def normalize_source_snapshot(
             ),
         )
 
-    if canonical_event.sport is not event.sport or canonical_event.scheduled_start != event.scheduled_start:
+    if (
+        canonical_event.sport is not event.sport
+        or canonical_event.scheduled_start != event.scheduled_start
+    ):
         return NormalizationResult(
             quotes=(),
             issues=(
