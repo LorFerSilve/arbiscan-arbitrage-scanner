@@ -26,14 +26,17 @@ ArbiScan adopts the following Phase 3 numerical policy:
 6. Stake amounts must lie on an explicit increment grid. The configured stake increment must be an exact multiple of the currency quantum.
 7. Expected payouts used for guarantee claims are rounded **down** to the configured currency quantum.
 8. Minimum and maximum stake constraints are applied before a `StakePlan` can be emitted.
-9. When minimum stakes distort the unconstrained allocation, the allocator solves a deterministic constrained equal-payout target before considering discrete rounding candidates.
-10. A `StakePlan` is returned only when the final rounded `guaranteed_profit` is strictly positive and satisfies any configured absolute guaranteed-profit threshold. Otherwise allocation returns no executable plan.
+9. When minimum stakes distort the unconstrained allocation, the allocator first solves a deterministic constrained continuous equal-payout target. Discrete allocation then descends only through relevant payout breakpoints: for each target it computes the minimum valid stake needed by every outcome, and if that target is not safe or profitable it moves to the highest lower payout reachable by reducing one currently required stake by one increment. This continues until a safe plan is found or no lower breakpoint exists.
+10. All stake totals, payout comparisons, and guaranteed-profit arithmetic use the private fixed Decimal context rather than the caller's ambient Decimal context.
+11. A `StakePlan` is returned only when the final rounded `guaranteed_profit` is strictly positive and satisfies any configured absolute guaranteed-profit threshold. Otherwise allocation returns no executable plan.
 
 ## Rationale
 
 Exact rational comparison makes the theoretical boundary mathematically correct for finite decimal odds, including repeating reciprocal cases. Decimal remains the canonical representation exposed to the rest of the system and is appropriate for money and persisted values.
 
 Conservative payout rounding is intentionally asymmetric: ArbiScan prefers underestimating a payout by at most one currency quantum to overstating a guarantee. The resulting stake plan is therefore safe with respect to the rounding policy encoded by Phase 3.
+
+The event-driven discrete search is necessary because the nearest floor/ceiling stakes around the continuous optimum are not sufficient. A lower stake can sometimes reduce total outlay by more than it reduces the conservative guaranteed payout, turning a zero-profit rounded allocation into a positive executable one. Searching payout breakpoints rather than every currency quantum avoids skipping those valid lower-grid plans while still avoiding a blind cent-by-cent scan.
 
 Keeping time, ID generation, networking, databases, and provider semantics outside the core preserves deterministic replay. Given the same canonical quotes, constraints, bankroll, policy, IDs, and timestamps, the result is reproducible.
 
@@ -46,12 +49,14 @@ Keeping time, ID generation, networking, databases, and provider semantics outsi
 - deterministic replay and testing;
 - explicit bookmaker stake constraints;
 - guaranteed-profit claims are based on rounded executable stakes rather than continuous theory;
+- lower-grid profitable plans are not discarded merely because the nearest continuous-target grid points are non-profitable;
 - arbitrary `n`-outcome books use the same core functions.
 
 ### Negative / trade-offs
 
 - rational boundary calculation is more expensive than native float arithmetic;
 - 60-digit Decimal materialization is a deliberate finite representation even though the boundary comparison is exact;
+- discrete breakpoint descent may inspect multiple stake-grid transitions for very fine increments and large bankrolls;
 - the Phase 3 allocator models stake limits and increments, but not every bookmaker-specific settlement or fee rule;
 - a theoretically profitable opportunity may correctly produce no executable `StakePlan` for a specific bankroll or constraint set.
 
@@ -69,6 +74,10 @@ Rejected because repeating reciprocals are rounded by the Decimal context. A mat
 
 Rejected because money, serialized domain values, and integration boundaries are naturally decimal. Exact rationals are used only where they materially improve the classification boundary.
 
+### Only adjacent floor/ceiling stakes around the continuous target
+
+Rejected because it can produce a false negative. For example, with odds `1.5 / 3.5`, a `0.25` bankroll, and cent increments, the closest rounded allocation can have zero guaranteed profit while the lower `0.16 / 0.07` allocation yields conservative payouts of `0.24 / 0.24` and a guaranteed profit of `0.01`.
+
 ### Round payouts to nearest currency quantum
 
 Rejected for guarantee claims. Rounding down is conservative and cannot overstate the modeled payout.
@@ -79,6 +88,6 @@ Revisit this ADR if:
 
 - a supported provider settles payouts using a materially different documented rounding rule;
 - exchange commission, taxes, fees, or stake-dependent odds must enter the core formula;
-- performance profiling shows exact rational boundary checks are a bottleneck at production scale;
+- performance profiling shows exact rational boundary checks or discrete payout-breakpoint search are bottlenecks at production scale;
 - currencies or assets with non-decimal settlement units are introduced;
 - automated wager execution is added to product scope.
