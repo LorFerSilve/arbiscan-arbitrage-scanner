@@ -207,8 +207,7 @@ def _decode(value: object) -> object:
             if unexpected:
                 details.append(f"unexpected fields: {', '.join(unexpected)}")
             raise DomainValidationError(
-                f"serialized payload for {type_name} has invalid fields "
-                f"({'; '.join(details)})"
+                f"serialized payload for {type_name} has invalid fields ({'; '.join(details)})"
             )
 
         kwargs = {key: _decode(mapping[key]) for key in expected_fields}
