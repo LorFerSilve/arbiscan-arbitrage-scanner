@@ -99,7 +99,9 @@ class CanonicalRegistry:
             if selection.kind is SelectionKind.PARTICIPANT:
                 participant_id = selection.participant_id
                 if participant_id is None or participant_id not in participant_map:
-                    raise ValueError("registry participant selection references an unknown participant")
+                    raise ValueError(
+                        "registry participant selection references an unknown participant"
+                    )
                 event = event_map[market.event_id]
                 if participant_id not in {participant.id for participant in event.participants}:
                     raise ValueError(
