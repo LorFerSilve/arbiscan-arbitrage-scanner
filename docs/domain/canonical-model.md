@@ -118,10 +118,9 @@ An odds quote contains both canonical identity and source provenance:
 - optional provider/source timestamp;
 - required ingestion timestamp;
 - `QuoteStatus`;
-- optional trace ID;
-- optional raw-source reference.
+- trace ID and/or raw-source reference, with **at least one required** for auditability.
 
-The arbitrage engine does not need provider payload shapes or labels. Source identifiers are retained for auditability, debugging, and traceability.
+The arbitrage engine does not need provider payload shapes or labels. Source identifiers plus the required trace/raw-source linkage allow a quote to be traced back to its originating observation for audit, debugging, and reproduction.
 
 ### `Opportunity`
 
@@ -169,4 +168,4 @@ No downstream calculation should require a provider field name, bookmaker-specif
 
 ## Validation philosophy
 
-Type hints are not treated as runtime validation. Constructors verify critical ID, enum, timestamp, decimal, tuple-member, uniqueness, and cross-field invariants. Invalid canonical data therefore fails at the boundary where it is constructed rather than propagating deeper into the pipeline.
+Type hints are not treated as runtime validation. Constructors verify critical ID, enum, timestamp, decimal, tuple-member, uniqueness, provenance, and cross-field invariants. Invalid canonical data therefore fails at the boundary where it is constructed rather than propagating deeper into the pipeline.
