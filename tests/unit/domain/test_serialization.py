@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from datetime import UTC, datetime
 from decimal import Decimal
-from typing import Callable
 
 from arbiscan.domain import (
     Competition,
@@ -23,8 +23,10 @@ from arbiscan.domain import (
     Participant,
     ParticipantId,
     ParticipantKind,
+    Provider,
     ProviderEventReference,
     ProviderId,
+    ProviderKind,
     ProviderMarketReference,
     QuoteId,
     QuoteStatus,
@@ -94,6 +96,16 @@ def test_event_round_trip_preserves_nested_types() -> None:
     assert isinstance(restored.competition.id, CompetitionId)
     assert isinstance(restored.participants[0].id, ParticipantId)
     assert restored.scheduled_start.tzinfo is UTC
+
+
+def test_provider_round_trip_preserves_provider_semantics() -> None:
+    provider = Provider(
+        id=ProviderId("provider:aggregator-a"),
+        name="Aggregator A",
+        kind=ProviderKind.AGGREGATOR,
+    )
+
+    assert loads(dumps(provider), Provider) == provider
 
 
 def test_market_selection_and_quote_round_trip_preserve_decimal_precision() -> None:
