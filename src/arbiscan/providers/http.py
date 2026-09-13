@@ -94,7 +94,7 @@ class UrllibAsyncHttpTransport:
             headers={"Accept": "application/json", "User-Agent": "ArbiScan/0.1"},
         )
         try:
-            with urlopen(request, timeout=float(timeout_seconds)) as response:  # noqa: S310
+            with urlopen(request, timeout=float(timeout_seconds)) as response:
                 return HttpResponse(
                     status_code=int(response.status),
                     headers=dict(response.headers.items()),
