@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from functools import partial
 
 from arbiscan.domain import Provider, ProviderId, Sport
 from arbiscan.providers.contract import ProviderAdapter
@@ -82,7 +83,7 @@ async def collect_snapshots(
         try:
             competitions = await executor.run(
                 ProviderOperation.DISCOVER_COMPETITIONS,
-                lambda source=adapter: source.discover_competitions(sport),
+                partial(adapter.discover_competitions, sport),
             )
         except ProviderError as error:
             issues.append(_issue(error))
@@ -92,9 +93,7 @@ async def collect_snapshots(
             try:
                 events = await executor.run(
                     ProviderOperation.DISCOVER_EVENTS,
-                    lambda source=adapter, competition_id=competition.external_id: (
-                        source.discover_events(competition_id)
-                    ),
+                    partial(adapter.discover_events, competition.external_id),
                 )
             except ProviderError as error:
                 issues.append(_issue(error))
@@ -104,9 +103,7 @@ async def collect_snapshots(
                 try:
                     snapshot = await executor.run(
                         ProviderOperation.FETCH_ODDS,
-                        lambda source=adapter, event_id=event.external_id: source.fetch_odds(
-                            event_id
-                        ),
+                        partial(adapter.fetch_odds, event.external_id),
                     )
                 except ProviderError as error:
                     issues.append(_issue(error, external_event_id=event.external_id))
