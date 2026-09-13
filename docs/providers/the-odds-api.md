@@ -95,6 +95,14 @@ The event-odds V4 schema exposes update timestamps at bookmaker-market granulari
 
 This matters because two bookmakers in the same API response may have prices of different ages.
 
+## Live versus replay evaluation time
+
+The vertical slice has explicit time semantics so network latency cannot make fresh live data look as if it came from the future.
+
+In **live mode**, callers omit `as_of`. Provider collection runs first and `detected_at` is sampled immediately afterwards. Every snapshot therefore has an ingestion timestamp less than or equal to the evaluation timestamp under a monotonic wall-clock assumption.
+
+In **replay mode**, callers supply an explicit timezone-aware `as_of`. That value remains authoritative even if a fixture or replayed snapshot carries a later ingestion timestamp; strict normalization will reject such data as causally invalid. This preserves deterministic historical evaluation rather than silently relaxing the freshness invariant.
+
 ## Quota handling
 
 The adapter reads the documented response headers:
@@ -119,9 +127,11 @@ The adapter translates provider failures into the shared provider error taxonomy
 - `429` -> rate limited;
 - `5xx` -> retryable upstream failure;
 - network failures -> retryable transport failure;
-- invalid JSON/schema -> malformed response.
+- invalid JSON/schema or provider-neutral source-model violations -> malformed response.
 
-Provider-specific exceptions do not escape the adapter boundary.
+Provider-specific exceptions and source-model validation exceptions do not escape the adapter boundary.
+
+Telemetry is operation-level rather than raw HTTP-success telemetry: a `2xx` response is not recorded as `SUCCESS` until the response has passed the relevant schema and source-model validation. Preparatory calls inside a larger provider operation do not emit a premature operation success.
 
 ## CI and fixtures
 
