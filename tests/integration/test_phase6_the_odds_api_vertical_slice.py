@@ -29,7 +29,8 @@ from arbiscan.providers.the_odds_api import TheOddsApiConfig, TheOddsApiProvider
 from arbiscan.services import run_vertical_slice
 from tests.support.the_odds_api import FixtureHttpTransport
 
-AS_OF = datetime(2026, 9, 20, 11, 5, tzinfo=UTC)
+INGESTED_AT = datetime(2026, 9, 20, 11, 5, tzinfo=UTC)
+LIVE_EVALUATED_AT = INGESTED_AT + timedelta(seconds=1)
 EVENT_START = datetime(2026, 9, 20, 14, 0, tzinfo=UTC)
 
 
@@ -109,13 +110,13 @@ def _registry_and_hooks() -> tuple[CanonicalRegistry, StaticCanonicalIdHooks]:
     return registry, hooks
 
 
-def test_recorded_real_schema_reaches_canonical_opportunity_with_bookmaker_attribution() -> None:
+def test_recorded_real_schema_reaches_canonical_opportunity_in_live_mode() -> None:
     registry, hooks = _registry_and_hooks()
     adapter = TheOddsApiProvider(
         config=TheOddsApiConfig(api_key="fixture"),
         transport=FixtureHttpTransport(),
         canonical_id_hooks=hooks,
-        clock=lambda: AS_OF,
+        clock=lambda: INGESTED_AT,
     )
 
     result = asyncio.run(
@@ -123,8 +124,8 @@ def test_recorded_real_schema_reaches_canonical_opportunity_with_bookmaker_attri
             adapters=(adapter,),
             registry=registry,
             sport=Sport.FOOTBALL,
-            as_of=AS_OF,
             freshness_window=timedelta(minutes=2),
+            clock=lambda: LIVE_EVALUATED_AT,
         )
     )
 
@@ -133,6 +134,8 @@ def test_recorded_real_schema_reaches_canonical_opportunity_with_bookmaker_attri
     assert result.book_issues == ()
     assert len(result.evaluations) == 1
     assert len(result.opportunities) == 1
+    assert result.opportunities[0].detected_at == LIVE_EVALUATED_AT
+    assert all(quote.ingested_at <= result.opportunities[0].detected_at for quote in result.quotes)
 
     evaluation = result.evaluations[0]
     selected = {quote.selection_id: quote for quote in evaluation.quotes}
