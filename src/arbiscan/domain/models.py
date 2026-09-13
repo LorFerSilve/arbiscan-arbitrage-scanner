@@ -36,6 +36,7 @@ from arbiscan.domain.validation import (
     normalize_optional_text,
     normalize_text,
     require_decimal,
+    require_instance,
     require_positive_decimal,
 )
 
@@ -49,6 +50,8 @@ class Provider:
     kind: ProviderKind
 
     def __post_init__(self) -> None:
+        require_instance(self.id, ProviderId, field="provider.id")
+        require_instance(self.kind, ProviderKind, field="provider.kind")
         object.__setattr__(self, "name", normalize_text(self.name, field="provider.name"))
 
 
@@ -63,6 +66,8 @@ class Competition:
     season: str | None = None
 
     def __post_init__(self) -> None:
+        require_instance(self.id, CompetitionId, field="competition.id")
+        require_instance(self.sport, Sport, field="competition.sport")
         object.__setattr__(self, "name", normalize_text(self.name, field="competition.name"))
         object.__setattr__(
             self,
@@ -86,6 +91,9 @@ class Participant:
     kind: ParticipantKind
 
     def __post_init__(self) -> None:
+        require_instance(self.id, ParticipantId, field="participant.id")
+        require_instance(self.sport, Sport, field="participant.sport")
+        require_instance(self.kind, ParticipantKind, field="participant.kind")
         object.__setattr__(self, "name", normalize_text(self.name, field="participant.name"))
 
 
@@ -97,6 +105,11 @@ class ProviderEventReference:
     external_event_id: str
 
     def __post_init__(self) -> None:
+        require_instance(
+            self.provider_id,
+            ProviderId,
+            field="provider_event_reference.provider_id",
+        )
         object.__setattr__(
             self,
             "external_event_id",
@@ -117,6 +130,11 @@ class ProviderMarketReference:
     external_market_id: str
 
     def __post_init__(self) -> None:
+        require_instance(
+            self.provider_id,
+            ProviderId,
+            field="provider_market_reference.provider_id",
+        )
         object.__setattr__(
             self,
             "external_event_id",
@@ -150,8 +168,21 @@ class Event:
     provider_references: tuple[ProviderEventReference, ...] = field(default_factory=tuple)
 
     def __post_init__(self) -> None:
+        require_instance(self.id, EventId, field="event.id")
+        require_instance(self.sport, Sport, field="event.sport")
+        require_instance(self.competition, Competition, field="event.competition")
+        require_instance(self.status, EventStatus, field="event.status")
+
         participants = tuple(self.participants)
         references = tuple(self.provider_references)
+        for participant in participants:
+            require_instance(participant, Participant, field="event.participants[]")
+        for reference in references:
+            require_instance(
+                reference,
+                ProviderEventReference,
+                field="event.provider_references[]",
+            )
         object.__setattr__(self, "participants", participants)
         object.__setattr__(self, "provider_references", references)
         object.__setattr__(
@@ -189,7 +220,18 @@ class Market:
     provider_references: tuple[ProviderMarketReference, ...] = field(default_factory=tuple)
 
     def __post_init__(self) -> None:
+        require_instance(self.id, MarketId, field="market.id")
+        require_instance(self.event_id, EventId, field="market.event_id")
+        require_instance(self.kind, MarketKind, field="market.kind")
+        require_instance(self.period, MarketPeriod, field="market.period")
+
         references = tuple(self.provider_references)
+        for reference in references:
+            require_instance(
+                reference,
+                ProviderMarketReference,
+                field="market.provider_references[]",
+            )
         object.__setattr__(self, "provider_references", references)
 
         if self.line is not None:
@@ -201,6 +243,8 @@ class Market:
         if self.kind not in parameterized and self.line is not None:
             raise DomainValidationError(f"{self.kind.value} does not accept market.line")
 
+        if self.period_index is not None and type(self.period_index) is not int:
+            raise DomainValidationError("market.period_index must be an integer")
         indexed_periods = {MarketPeriod.SET, MarketPeriod.PERIOD, MarketPeriod.QUARTER}
         if self.period in indexed_periods:
             if self.period_index is None or self.period_index < 1:
@@ -227,6 +271,16 @@ class Selection:
     handicap: Decimal | None = None
 
     def __post_init__(self) -> None:
+        require_instance(self.id, SelectionId, field="selection.id")
+        require_instance(self.market_id, MarketId, field="selection.market_id")
+        require_instance(self.kind, SelectionKind, field="selection.kind")
+        if self.participant_id is not None:
+            require_instance(
+                self.participant_id,
+                ParticipantId,
+                field="selection.participant_id",
+            )
+
         if self.kind is SelectionKind.PARTICIPANT:
             if self.participant_id is None:
                 raise DomainValidationError("participant selection requires participant_id")
@@ -263,6 +317,13 @@ class OddsQuote:
     raw_source_reference: str | None = None
 
     def __post_init__(self) -> None:
+        require_instance(self.id, QuoteId, field="odds_quote.id")
+        require_instance(self.provider_id, ProviderId, field="odds_quote.provider_id")
+        require_instance(self.event_id, EventId, field="odds_quote.event_id")
+        require_instance(self.market_id, MarketId, field="odds_quote.market_id")
+        require_instance(self.selection_id, SelectionId, field="odds_quote.selection_id")
+        require_instance(self.status, QuoteStatus, field="odds_quote.status")
+
         price = require_decimal(self.decimal_price, field="odds_quote.decimal_price")
         if price <= Decimal("1"):
             raise DomainValidationError("odds_quote.decimal_price must be greater than 1")
@@ -326,7 +387,14 @@ class Opportunity:
     status: OpportunityStatus = OpportunityStatus.ACTIVE
 
     def __post_init__(self) -> None:
+        require_instance(self.id, OpportunityId, field="opportunity.id")
+        require_instance(self.event_id, EventId, field="opportunity.event_id")
+        require_instance(self.market_id, MarketId, field="opportunity.market_id")
+        require_instance(self.status, OpportunityStatus, field="opportunity.status")
+
         quote_ids = tuple(self.quote_ids)
+        for quote_id in quote_ids:
+            require_instance(quote_id, QuoteId, field="opportunity.quote_ids[]")
         object.__setattr__(self, "quote_ids", quote_ids)
         object.__setattr__(
             self,
@@ -367,6 +435,13 @@ class StakeAllocation:
     expected_payout: Decimal
 
     def __post_init__(self) -> None:
+        require_instance(self.quote_id, QuoteId, field="stake_allocation.quote_id")
+        require_instance(
+            self.selection_id,
+            SelectionId,
+            field="stake_allocation.selection_id",
+        )
+        require_instance(self.provider_id, ProviderId, field="stake_allocation.provider_id")
         object.__setattr__(
             self,
             "amount",
@@ -396,7 +471,15 @@ class StakePlan:
     created_at: datetime
 
     def __post_init__(self) -> None:
+        require_instance(self.id, StakePlanId, field="stake_plan.id")
+        require_instance(
+            self.opportunity_id,
+            OpportunityId,
+            field="stake_plan.opportunity_id",
+        )
         allocations = tuple(self.allocations)
+        for allocation in allocations:
+            require_instance(allocation, StakeAllocation, field="stake_plan.allocations[]")
         object.__setattr__(self, "allocations", allocations)
         object.__setattr__(self, "currency", normalize_currency(self.currency))
         object.__setattr__(
