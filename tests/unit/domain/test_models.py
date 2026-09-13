@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import FrozenInstanceError
 from datetime import UTC, datetime, timedelta, timezone
 from decimal import Decimal
-from typing import Callable
 
 from arbiscan.domain import (
     Competition,
