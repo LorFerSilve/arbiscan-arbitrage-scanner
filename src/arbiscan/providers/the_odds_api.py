@@ -489,7 +489,9 @@ class TheOddsApiProvider(ProviderAdapter):
 
         for event in events:
             self._event_competitions[event.external_id] = competition_id
-        ordered = tuple(sorted(events, key=lambda value: (value.scheduled_start, value.external_id)))
+        ordered = tuple(
+            sorted(events, key=lambda value: (value.scheduled_start, value.external_id))
+        )
         self._emit(
             operation,
             outcome=ProviderTelemetryOutcome.SUCCESS,
@@ -567,7 +569,8 @@ class TheOddsApiProvider(ProviderAdapter):
         except ProviderError as error:
             state = (
                 ProviderHealthState.DEGRADED
-                if error.kind in {ProviderErrorKind.RATE_LIMITED, ProviderErrorKind.MALFORMED_RESPONSE}
+                if error.kind
+                in {ProviderErrorKind.RATE_LIMITED, ProviderErrorKind.MALFORMED_RESPONSE}
                 else ProviderHealthState.UNAVAILABLE
             )
             return ProviderHealth(
