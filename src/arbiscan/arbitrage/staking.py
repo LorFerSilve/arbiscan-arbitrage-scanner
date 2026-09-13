@@ -7,13 +7,18 @@ from dataclasses import dataclass
 from datetime import datetime
 from decimal import Context, Decimal, ROUND_CEILING, ROUND_FLOOR, ROUND_HALF_EVEN, localcontext
 
-from arbiscan.arbitrage.core import MATH_PRECISION, implied_probability_sum, theoretical_profit_margin
+from arbiscan.arbitrage.core import (
+    MATH_PRECISION,
+    implied_probability_sum,
+    theoretical_profit_margin,
+)
 from arbiscan.arbitrage.errors import ArbitrageMathError, StakeConstraintError
 from arbiscan.arbitrage.models import CurrencyRoundingPolicy, StakeConstraint
 from arbiscan.domain import (
     OddsQuote,
     Opportunity,
     OpportunityStatus,
+    QuoteId,
     QuoteStatus,
     StakeAllocation,
     StakePlan,
@@ -61,13 +66,15 @@ def _effective_constraints(
     constraints: Iterable[StakeConstraint],
     policy: CurrencyRoundingPolicy,
 ) -> tuple[_EffectiveConstraint, ...] | None:
-    provided: dict[object, StakeConstraint] = {}
+    provided: dict[QuoteId, StakeConstraint] = {}
     quote_ids = {quote.id for quote in quotes}
     for constraint in constraints:
         if not isinstance(constraint, StakeConstraint):
             raise StakeConstraintError("constraints must contain StakeConstraint values")
         if constraint.quote_id not in quote_ids:
-            raise StakeConstraintError("stake constraint references a quote outside the opportunity")
+            raise StakeConstraintError(
+                "stake constraint references a quote outside the opportunity"
+            )
         if constraint.quote_id in provided:
             raise StakeConstraintError("duplicate stake constraint for quote")
         provided[constraint.quote_id] = constraint
@@ -79,10 +86,11 @@ def _effective_constraints(
             StakeConstraint(quote_id=quote.id, stake_increment=policy.quantum),
         )
         increment = constraint.stake_increment
-        if increment % policy.quantum != _ZERO:
-            raise StakeConstraintError(
-                "stake increments must be exact multiples of the currency quantum"
-            )
+        with localcontext(_MATH_CONTEXT):
+            if increment % policy.quantum != _ZERO:
+                raise StakeConstraintError(
+                    "stake increments must be exact multiples of the currency quantum"
+                )
 
         minimum = max(increment, _ceil_to_grid(constraint.minimum_stake, increment))
         maximum: Decimal | None = None
@@ -106,16 +114,16 @@ def _continuous_target_payout(
     constraints: tuple[_EffectiveConstraint, ...],
     bankroll: Decimal,
 ) -> Decimal | None:
-    minimum_total = sum((constraint.minimum for constraint in constraints), _ZERO)
-    if minimum_total > bankroll:
-        return None
+    with localcontext(_MATH_CONTEXT):
+        minimum_total = sum((constraint.minimum for constraint in constraints), _ZERO)
+        if minimum_total > bankroll:
+            return None
 
-    active = set(range(len(quotes)))
-    fixed = _ZERO
-    target: Decimal | None = None
+        active = set(range(len(quotes)))
+        fixed = _ZERO
+        target: Decimal | None = None
 
-    while active:
-        with localcontext(_MATH_CONTEXT):
+        while active:
             reciprocal_sum = sum(
                 (Decimal("1") / quotes[index].decimal_price for index in active),
                 _ZERO,
@@ -124,33 +132,33 @@ def _continuous_target_payout(
                 raise ArbitrageMathError("invalid reciprocal sum during stake allocation")
             target = (bankroll - fixed) / reciprocal_sum
 
-        violating = {
-            index
-            for index in active
-            if target / quotes[index].decimal_price < constraints[index].minimum
-        }
-        if not violating:
-            break
-        for index in violating:
-            fixed += constraints[index].minimum
-            active.remove(index)
-        if fixed > bankroll:
-            return None
+            violating = {
+                index
+                for index in active
+                if target / quotes[index].decimal_price < constraints[index].minimum
+            }
+            if not violating:
+                break
+            for index in violating:
+                fixed += constraints[index].minimum
+                active.remove(index)
+            if fixed > bankroll:
+                return None
 
-    if target is None:
-        target = min(
-            constraint.minimum * quote.decimal_price
+        if target is None:
+            target = min(
+                constraint.minimum * quote.decimal_price
+                for quote, constraint in zip(quotes, constraints, strict=True)
+            )
+
+        maximum_payouts = [
+            constraint.maximum * quote.decimal_price
             for quote, constraint in zip(quotes, constraints, strict=True)
-        )
-
-    maximum_payouts = [
-        constraint.maximum * quote.decimal_price
-        for quote, constraint in zip(quotes, constraints, strict=True)
-        if constraint.maximum is not None
-    ]
-    if maximum_payouts:
-        target = min(target, min(maximum_payouts))
-    return target
+            if constraint.maximum is not None
+        ]
+        if maximum_payouts:
+            target = min(target, min(maximum_payouts))
+        return target
 
 
 def _candidate_amounts(
@@ -162,9 +170,8 @@ def _candidate_amounts(
     for quote, constraint in zip(quotes, constraints, strict=True):
         with localcontext(_MATH_CONTEXT):
             raw = max(constraint.minimum, target_payout / quote.decimal_price)
-
-        low = max(constraint.minimum, _floor_to_grid(raw, constraint.increment))
-        high = max(constraint.minimum, _ceil_to_grid(raw, constraint.increment))
+            low = max(constraint.minimum, _floor_to_grid(raw, constraint.increment))
+            high = max(constraint.minimum, _ceil_to_grid(raw, constraint.increment))
 
         if constraint.maximum is not None:
             if low > constraint.maximum:
@@ -214,18 +221,19 @@ def _select_best_rounded_amounts(
         if not feasible:
             continue
 
-        total_staked = sum(selected, _ZERO)
-        if total_staked > bankroll:
-            continue
-        guaranteed_payout = min(payouts)
-        guaranteed_profit = guaranteed_payout - total_staked
-        key = (
-            guaranteed_profit,
-            guaranteed_payout,
-            -total_staked,
-            tuple(selected),
-            tuple(payouts),
-        )
+        with localcontext(_MATH_CONTEXT):
+            total_staked = sum(selected, _ZERO)
+            if total_staked > bankroll:
+                continue
+            guaranteed_payout = min(payouts)
+            guaranteed_profit = guaranteed_payout - total_staked
+            key = (
+                guaranteed_profit,
+                guaranteed_payout,
+                -total_staked,
+                tuple(selected),
+                tuple(payouts),
+            )
         if best is None or key > best:
             best = key
 
@@ -329,13 +337,14 @@ def allocate_stakes(
         )
         for quote, amount, payout in zip(ordered_quotes, amounts, payouts, strict=True)
     )
-    return StakePlan(
-        id=stake_plan_id,
-        opportunity_id=opportunity.id,
-        currency=rounding_policy.currency,
-        bankroll=bankroll_value,
-        allocations=allocations,
-        guaranteed_payout=guaranteed_payout,
-        guaranteed_profit=guaranteed_profit,
-        created_at=created_at,
-    )
+    with localcontext(_MATH_CONTEXT):
+        return StakePlan(
+            id=stake_plan_id,
+            opportunity_id=opportunity.id,
+            currency=rounding_policy.currency,
+            bankroll=bankroll_value,
+            allocations=allocations,
+            guaranteed_payout=guaranteed_payout,
+            guaranteed_profit=guaranteed_profit,
+            created_at=created_at,
+        )
