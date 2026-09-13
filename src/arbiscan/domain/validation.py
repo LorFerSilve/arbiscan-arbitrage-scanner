@@ -4,8 +4,20 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from decimal import Decimal
+from typing import TypeVar
 
 from arbiscan.domain.errors import DomainValidationError
+
+T = TypeVar("T")
+
+
+def require_instance(value: object, expected_type: type[T], *, field: str) -> T:
+    """Require an exact domain/runtime type compatible with expected_type."""
+    if not isinstance(value, expected_type):
+        raise DomainValidationError(
+            f"{field} must be {expected_type.__name__}, not {type(value).__name__}"
+        )
+    return value
 
 
 def normalize_text(value: str, *, field: str, max_length: int = 256) -> str:
