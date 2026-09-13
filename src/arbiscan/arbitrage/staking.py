@@ -36,6 +36,15 @@ class _EffectiveConstraint:
     increment: Decimal
 
 
+@dataclass(frozen=True, slots=True)
+class _TargetPlan:
+    amounts: tuple[Decimal, ...]
+    payouts: tuple[Decimal, ...]
+    total_staked: Decimal
+    guaranteed_payout: Decimal
+    guaranteed_profit: Decimal
+
+
 def _require_decimal(value: object, *, field: str) -> Decimal:
     if type(value) is not Decimal:
         raise ArbitrageMathError(f"{field} must be Decimal")
@@ -161,86 +170,117 @@ def _continuous_target_payout(
         return target
 
 
-def _candidate_amounts(
+def _minimum_stake_for_target(
+    quote: OddsQuote,
+    constraint: _EffectiveConstraint,
+    target_payout: Decimal,
+) -> Decimal | None:
+    with localcontext(_MATH_CONTEXT):
+        raw_required = target_payout / quote.decimal_price
+        amount = max(
+            constraint.minimum,
+            _ceil_to_grid(raw_required, constraint.increment),
+        )
+    if constraint.maximum is not None and amount > constraint.maximum:
+        return None
+    return amount
+
+
+def _evaluate_target_payout(
     quotes: tuple[OddsQuote, ...],
     constraints: tuple[_EffectiveConstraint, ...],
     target_payout: Decimal,
-) -> tuple[tuple[Decimal, ...], ...] | None:
-    candidates: list[tuple[Decimal, ...]] = []
-    for quote, constraint in zip(quotes, constraints, strict=True):
-        with localcontext(_MATH_CONTEXT):
-            raw = max(constraint.minimum, target_payout / quote.decimal_price)
-            low = max(constraint.minimum, _floor_to_grid(raw, constraint.increment))
-            high = max(constraint.minimum, _ceil_to_grid(raw, constraint.increment))
-
-        if constraint.maximum is not None:
-            if low > constraint.maximum:
-                return None
-            high = min(high, constraint.maximum)
-        if high < low:
-            high = low
-
-        values = (low,) if high == low else (low, high)
-        candidates.append(values)
-    return tuple(candidates)
-
-
-def _select_best_rounded_amounts(
-    quotes: tuple[OddsQuote, ...],
-    candidates: tuple[tuple[Decimal, ...], ...],
-    bankroll: Decimal,
     quantum: Decimal,
-) -> tuple[tuple[Decimal, ...], tuple[Decimal, ...], Decimal, Decimal] | None:
-    payout_candidates = sorted(
-        {
-            _conservative_payout(amount, quote.decimal_price, quantum)
-            for quote, amounts in zip(quotes, candidates, strict=True)
-            for amount in amounts
-        }
+) -> _TargetPlan | None:
+    amounts: list[Decimal] = []
+    payouts: list[Decimal] = []
+
+    for quote, constraint in zip(quotes, constraints, strict=True):
+        amount = _minimum_stake_for_target(quote, constraint, target_payout)
+        if amount is None:
+            return None
+        amounts.append(amount)
+        payouts.append(_conservative_payout(amount, quote.decimal_price, quantum))
+
+    with localcontext(_MATH_CONTEXT):
+        total_staked = sum(amounts, _ZERO)
+        guaranteed_payout = min(payouts)
+        guaranteed_profit = guaranteed_payout - total_staked
+
+    return _TargetPlan(
+        amounts=tuple(amounts),
+        payouts=tuple(payouts),
+        total_staked=total_staked,
+        guaranteed_payout=guaranteed_payout,
+        guaranteed_profit=guaranteed_profit,
     )
 
-    best: tuple[Decimal, Decimal, Decimal, tuple[Decimal, ...], tuple[Decimal, ...]] | None = None
-    for target_payout in payout_candidates:
-        selected: list[Decimal] = []
-        payouts: list[Decimal] = []
-        feasible = True
 
-        for quote, amounts in zip(quotes, candidates, strict=True):
-            options = [
-                (amount, _conservative_payout(amount, quote.decimal_price, quantum))
-                for amount in amounts
-            ]
-            qualifying = [option for option in options if option[1] >= target_payout]
-            if not qualifying:
-                feasible = False
-                break
-            amount, payout = min(qualifying, key=lambda option: option[0])
-            selected.append(amount)
-            payouts.append(payout)
+def _next_lower_payout_breakpoint(
+    quotes: tuple[OddsQuote, ...],
+    constraints: tuple[_EffectiveConstraint, ...],
+    amounts: tuple[Decimal, ...],
+    current_target: Decimal,
+    quantum: Decimal,
+) -> Decimal | None:
+    breakpoints: list[Decimal] = []
 
-        if not feasible:
+    for quote, constraint, amount in zip(quotes, constraints, amounts, strict=True):
+        with localcontext(_MATH_CONTEXT):
+            lower_amount = amount - constraint.increment
+        if lower_amount < constraint.minimum:
             continue
 
-        with localcontext(_MATH_CONTEXT):
-            total_staked = sum(selected, _ZERO)
-            if total_staked > bankroll:
-                continue
-            guaranteed_payout = min(payouts)
-            guaranteed_profit = guaranteed_payout - total_staked
-            key = (
-                guaranteed_profit,
-                guaranteed_payout,
-                -total_staked,
-                tuple(selected),
-                tuple(payouts),
-            )
-        if best is None or key > best:
-            best = key
+        lower_payout = _conservative_payout(lower_amount, quote.decimal_price, quantum)
+        if _ZERO < lower_payout < current_target:
+            breakpoints.append(lower_payout)
 
-    if best is None:
+    if not breakpoints:
         return None
-    guaranteed_profit, guaranteed_payout, _negative_total, selected_tuple, payouts_tuple = best
-    return selected_tuple, payouts_tuple, guaranteed_payout, guaranteed_profit
+    return max(breakpoints)
+
+
+def _find_safe_discrete_plan(
+    quotes: tuple[OddsQuote, ...],
+    constraints: tuple[_EffectiveConstraint, ...],
+    bankroll: Decimal,
+    continuous_target: Decimal,
+    quantum: Decimal,
+    minimum_guaranteed_profit: Decimal,
+) -> _TargetPlan | None:
+    target = _floor_to_grid(continuous_target, quantum)
+    if target <= _ZERO:
+        return None
+
+    seen_targets: set[Decimal] = set()
+    while target > _ZERO:
+        if target in seen_targets:
+            raise ArbitrageMathError("discrete payout search failed to make progress")
+        seen_targets.add(target)
+
+        candidate = _evaluate_target_payout(quotes, constraints, target, quantum)
+        if candidate is None:
+            return None
+
+        if (
+            candidate.total_staked <= bankroll
+            and candidate.guaranteed_profit > _ZERO
+            and candidate.guaranteed_profit >= minimum_guaranteed_profit
+        ):
+            return candidate
+
+        next_target = _next_lower_payout_breakpoint(
+            quotes,
+            constraints,
+            candidate.amounts,
+            target,
+            quantum,
+        )
+        if next_target is None:
+            return None
+        target = next_target
+
+    return None
 
 
 def allocate_stakes(
@@ -308,23 +348,19 @@ def allocate_stakes(
     effective = _effective_constraints(ordered_quotes, constraints, rounding_policy)
     if effective is None:
         return None
-    target_payout = _continuous_target_payout(ordered_quotes, effective, bankroll_value)
-    if target_payout is None:
-        return None
-    candidates = _candidate_amounts(ordered_quotes, effective, target_payout)
-    if candidates is None:
+    continuous_target = _continuous_target_payout(ordered_quotes, effective, bankroll_value)
+    if continuous_target is None:
         return None
 
-    selected = _select_best_rounded_amounts(
+    selected = _find_safe_discrete_plan(
         ordered_quotes,
-        candidates,
+        effective,
         bankroll_value,
+        continuous_target,
         rounding_policy.quantum,
+        profit_threshold,
     )
     if selected is None:
-        return None
-    amounts, payouts, guaranteed_payout, guaranteed_profit = selected
-    if guaranteed_profit <= _ZERO or guaranteed_profit < profit_threshold:
         return None
 
     allocations = tuple(
@@ -335,7 +371,12 @@ def allocate_stakes(
             amount=amount,
             expected_payout=payout,
         )
-        for quote, amount, payout in zip(ordered_quotes, amounts, payouts, strict=True)
+        for quote, amount, payout in zip(
+            ordered_quotes,
+            selected.amounts,
+            selected.payouts,
+            strict=True,
+        )
     )
     with localcontext(_MATH_CONTEXT):
         return StakePlan(
@@ -344,7 +385,7 @@ def allocate_stakes(
             currency=rounding_policy.currency,
             bankroll=bankroll_value,
             allocations=allocations,
-            guaranteed_payout=guaranteed_payout,
-            guaranteed_profit=guaranteed_profit,
+            guaranteed_payout=selected.guaranteed_payout,
+            guaranteed_profit=selected.guaranteed_profit,
             created_at=created_at,
         )
