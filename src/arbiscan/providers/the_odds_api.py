@@ -460,7 +460,7 @@ class TheOddsApiProvider(ProviderAdapter):
                 "starts_after cannot be later than starts_before",
             )
 
-        records = await self._load_sports(operation)
+        records = await self._load_sports(operation, emit_success=False)
         competition = next((value for value in records if value.key == competition_id), None)
         if competition is None or _GROUP_TO_SPORT.get(competition.group) is None:
             raise self._error(
@@ -590,18 +590,24 @@ class TheOddsApiProvider(ProviderAdapter):
             _ = await self._load_sports(ProviderOperation.RATE_LIMIT)
         return self._last_rate_limit
 
-    async def _load_sports(self, operation: ProviderOperation) -> tuple[_SportRecord, ...]:
+    async def _load_sports(
+        self,
+        operation: ProviderOperation,
+        *,
+        emit_success: bool = True,
+    ) -> tuple[_SportRecord, ...]:
         payload, response = await self._request_json(operation, "/sports", {"all": "false"})
         try:
             records = _sport_records(payload)
         except _SchemaError as exc:
             raise self._validated_payload_error(operation, response, exc) from exc
-        self._emit(
-            operation,
-            outcome=ProviderTelemetryOutcome.SUCCESS,
-            response=response,
-            item_count=len(records),
-        )
+        if emit_success:
+            self._emit(
+                operation,
+                outcome=ProviderTelemetryOutcome.SUCCESS,
+                response=response,
+                item_count=len(records),
+            )
         return records
 
     async def _request_json(
