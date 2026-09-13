@@ -93,9 +93,7 @@ def test_unconstrained_two_way_allocation_equalizes_payout() -> None:
 
 
 def test_three_way_rounding_remains_profitable_and_nearly_equalized() -> None:
-    quotes = tuple(
-        make_quote(f"selection:{index}", "3.60", index=index) for index in range(1, 4)
-    )
+    quotes = tuple(make_quote(f"selection:{index}", "3.60", index=index) for index in range(1, 4))
     opportunity = make_opportunity(quotes)
 
     plan = allocate_stakes(
