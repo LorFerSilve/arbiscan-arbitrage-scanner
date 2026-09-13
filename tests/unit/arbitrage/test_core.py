@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from datetime import UTC, datetime
 from decimal import Decimal
-
-import pytest
 
 from arbiscan.arbitrage import (
     ArbitrageMathError,
@@ -30,6 +29,21 @@ from arbiscan.domain import (
 )
 
 NOW = datetime(2026, 9, 13, 12, 0, tzinfo=UTC)
+
+
+def expect_error[E: Exception](
+    error_type: type[E],
+    action: Callable[[], object],
+    *,
+    contains: str | None = None,
+) -> None:
+    try:
+        action()
+    except error_type as exc:
+        if contains is not None and contains not in str(exc):
+            raise AssertionError(f"expected error containing {contains!r}, got {exc!r}") from exc
+        return
+    raise AssertionError(f"expected {error_type.__name__}")
 
 
 def make_quote(
@@ -82,12 +96,12 @@ def test_three_way_football_and_arbitrary_n_outcome_books_are_supported() -> Non
 
 
 def test_invalid_odds_and_binary_float_inputs_fail_closed() -> None:
-    with pytest.raises(ArbitrageMathError):
-        implied_probability(Decimal("1"))
-    with pytest.raises(ArbitrageMathError):
-        implied_probability(Decimal("0"))
-    with pytest.raises(ArbitrageMathError):
-        implied_probability(2.0)  # type: ignore[arg-type]
+    expect_error(ArbitrageMathError, lambda: implied_probability(Decimal("1")))
+    expect_error(ArbitrageMathError, lambda: implied_probability(Decimal("0")))
+    expect_error(
+        ArbitrageMathError,
+        lambda: implied_probability(2.0),  # type: ignore[arg-type]
+    )
 
 
 def test_minimum_profit_threshold_is_respected() -> None:
@@ -127,8 +141,14 @@ def test_duplicate_selection_is_rejected() -> None:
         make_quote("selection:a", "2.30", index=2),
     )
 
-    with pytest.raises(ArbitrageMathError, match="duplicate selections"):
-        evaluate_market(quotes, (SelectionId("selection:a"), SelectionId("selection:b")))
+    expect_error(
+        ArbitrageMathError,
+        lambda: evaluate_market(
+            quotes,
+            (SelectionId("selection:a"), SelectionId("selection:b")),
+        ),
+        contains="duplicate selections",
+    )
 
 
 def test_incomplete_market_is_rejected() -> None:
@@ -142,33 +162,41 @@ def test_incomplete_market_is_rejected() -> None:
         SelectionId("selection:draw"),
     )
 
-    with pytest.raises(IncompleteMarketError, match="missing"):
-        evaluate_market(quotes, expected)
+    expect_error(
+        IncompleteMarketError,
+        lambda: evaluate_market(quotes, expected),
+        contains="missing",
+    )
 
 
 def test_cross_event_cross_market_and_suspended_quotes_are_rejected() -> None:
     expected = (SelectionId("selection:a"), SelectionId("selection:b"))
 
-    with pytest.raises(ArbitrageMathError, match="same canonical event"):
-        evaluate_market(
+    expect_error(
+        ArbitrageMathError,
+        lambda: evaluate_market(
             (
                 make_quote("selection:a", "2.20", index=1, event="event:a"),
                 make_quote("selection:b", "2.20", index=2, event="event:b"),
             ),
             expected,
-        )
-
-    with pytest.raises(ArbitrageMathError, match="same canonical market"):
-        evaluate_market(
+        ),
+        contains="same canonical event",
+    )
+    expect_error(
+        ArbitrageMathError,
+        lambda: evaluate_market(
             (
                 make_quote("selection:a", "2.20", index=1, market="market:a"),
                 make_quote("selection:b", "2.20", index=2, market="market:b"),
             ),
             expected,
-        )
-
-    with pytest.raises(ArbitrageMathError, match="active quotes"):
-        evaluate_market(
+        ),
+        contains="same canonical market",
+    )
+    expect_error(
+        ArbitrageMathError,
+        lambda: evaluate_market(
             (
                 make_quote("selection:a", "2.20", index=1),
                 make_quote(
@@ -179,4 +207,6 @@ def test_cross_event_cross_market_and_suspended_quotes_are_rejected() -> None:
                 ),
             ),
             expected,
-        )
+        ),
+        contains="active quotes",
+    )
