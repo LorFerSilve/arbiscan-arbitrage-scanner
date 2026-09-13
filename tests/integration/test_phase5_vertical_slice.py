@@ -5,7 +5,8 @@ from decimal import Decimal
 
 from arbiscan.domain import EventId, ProviderId, Sport
 from arbiscan.normalization import NormalizationIssueCode
-from arbiscan.providers import ProviderErrorKind, build_phase5_synthetic_scenario
+from arbiscan.providers import ProviderErrorKind
+from arbiscan.providers.synthetic import build_phase5_synthetic_scenario
 from arbiscan.services import BookIssueCode, VerticalSliceResult, run_vertical_slice
 
 

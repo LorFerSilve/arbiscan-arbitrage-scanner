@@ -40,6 +40,7 @@ class NormalizationIssueCode(StrEnum):
     SELECTION_MARKET_MISMATCH = "selection_market_mismatch"
     STALE_SNAPSHOT = "stale_snapshot"
     FUTURE_SNAPSHOT = "future_snapshot"
+    FUTURE_INGESTION = "future_ingestion"
     INACTIVE_MARKET = "inactive_market"
     INACTIVE_SELECTION = "inactive_selection"
     UNSUPPORTED_ODDS_FORMAT = "unsupported_odds_format"
@@ -196,6 +197,19 @@ def normalize_source_snapshot(
             ),
         )
 
+    if snapshot.ingested_at > now:
+        return NormalizationResult(
+            quotes=(),
+            issues=(
+                _issue(
+                    NormalizationIssueCode.FUTURE_INGESTION,
+                    provider,
+                    event,
+                    "snapshot was ingested after the evaluation time",
+                ),
+            ),
+        )
+
     effective_timestamp = snapshot.source_timestamp or snapshot.ingested_at
     age = now - effective_timestamp
     if age < timedelta(0):
@@ -206,7 +220,7 @@ def normalize_source_snapshot(
                     NormalizationIssueCode.FUTURE_SNAPSHOT,
                     provider,
                     event,
-                    "snapshot effective timestamp lies in the future",
+                    "snapshot source timestamp lies in the future",
                 ),
             ),
         )

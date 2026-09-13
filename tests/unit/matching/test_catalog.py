@@ -1,9 +1,13 @@
 """Tests for explicit Phase 5 source-to-canonical identity mappings."""
 
 import asyncio
+from dataclasses import replace
 
-from arbiscan.domain import EventId, MarketId, SelectionId, Sport
-from arbiscan.providers import build_phase5_synthetic_scenario
+import pytest
+
+from arbiscan.domain import EventId, MarketId, ParticipantId, SelectionId, Sport
+from arbiscan.matching import CanonicalRegistry
+from arbiscan.providers.synthetic import build_phase5_synthetic_scenario
 
 
 def test_registry_exposes_complete_three_way_market_identity() -> None:
@@ -32,3 +36,40 @@ def test_provider_hooks_do_not_guess_unmapped_lookalike_event() -> None:
     events = asyncio.run(beta.discover_events(competitions[0].external_id))
     mismatch_event = next(event for event in events if event.external_id == "beta:lookalike")
     assert hooks.event_id(mismatch_event) is None
+
+
+def test_registry_rejects_unknown_participant_selection_reference() -> None:
+    scenario = build_phase5_synthetic_scenario()
+    selection = scenario.registry.selections[0]
+    invalid = replace(selection, participant_id=ParticipantId("participant:unknown"))
+    selections = (invalid, *scenario.registry.selections[1:])
+
+    with pytest.raises(ValueError, match="unknown participant"):
+        CanonicalRegistry(
+            competitions=scenario.registry.competitions,
+            participants=scenario.registry.participants,
+            events=scenario.registry.events,
+            markets=scenario.registry.markets,
+            selections=selections,
+        )
+
+
+def test_registry_rejects_participant_from_another_event() -> None:
+    scenario = build_phase5_synthetic_scenario()
+    selection = scenario.registry.selections[0]
+    another_event_participant = next(
+        participant
+        for participant in scenario.registry.participants
+        if participant.id.value == "participant:everton"
+    )
+    invalid = replace(selection, participant_id=another_event_participant.id)
+    selections = (invalid, *scenario.registry.selections[1:])
+
+    with pytest.raises(ValueError, match="outside its event"):
+        CanonicalRegistry(
+            competitions=scenario.registry.competitions,
+            participants=scenario.registry.participants,
+            events=scenario.registry.events,
+            markets=scenario.registry.markets,
+            selections=selections,
+        )

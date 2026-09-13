@@ -24,16 +24,8 @@ from arbiscan.providers.models import (
     SourceSelectionQuote,
 )
 from arbiscan.providers.resilience import ProviderCallPolicy, ProviderExecutor
-from arbiscan.providers.synthetic import (
-    PHASE5_AS_OF,
-    PHASE5_FRESHNESS_WINDOW,
-    SyntheticScenario,
-    build_phase5_synthetic_scenario,
-)
 
 __all__ = [
-    "PHASE5_AS_OF",
-    "PHASE5_FRESHNESS_WINDOW",
     "CanonicalIdHooks",
     "FakeProvider",
     "FakeProviderFixtures",
@@ -56,6 +48,4 @@ __all__ = [
     "SourceOddsFormat",
     "SourceParticipant",
     "SourceSelectionQuote",
-    "SyntheticScenario",
-    "build_phase5_synthetic_scenario",
 ]

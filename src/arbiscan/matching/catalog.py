@@ -17,6 +17,7 @@ from arbiscan.domain import (
     ParticipantId,
     Selection,
     SelectionId,
+    SelectionKind,
 )
 from arbiscan.providers.models import (
     CanonicalIdHooks,
@@ -92,8 +93,18 @@ class CanonicalRegistry:
             if market.event_id not in event_map:
                 raise ValueError("registry market references an unknown event")
         for selection in selections:
-            if selection.market_id not in market_map:
+            market = market_map.get(selection.market_id)
+            if market is None:
                 raise ValueError("registry selection references an unknown market")
+            if selection.kind is SelectionKind.PARTICIPANT:
+                participant_id = selection.participant_id
+                if participant_id is None or participant_id not in participant_map:
+                    raise ValueError("registry participant selection references an unknown participant")
+                event = event_map[market.event_id]
+                if participant_id not in {participant.id for participant in event.participants}:
+                    raise ValueError(
+                        "registry participant selection references a participant outside its event"
+                    )
 
         object.__setattr__(self, "competitions", competitions)
         object.__setattr__(self, "participants", participants)

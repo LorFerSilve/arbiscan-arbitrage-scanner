@@ -56,6 +56,37 @@ def _issue(error: ProviderError, *, external_event_id: str | None = None) -> Ing
     )
 
 
+def _snapshot_ownership_issue(
+    adapter: ProviderAdapter,
+    event: SourceEvent,
+    snapshot: OddsSnapshot,
+) -> IngestionIssue | None:
+    """Reject cached/misrouted responses before they can be attributed canonically."""
+    if snapshot.provider_id != adapter.provider.id:
+        return IngestionIssue(
+            provider_id=adapter.provider.id,
+            operation=ProviderOperation.FETCH_ODDS.value,
+            kind=ProviderErrorKind.MALFORMED_RESPONSE,
+            detail=(
+                "odds snapshot provider_id does not match the adapter provider: "
+                f"expected {adapter.provider.id.value!r}, got {snapshot.provider_id.value!r}"
+            ),
+            external_event_id=event.external_id,
+        )
+    if snapshot.external_event_id != event.external_id:
+        return IngestionIssue(
+            provider_id=adapter.provider.id,
+            operation=ProviderOperation.FETCH_ODDS.value,
+            kind=ProviderErrorKind.MALFORMED_RESPONSE,
+            detail=(
+                "odds snapshot external_event_id does not match the requested event: "
+                f"expected {event.external_id!r}, got {snapshot.external_event_id!r}"
+            ),
+            external_event_id=event.external_id,
+        )
+    return None
+
+
 async def collect_snapshots(
     adapters: tuple[ProviderAdapter, ...],
     sport: Sport,
@@ -110,6 +141,12 @@ async def collect_snapshots(
                     continue
                 if snapshot is None:
                     continue
+
+                ownership_issue = _snapshot_ownership_issue(adapter, event, snapshot)
+                if ownership_issue is not None:
+                    issues.append(ownership_issue)
+                    continue
+
                 snapshots.append(
                     IngestedSnapshot(
                         provider=adapter.provider,
