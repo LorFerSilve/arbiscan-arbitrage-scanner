@@ -98,7 +98,7 @@ The exact `S < 1` decision is calculated using rational numbers derived lossless
 
 from being misclassified because a finite decimal approximation of `1/3` was summed three times.
 
-Public probability/margin values are materialized under a private 60-significant-digit Decimal context. Caller changes to the process-global Decimal context therefore do not control the core formula output.
+Public probability/margin values are materialized under a private 60-significant-digit Decimal context. Stake totals, payout comparisons, and guaranteed-profit calculations use the same controlled precision policy. Caller changes to the process-global Decimal context therefore do not control the core calculation output.
 
 ## Minimum theoretical margin
 
@@ -162,10 +162,13 @@ Bookmaker minimum stakes can distort the simple proportional formula. Phase 3 th
 2. pin any outcome whose equalized stake would fall below its effective minimum;
 3. recompute the target payout with the remaining bankroll and unpinned outcomes;
 4. repeat until all remaining outcomes satisfy their minimums;
-5. cap the target by every effective maximum stake;
-6. create the adjacent valid lower/upper increment-grid candidates around that continuous target;
-7. evaluate deterministic combinations implied by candidate payout levels;
-8. select the candidate plan with highest conservative guaranteed profit, then deterministic tie-breaks.
+5. cap the target by every effective maximum stake.
+
+That continuous target is only the starting upper bound for the executable discrete search. For a candidate guaranteed payout, the allocator computes the **minimum valid increment-grid stake** required by every outcome to reach that payout after conservative currency rounding.
+
+If the candidate is over bankroll, non-profitable after rounding, or below the configured guaranteed-profit threshold, the allocator does not simply stop at the nearest floor/ceiling stake pair. Instead it moves to the next relevant lower payout breakpoint: the highest conservative payout that would become reachable if one currently required stake were reduced by one valid increment. It then recomputes the minimum required stakes for that new target and repeats.
+
+This event-driven descent matters because the continuous optimum can round poorly. For example, with odds `1.5 / 3.5`, a bankroll of `0.25`, EUR-cent increments, and cent payout rounding, the nearest continuous-target grid allocation has no guaranteed profit. A lower allocation of `0.16 / 0.07` produces conservative payouts of `0.24 / 0.24`, stakes only `0.23`, and therefore `0.01` guaranteed profit. The breakpoint search finds that plan.
 
 The final plan may use less than the supplied bankroll when limits or rounding make additional stake economically harmful.
 
