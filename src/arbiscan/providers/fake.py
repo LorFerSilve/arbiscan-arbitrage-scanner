@@ -273,7 +273,10 @@ class FakeProvider(ProviderAdapter):
         competition_ids = {competition.external_id for competition in self._fixtures.competitions}
         if len(competition_ids) != len(self._fixtures.competitions):
             raise ProviderContractError("fake competition external IDs must be unique")
-        if any(competition.sport not in self._fixtures.sports for competition in self._fixtures.competitions):
+        if any(
+            competition.sport not in self._fixtures.sports
+            for competition in self._fixtures.competitions
+        ):
             raise ProviderContractError("fake competition sport must be declared by the provider")
 
         event_ids = {event.external_id for event in self._fixtures.events}

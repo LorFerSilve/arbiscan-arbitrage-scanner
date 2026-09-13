@@ -36,8 +36,7 @@ async def assert_provider_conformance(case: ProviderContractCase) -> None:
 
     competitions = await adapter.discover_competitions(case.sport)
     assert any(
-        competition.external_id == case.competition_external_id
-        for competition in competitions
+        competition.external_id == case.competition_external_id for competition in competitions
     )
     assert competitions == await adapter.discover_competitions(case.sport)
 
@@ -57,19 +56,13 @@ async def assert_provider_conformance(case: ProviderContractCase) -> None:
 
     if case.expect_streaming:
         assert adapter.capabilities.supports(ProviderCapability.ODDS_STREAMING)
-        streamed = [
-            update
-            async for update in adapter.stream_odds((case.event_external_id,))
-        ]
+        streamed = [update async for update in adapter.stream_odds((case.event_external_id,))]
         assert streamed
         assert all(update.provider_id == case.expected_provider_id for update in streamed)
     else:
         assert not adapter.capabilities.supports(ProviderCapability.ODDS_STREAMING)
         try:
-            _ = [
-                update
-                async for update in adapter.stream_odds((case.event_external_id,))
-            ]
+            _ = [update async for update in adapter.stream_odds((case.event_external_id,))]
         except ProviderError as exc:
             assert exc.kind is ProviderErrorKind.UNSUPPORTED
         else:

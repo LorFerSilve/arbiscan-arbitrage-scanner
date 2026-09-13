@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable
 from datetime import timedelta
 
 from arbiscan.domain import Provider, ProviderId, ProviderKind, Sport
@@ -33,12 +33,8 @@ def make_provider(
     return FakeProvider(
         provider=provider,
         fixtures=FakeProviderFixtures(sports=(Sport.FOOTBALL,)),
-        scripted_failures=(
-            {ProviderOperation.SUPPORTED_SPORTS: failures} if failures else None
-        ),
-        operation_delays=(
-            {ProviderOperation.SUPPORTED_SPORTS: delay} if delay > 0 else None
-        ),
+        scripted_failures=({ProviderOperation.SUPPORTED_SPORTS: failures} if failures else None),
+        operation_delays=({ProviderOperation.SUPPORTED_SPORTS: delay} if delay > 0 else None),
     )
 
 

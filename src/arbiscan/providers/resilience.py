@@ -51,9 +51,7 @@ class ProviderCallPolicy:
         if self.base_backoff_seconds < 0:
             raise ProviderContractError("base_backoff_seconds cannot be negative")
         if self.max_backoff_seconds < self.base_backoff_seconds:
-            raise ProviderContractError(
-                "max_backoff_seconds cannot be below base_backoff_seconds"
-            )
+            raise ProviderContractError("max_backoff_seconds cannot be below base_backoff_seconds")
         if not 0 <= self.jitter_ratio <= 1:
             raise ProviderContractError("jitter_ratio must be between zero and one")
 

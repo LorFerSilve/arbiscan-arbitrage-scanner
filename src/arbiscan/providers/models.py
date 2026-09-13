@@ -270,7 +270,9 @@ class SourceEvent:
         if not participants:
             raise ProviderContractError("source event requires at least one participant")
         if any(not isinstance(participant, SourceParticipant) for participant in participants):
-            raise ProviderContractError("source event participants must be SourceParticipant values")
+            raise ProviderContractError(
+                "source event participants must be SourceParticipant values"
+            )
         participant_ids = [participant.external_id for participant in participants]
         if len(set(participant_ids)) != len(participant_ids):
             raise ProviderContractError("source event participant IDs must be unique")
