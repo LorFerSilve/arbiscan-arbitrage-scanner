@@ -1,6 +1,6 @@
 # Phase 2 completion record
 
-Status: **Complete pending CI verification on the Phase 2 pull request**
+Status: **Complete**
 
 ## Roadmap exit criteria
 
@@ -19,7 +19,19 @@ Satisfied by:
 - `docs/domain/canonical-model.md`;
 - `docs/domain/serialization.md`;
 - ADR-0003;
-- unit coverage for construction validation, immutable/type-sensitive identity, non-team events, explicit market semantics, source provenance, timezone normalization, exact decimal precision, serialization round trips, malformed data, and fail-closed decoding.
+- unit coverage for construction validation, immutable/type-sensitive identity, non-team events, explicit market semantics, provider semantics, source provenance, timezone normalization, exact decimal precision, serialization round trips, malformed data, and fail-closed decoding.
+
+## Verification
+
+The Phase 2 pull request was validated on the pinned Python 3.13.15 / uv toolchain with:
+
+- `uv lock --check`;
+- Ruff formatting and linting;
+- strict mypy;
+- pytest: 16 tests passed;
+- `pip-audit`: no known vulnerabilities found.
+
+GitHub CodeQL default setup is already enabled for the repository. An attempted duplicate advanced CodeQL workflow completed analysis but GitHub rejected its SARIF upload specifically because default setup was enabled; the duplicate workflow was therefore removed rather than disabling the repository's existing default security configuration.
 
 ## Deliberate Phase 2 boundaries
 
