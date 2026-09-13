@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from decimal import Decimal
+from decimal import ROUND_HALF_EVEN, Context, Decimal, localcontext
 
 from arbiscan.arbitrage.errors import ArbitrageMathError, StakeConstraintError
 from arbiscan.domain import EventId, MarketId, OddsQuote, QuoteId, SelectionId
+
+_EVALUATION_CONTEXT = Context(prec=60, rounding=ROUND_HALF_EVEN)
 
 
 def _require_decimal(value: object, *, field: str) -> Decimal:
@@ -88,7 +90,10 @@ class ArbitrageEvaluation:
             raise ArbitrageMathError("return multiplier must be positive")
         if threshold < Decimal("0"):
             raise ArbitrageMathError("minimum profit margin cannot be negative")
-        if margin != return_multiplier - Decimal("1"):
+
+        with localcontext(_EVALUATION_CONTEXT):
+            expected_margin = return_multiplier - Decimal("1")
+        if margin != expected_margin:
             raise ArbitrageMathError("profit margin must equal return multiplier minus one")
 
         expected_flag = implied_sum < Decimal("1") and margin > Decimal("0") and margin >= threshold
