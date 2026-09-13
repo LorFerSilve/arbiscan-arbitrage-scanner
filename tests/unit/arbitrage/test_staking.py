@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from datetime import UTC, datetime
 from decimal import Decimal
-
-import pytest
 
 from arbiscan.arbitrage import (
     CurrencyRoundingPolicy,
@@ -30,6 +29,16 @@ from arbiscan.domain import (
 
 NOW = datetime(2026, 9, 13, 13, 0, tzinfo=UTC)
 EUR = CurrencyRoundingPolicy(currency="EUR", quantum=Decimal("0.01"))
+
+
+def expect_stake_constraint_error(action: Callable[[], object], *, contains: str) -> None:
+    try:
+        action()
+    except StakeConstraintError as exc:
+        if contains not in str(exc):
+            raise AssertionError(f"expected error containing {contains!r}, got {exc!r}") from exc
+        return
+    raise AssertionError("expected StakeConstraintError")
 
 
 def make_quote(selection: str, odds: str, *, index: int) -> OddsQuote:
@@ -257,8 +266,8 @@ def test_increment_smaller_than_currency_quantum_is_rejected() -> None:
     )
     opportunity = make_opportunity(quotes)
 
-    with pytest.raises(StakeConstraintError, match="currency quantum"):
-        allocate_stakes(
+    expect_stake_constraint_error(
+        lambda: allocate_stakes(
             opportunity,
             quotes,
             bankroll=Decimal("100"),
@@ -271,4 +280,6 @@ def test_increment_smaller_than_currency_quantum_is_rejected() -> None:
                     stake_increment=Decimal("0.005"),
                 ),
             ),
-        )
+        ),
+        contains="currency quantum",
+    )
