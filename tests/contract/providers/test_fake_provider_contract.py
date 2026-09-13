@@ -10,6 +10,7 @@ from arbiscan.providers import (
     FakeProvider,
     FakeProviderFixtures,
     OddsSnapshot,
+    ProviderCapability,
     ProviderHealth,
     ProviderHealthState,
     RateLimitSnapshot,
@@ -29,7 +30,11 @@ NOW = datetime(2026, 9, 13, 10, 0, tzinfo=UTC)
 PROVIDER_ID = ProviderId("provider:fake")
 
 
-def build_provider(*, streaming: bool) -> tuple[FakeProvider, OddsSnapshot]:
+def build_provider(
+    *,
+    streaming: bool,
+    stream_has_update: bool = True,
+) -> tuple[FakeProvider, OddsSnapshot]:
     provider = Provider(
         id=PROVIDER_ID,
         name="Deterministic Fake",
@@ -91,7 +96,7 @@ def build_provider(*, streaming: bool) -> tuple[FakeProvider, OddsSnapshot]:
         competitions=(competition,),
         events=(event,),
         odds_snapshots=(snapshot,),
-        stream_snapshots=(snapshot,) if streaming else (),
+        stream_snapshots=(snapshot,) if streaming and stream_has_update else (),
     )
     fake = FakeProvider(
         provider=provider,
@@ -107,6 +112,7 @@ def build_provider(*, streaming: bool) -> tuple[FakeProvider, OddsSnapshot]:
             limit=100,
             remaining=87,
         ),
+        supports_streaming=streaming,
     )
     return fake, snapshot
 
@@ -137,3 +143,17 @@ def test_fake_provider_passes_shared_contract_with_streaming() -> None:
         expect_streaming=True,
     )
     asyncio.run(assert_provider_conformance(case))
+
+
+def test_streaming_capability_can_be_supported_while_stream_is_quiet() -> None:
+    provider, _snapshot = build_provider(streaming=True, stream_has_update=False)
+
+    async def scenario() -> None:
+        assert provider.capabilities.supports(ProviderCapability.ODDS_STREAMING)
+        updates = [
+            update
+            async for update in provider.stream_odds(("event:arsenal-chelsea",))
+        ]
+        assert updates == []
+
+    asyncio.run(scenario())

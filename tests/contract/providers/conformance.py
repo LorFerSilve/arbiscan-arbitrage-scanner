@@ -57,7 +57,6 @@ async def assert_provider_conformance(case: ProviderContractCase) -> None:
     if case.expect_streaming:
         assert adapter.capabilities.supports(ProviderCapability.ODDS_STREAMING)
         streamed = [update async for update in adapter.stream_odds((case.event_external_id,))]
-        assert streamed
         assert all(update.provider_id == case.expected_provider_id for update in streamed)
     else:
         assert not adapter.capabilities.supports(ProviderCapability.ODDS_STREAMING)

@@ -135,7 +135,9 @@ class ProviderExecutor:
             raise ProviderContractError("random_sample must return a numeric value")
         if not math.isfinite(float(sample)) or not 0 <= sample <= 1:
             raise ProviderContractError("random_sample must return a finite value in [0, 1]")
-        delay = exponential + exponential * self._policy.jitter_ratio * float(sample)
+
+        jittered = exponential + exponential * self._policy.jitter_ratio * float(sample)
+        delay = min(self._policy.max_backoff_seconds, jittered)
         if error.retry_after is not None:
             delay = max(delay, error.retry_after.total_seconds())
         return float(delay)

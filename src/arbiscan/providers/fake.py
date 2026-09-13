@@ -76,6 +76,7 @@ class FakeProvider(ProviderAdapter):
         health: ProviderHealth | None = None,
         rate_limit: RateLimitSnapshot | None = None,
         canonical_id_hooks: CanonicalIdHooks | None = None,
+        supports_streaming: bool = False,
         scripted_failures: Mapping[ProviderOperation, tuple[ProviderError, ...]] | None = None,
         operation_delays: Mapping[ProviderOperation, float] | None = None,
     ) -> None:
@@ -85,6 +86,12 @@ class FakeProvider(ProviderAdapter):
             raise ProviderContractError("FakeProvider requires ProviderKind.SYNTHETIC")
         if not isinstance(fixtures, FakeProviderFixtures):
             raise ProviderContractError("fixtures must be FakeProviderFixtures")
+        if type(supports_streaming) is not bool:
+            raise ProviderContractError("supports_streaming must be bool")
+        if fixtures.stream_snapshots and not supports_streaming:
+            raise ProviderContractError(
+                "stream fixtures require supports_streaming=True"
+            )
 
         self._provider = provider
         self._fixtures = fixtures
@@ -113,7 +120,7 @@ class FakeProvider(ProviderAdapter):
             capabilities.add(ProviderCapability.RATE_LIMIT_METADATA)
         if canonical_id_hooks is not None:
             capabilities.add(ProviderCapability.CANONICAL_ID_HINTS)
-        if fixtures.stream_snapshots:
+        if supports_streaming:
             capabilities.add(ProviderCapability.ODDS_STREAMING)
         self._capabilities = ProviderCapabilities(frozenset(capabilities))
 

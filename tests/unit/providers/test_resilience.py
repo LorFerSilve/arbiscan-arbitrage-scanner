@@ -79,6 +79,42 @@ def test_retryable_failure_is_retried_with_bounded_backoff() -> None:
     assert delays == [0.1]
 
 
+def test_jittered_backoff_never_exceeds_configured_cap() -> None:
+    failure = ProviderError(
+        provider_id=PROVIDER_ID,
+        operation=ProviderOperation.SUPPORTED_SPORTS.value,
+        kind=ProviderErrorKind.TRANSPORT,
+        message="temporary connection reset",
+        retryable=True,
+    )
+    provider = make_provider(failures=(failure,))
+    delays: list[float] = []
+
+    async def sleep(delay: float) -> None:
+        delays.append(delay)
+
+    executor = ProviderExecutor(
+        provider,
+        policy=ProviderCallPolicy(
+            timeout_seconds=1.0,
+            max_attempts=2,
+            base_backoff_seconds=1.0,
+            max_backoff_seconds=1.0,
+            jitter_ratio=1.0,
+        ),
+        sleep=sleep,
+        random_sample=lambda: 1.0,
+    )
+    result = run(
+        executor.run(
+            ProviderOperation.SUPPORTED_SPORTS,
+            provider.supported_sports,
+        )
+    )
+    assert result == (Sport.FOOTBALL,)
+    assert delays == [1.0]
+
+
 def test_retry_after_overrides_shorter_exponential_delay() -> None:
     failure = ProviderError(
         provider_id=PROVIDER_ID,
