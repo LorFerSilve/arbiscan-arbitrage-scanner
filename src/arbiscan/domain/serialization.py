@@ -12,6 +12,7 @@ from dataclasses import fields, is_dataclass
 from datetime import datetime
 from decimal import Decimal
 from enum import StrEnum
+from inspect import signature
 from typing import cast
 
 from arbiscan.domain.enums import (
@@ -124,6 +125,26 @@ def _string_field(mapping: dict[str, object], key: str) -> str:
     return value
 
 
+def _require_exact_keys(
+    mapping: dict[str, object],
+    expected: set[str],
+    *,
+    context: str,
+) -> None:
+    actual = set(mapping)
+    if actual == expected:
+        return
+
+    details: list[str] = []
+    missing = sorted(expected - actual)
+    unexpected = sorted(actual - expected)
+    if missing:
+        details.append(f"missing fields: {', '.join(missing)}")
+    if unexpected:
+        details.append(f"unexpected fields: {', '.join(unexpected)}")
+    raise DomainValidationError(f"{context} has invalid fields ({'; '.join(details)})")
+
+
 def _decode(value: object) -> object:
     if value is None or isinstance(value, (bool, int, str)):
         return value
@@ -137,12 +158,14 @@ def _decode(value: object) -> object:
     mapping = cast(dict[str, object], value)
 
     if "$decimal" in mapping:
+        _require_exact_keys(mapping, {"$decimal"}, context="serialized Decimal")
         try:
             return Decimal(_string_field(mapping, "$decimal"))
         except Exception as exc:
             raise DomainValidationError("invalid serialized Decimal") from exc
 
     if "$datetime" in mapping:
+        _require_exact_keys(mapping, {"$datetime"}, context="serialized datetime")
         raw = _string_field(mapping, "$datetime")
         try:
             return datetime.fromisoformat(raw)
@@ -150,6 +173,7 @@ def _decode(value: object) -> object:
             raise DomainValidationError("invalid serialized datetime") from exc
 
     if "$enum" in mapping:
+        _require_exact_keys(mapping, {"$enum", "value"}, context="serialized enum")
         enum_name = _string_field(mapping, "$enum")
         enum_type = _ENUM_TYPES.get(enum_name)
         if enum_type is None:
@@ -160,6 +184,7 @@ def _decode(value: object) -> object:
             raise DomainValidationError(f"invalid value for serialized enum {enum_name}") from exc
 
     if "$tuple" in mapping:
+        _require_exact_keys(mapping, {"$tuple"}, context="serialized tuple")
         items = mapping["$tuple"]
         if not isinstance(items, list):
             raise DomainValidationError("serialized tuple payload must be a list")
@@ -170,7 +195,23 @@ def _decode(value: object) -> object:
         factory = _MODEL_TYPES.get(type_name)
         if factory is None:
             raise DomainValidationError(f"unknown serialized domain type: {type_name}")
-        kwargs = {key: _decode(item) for key, item in mapping.items() if key != "$type"}
+
+        expected_fields = set(signature(factory).parameters)
+        actual_fields = set(mapping) - {"$type"}
+        if actual_fields != expected_fields:
+            details: list[str] = []
+            missing = sorted(expected_fields - actual_fields)
+            unexpected = sorted(actual_fields - expected_fields)
+            if missing:
+                details.append(f"missing fields: {', '.join(missing)}")
+            if unexpected:
+                details.append(f"unexpected fields: {', '.join(unexpected)}")
+            raise DomainValidationError(
+                f"serialized payload for {type_name} has invalid fields "
+                f"({'; '.join(details)})"
+            )
+
+        kwargs = {key: _decode(mapping[key]) for key in expected_fields}
         try:
             return factory(**kwargs)
         except (TypeError, ValueError) as exc:
@@ -195,11 +236,14 @@ def loads[T](data: str, expected_type: type[T]) -> T:
     if not isinstance(parsed, dict) or not all(isinstance(key, str) for key in parsed):
         raise DomainValidationError("canonical JSON root must be an object")
     envelope = cast(dict[str, object], parsed)
+    _require_exact_keys(
+        envelope,
+        {"schema_version", "payload"},
+        context="canonical JSON envelope",
+    )
 
-    if envelope.get("schema_version") != SCHEMA_VERSION:
+    if envelope["schema_version"] != SCHEMA_VERSION:
         raise DomainValidationError("unsupported canonical schema version")
-    if "payload" not in envelope:
-        raise DomainValidationError("canonical JSON envelope is missing payload")
 
     result = _decode(envelope["payload"])
     if not isinstance(result, expected_type):
