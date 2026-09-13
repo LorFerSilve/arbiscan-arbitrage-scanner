@@ -1,1 +1,77 @@
-"""ArbiScan domain package."""
+"""Provider-independent canonical domain API for ArbiScan."""
+
+from arbiscan.domain.enums import (
+    EventStatus,
+    MarketKind,
+    MarketPeriod,
+    OpportunityStatus,
+    ParticipantKind,
+    ProviderKind,
+    QuoteStatus,
+    SelectionKind,
+    Sport,
+)
+from arbiscan.domain.errors import DomainValidationError
+from arbiscan.domain.identifiers import (
+    CompetitionId,
+    EventId,
+    MarketId,
+    OpportunityId,
+    ParticipantId,
+    ProviderId,
+    QuoteId,
+    SelectionId,
+    StakePlanId,
+)
+from arbiscan.domain.models import (
+    Competition,
+    Event,
+    Market,
+    OddsQuote,
+    Opportunity,
+    Participant,
+    Provider,
+    ProviderEventReference,
+    ProviderMarketReference,
+    Selection,
+    StakeAllocation,
+    StakePlan,
+)
+from arbiscan.domain.serialization import SCHEMA_VERSION, dumps, loads
+
+__all__ = [
+    "SCHEMA_VERSION",
+    "Competition",
+    "CompetitionId",
+    "DomainValidationError",
+    "Event",
+    "EventId",
+    "EventStatus",
+    "Market",
+    "MarketId",
+    "MarketKind",
+    "MarketPeriod",
+    "OddsQuote",
+    "Opportunity",
+    "OpportunityId",
+    "OpportunityStatus",
+    "Participant",
+    "ParticipantId",
+    "ParticipantKind",
+    "Provider",
+    "ProviderEventReference",
+    "ProviderId",
+    "ProviderKind",
+    "ProviderMarketReference",
+    "QuoteId",
+    "QuoteStatus",
+    "Selection",
+    "SelectionId",
+    "SelectionKind",
+    "Sport",
+    "StakeAllocation",
+    "StakePlan",
+    "StakePlanId",
+    "dumps",
+    "loads",
+]
