@@ -367,6 +367,10 @@ class OddsQuote:
                 max_length=2048,
             ),
         )
+        if self.trace_id is None and self.raw_source_reference is None:
+            raise DomainValidationError(
+                "odds quote requires trace_id or raw_source_reference for auditability"
+            )
 
 
 @dataclass(frozen=True, slots=True)
