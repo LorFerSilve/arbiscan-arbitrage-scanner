@@ -72,8 +72,12 @@ class TheOddsApiConfig:
             raise ProviderContractError("The Odds API base_url must use HTTPS")
         object.__setattr__(self, "base_url", self.base_url.rstrip("/"))
 
-        regions = tuple(value.strip() for value in self.regions if isinstance(value, str))
-        markets = tuple(value.strip() for value in self.markets if isinstance(value, str))
+        if any(not isinstance(value, str) for value in self.regions):
+            raise ProviderContractError("The Odds API regions must contain text values")
+        if any(not isinstance(value, str) for value in self.markets):
+            raise ProviderContractError("The Odds API markets must contain text values")
+        regions = tuple(value.strip() for value in self.regions)
+        markets = tuple(value.strip() for value in self.markets)
         if not regions or any(not value for value in regions) or len(set(regions)) != len(regions):
             raise ProviderContractError("The Odds API regions must be unique non-empty text")
         if not markets or any(not value for value in markets) or len(set(markets)) != len(markets):
@@ -397,24 +401,42 @@ class TheOddsApiProvider(ProviderAdapter):
         return tuple(sorted(values, key=lambda value: value.value))
 
     async def discover_competitions(self, sport: Sport) -> tuple[SourceCompetition, ...]:
+        operation = ProviderOperation.DISCOVER_COMPETITIONS
         if not isinstance(sport, Sport):
             raise self._error(
-                ProviderOperation.DISCOVER_COMPETITIONS,
+                operation,
                 ProviderErrorKind.INVALID_REQUEST,
                 "sport must be a canonical Sport",
             )
-        records = await self._load_sports(ProviderOperation.DISCOVER_COMPETITIONS)
-        competitions = (
-            SourceCompetition(
-                external_id=record.key,
-                sport=sport,
-                name=record.title,
-                region=record.group,
+
+        payload, response = await self._request_json(operation, "/sports", {"all": "false"})
+        try:
+            records = _sport_records(payload)
+            competitions = tuple(
+                sorted(
+                    (
+                        SourceCompetition(
+                            external_id=record.key,
+                            sport=sport,
+                            name=record.title,
+                            region=record.group,
+                        )
+                        for record in records
+                        if record.active and _GROUP_TO_SPORT.get(record.group) is sport
+                    ),
+                    key=lambda value: value.external_id,
+                )
             )
-            for record in records
-            if record.active and _GROUP_TO_SPORT.get(record.group) is sport
+        except (_SchemaError, ProviderContractError) as exc:
+            raise self._validated_payload_error(operation, response, exc) from exc
+
+        self._emit(
+            operation,
+            outcome=ProviderTelemetryOutcome.SUCCESS,
+            response=response,
+            item_count=len(competitions),
         )
-        return tuple(sorted(competitions, key=lambda value: value.external_id))
+        return competitions
 
     async def discover_events(
         self,
@@ -452,7 +474,7 @@ class TheOddsApiProvider(ProviderAdapter):
             query["commenceTimeFrom"] = after.isoformat().replace("+00:00", "Z")
         if before is not None:
             query["commenceTimeTo"] = before.isoformat().replace("+00:00", "Z")
-        payload = await self._request_json(
+        payload, response = await self._request_json(
             operation,
             f"/sports/{quote(competition_id, safe='')}/events",
             query,
@@ -462,11 +484,19 @@ class TheOddsApiProvider(ProviderAdapter):
                 _source_event(value, competition=competition)
                 for value in _sequence(payload, path="events")
             )
-        except _SchemaError as exc:
-            raise self._malformed(operation, str(exc)) from exc
+        except (_SchemaError, ProviderContractError) as exc:
+            raise self._validated_payload_error(operation, response, exc) from exc
+
         for event in events:
             self._event_competitions[event.external_id] = competition_id
-        return tuple(sorted(events, key=lambda value: (value.scheduled_start, value.external_id)))
+        ordered = tuple(sorted(events, key=lambda value: (value.scheduled_start, value.external_id)))
+        self._emit(
+            operation,
+            outcome=ProviderTelemetryOutcome.SUCCESS,
+            response=response,
+            item_count=len(ordered),
+        )
+        return ordered
 
     async def fetch_odds(self, external_event_id: str) -> OddsSnapshot | None:
         operation = ProviderOperation.FETCH_ODDS
@@ -483,7 +513,7 @@ class TheOddsApiProvider(ProviderAdapter):
                 "event must be discovered before fetching event odds",
             )
 
-        payload = await self._request_json(
+        payload, response = await self._request_json(
             operation,
             f"/sports/{quote(competition_id, safe='')}/events/{quote(event_id, safe='')}/odds",
             {
@@ -503,17 +533,24 @@ class TheOddsApiProvider(ProviderAdapter):
             if returned_sport != competition_id:
                 raise _SchemaError("event.sport_key does not match the discovered competition")
             markets = _source_markets(item, event_id=event_id)
-        except _SchemaError as exc:
-            raise self._malformed(operation, str(exc)) from exc
+            ingested_at = _utc(self._clock(), field_name="clock")
+            snapshot = OddsSnapshot(
+                provider_id=self.provider.id,
+                external_event_id=event_id,
+                markets=markets,
+                ingested_at=ingested_at,
+                trace_id=f"the-odds-api:{event_id}:{ingested_at.isoformat()}",
+            )
+        except (_SchemaError, ProviderContractError) as exc:
+            raise self._validated_payload_error(operation, response, exc) from exc
 
-        ingested_at = _utc(self._clock(), field_name="clock")
-        return OddsSnapshot(
-            provider_id=self.provider.id,
-            external_event_id=event_id,
-            markets=markets,
-            ingested_at=ingested_at,
-            trace_id=f"the-odds-api:{event_id}:{ingested_at.isoformat()}",
+        self._emit(
+            operation,
+            outcome=ProviderTelemetryOutcome.SUCCESS,
+            response=response,
+            item_count=len(snapshot.markets),
         )
+        return snapshot
 
     def stream_odds(self, external_event_ids: tuple[str, ...]) -> AsyncIterator[OddsSnapshot]:
         _ = external_event_ids
@@ -526,12 +563,11 @@ class TheOddsApiProvider(ProviderAdapter):
     async def health(self) -> ProviderHealth:
         operation = ProviderOperation.HEALTH
         try:
-            payload = await self._request_json(operation, "/sports", {"all": "false"})
-            _ = _sport_records(payload)
+            _ = await self._load_sports(operation)
         except ProviderError as error:
             state = (
                 ProviderHealthState.DEGRADED
-                if error.kind is ProviderErrorKind.RATE_LIMITED
+                if error.kind in {ProviderErrorKind.RATE_LIMITED, ProviderErrorKind.MALFORMED_RESPONSE}
                 else ProviderHealthState.UNAVAILABLE
             )
             return ProviderHealth(
@@ -539,13 +575,6 @@ class TheOddsApiProvider(ProviderAdapter):
                 state=state,
                 checked_at=_utc(self._clock(), field_name="clock"),
                 detail=f"{error.kind.value}: {error}",
-            )
-        except _SchemaError as exc:
-            return ProviderHealth(
-                provider_id=self.provider.id,
-                state=ProviderHealthState.DEGRADED,
-                checked_at=_utc(self._clock(), field_name="clock"),
-                detail=f"malformed_response: {exc}",
             )
         return ProviderHealth(
             provider_id=self.provider.id,
@@ -555,22 +584,29 @@ class TheOddsApiProvider(ProviderAdapter):
 
     async def rate_limit(self) -> RateLimitSnapshot | None:
         if self._last_rate_limit is None:
-            _ = await self._request_json(ProviderOperation.RATE_LIMIT, "/sports", {"all": "false"})
+            _ = await self._load_sports(ProviderOperation.RATE_LIMIT)
         return self._last_rate_limit
 
     async def _load_sports(self, operation: ProviderOperation) -> tuple[_SportRecord, ...]:
-        payload = await self._request_json(operation, "/sports", {"all": "false"})
+        payload, response = await self._request_json(operation, "/sports", {"all": "false"})
         try:
-            return _sport_records(payload)
+            records = _sport_records(payload)
         except _SchemaError as exc:
-            raise self._malformed(operation, str(exc)) from exc
+            raise self._validated_payload_error(operation, response, exc) from exc
+        self._emit(
+            operation,
+            outcome=ProviderTelemetryOutcome.SUCCESS,
+            response=response,
+            item_count=len(records),
+        )
+        return records
 
     async def _request_json(
         self,
         operation: ProviderOperation,
         path: str,
         query: Mapping[str, str],
-    ) -> object:
+    ) -> tuple[object, HttpResponse]:
         request_query = dict(query)
         request_query["apiKey"] = self._config.api_key
         try:
@@ -613,14 +649,22 @@ class TheOddsApiProvider(ProviderAdapter):
             )
             raise error from exc
 
-        item_count = len(payload) if isinstance(payload, list) else 1
+        return payload, response
+
+    def _validated_payload_error(
+        self,
+        operation: ProviderOperation,
+        response: HttpResponse,
+        error: Exception,
+    ) -> ProviderError:
+        provider_error = self._malformed(operation, str(error))
         self._emit(
             operation,
-            outcome=ProviderTelemetryOutcome.SUCCESS,
+            outcome=ProviderTelemetryOutcome.FAILURE,
             response=response,
-            item_count=item_count,
+            error=provider_error,
         )
-        return payload
+        return provider_error
 
     def _capture_rate_limit(self, response: HttpResponse) -> None:
         remaining = _header_int(response.headers, "x-requests-remaining")
