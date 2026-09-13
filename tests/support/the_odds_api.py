@@ -59,9 +59,7 @@ class FixtureHttpTransport:
             body = _fixture_bytes("sports.json")
         elif url.endswith("/sports/soccer_epl/events"):
             body = _fixture_bytes("events_soccer_epl.json")
-        elif url.endswith(
-            "/sports/soccer_epl/events/epl-arsenal-chelsea-20260920/odds"
-        ):
+        elif url.endswith("/sports/soccer_epl/events/epl-arsenal-chelsea-20260920/odds"):
             body = _fixture_bytes("odds_event.json")
         else:
             raise AssertionError(f"unexpected fixture request route: {url}")
