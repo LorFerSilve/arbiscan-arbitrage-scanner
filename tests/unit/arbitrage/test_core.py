@@ -89,9 +89,7 @@ def test_exact_fair_three_way_book_is_not_misclassified_by_repeating_thirds() ->
 
 
 def test_three_way_football_and_arbitrary_n_outcome_books_are_supported() -> None:
-    assert is_theoretical_arbitrage(
-        (Decimal("3.60"), Decimal("3.60"), Decimal("3.60"))
-    )
+    assert is_theoretical_arbitrage((Decimal("3.60"), Decimal("3.60"), Decimal("3.60")))
     assert is_theoretical_arbitrage(tuple(Decimal("8") for _ in range(7)))
 
 
