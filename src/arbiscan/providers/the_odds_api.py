@@ -391,7 +391,11 @@ class TheOddsApiProvider(ProviderAdapter):
 
     async def supported_sports(self) -> tuple[Sport, ...]:
         records = await self._load_sports(ProviderOperation.SUPPORTED_SPORTS)
-        values = {_GROUP_TO_SPORT[record.group] for record in records if record.group in _GROUP_TO_SPORT}
+        values = {
+            _GROUP_TO_SPORT[record.group]
+            for record in records
+            if record.group in _GROUP_TO_SPORT
+        }
         return tuple(sorted(values, key=lambda value: value.value))
 
     async def discover_competitions(self, sport: Sport) -> tuple[SourceCompetition, ...]:
@@ -456,7 +460,10 @@ class TheOddsApiProvider(ProviderAdapter):
             query,
         )
         try:
-            events = tuple(_source_event(value, competition=competition) for value in _sequence(payload, path="events"))
+            events = tuple(
+                _source_event(value, competition=competition)
+                for value in _sequence(payload, path="events")
+            )
         except _SchemaError as exc:
             raise self._malformed(operation, str(exc)) from exc
         for event in events:
