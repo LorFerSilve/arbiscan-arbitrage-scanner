@@ -92,8 +92,8 @@ async def collect_snapshots(
             try:
                 events = await executor.run(
                     ProviderOperation.DISCOVER_EVENTS,
-                    lambda source=adapter, competition_id=competition.external_id: source.discover_events(
-                        competition_id
+                    lambda source=adapter, competition_id=competition.external_id: (
+                        source.discover_events(competition_id)
                     ),
                 )
             except ProviderError as error:
@@ -104,7 +104,9 @@ async def collect_snapshots(
                 try:
                     snapshot = await executor.run(
                         ProviderOperation.FETCH_ODDS,
-                        lambda source=adapter, event_id=event.external_id: source.fetch_odds(event_id),
+                        lambda source=adapter, event_id=event.external_id: source.fetch_odds(
+                            event_id
+                        ),
                     )
                 except ProviderError as error:
                     issues.append(_issue(error, external_event_id=event.external_id))
