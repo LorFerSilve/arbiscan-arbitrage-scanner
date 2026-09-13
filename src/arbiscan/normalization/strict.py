@@ -1,4 +1,4 @@
-"""Strict Phase 5 source-to-canonical conversion with fail-closed diagnostics."""
+"""Strict mapped source-to-canonical conversion with fail-closed diagnostics."""
 
 from __future__ import annotations
 
@@ -29,7 +29,7 @@ from arbiscan.providers.models import (
 
 
 class NormalizationIssueCode(StrEnum):
-    """Stable fail-closed reasons exercised by the Phase 5 synthetic matrix."""
+    """Stable fail-closed reasons emitted by strict mapped normalization."""
 
     MISSING_IDENTITY_HOOKS = "missing_identity_hooks"
     UNMAPPED_EVENT = "unmapped_event"
@@ -135,6 +135,14 @@ def _quote_id(
     )
 
 
+def _market_timestamp(
+    market: SourceMarket,
+    snapshot: OddsSnapshot,
+) -> tuple[datetime, datetime | None]:
+    source_timestamp = market.source_timestamp or snapshot.source_timestamp
+    return source_timestamp or snapshot.ingested_at, source_timestamp
+
+
 def normalize_source_snapshot(
     *,
     provider: Provider,
@@ -145,7 +153,14 @@ def normalize_source_snapshot(
     as_of: datetime,
     freshness_window: timedelta,
 ) -> NormalizationResult:
-    """Normalize one validated source snapshot using explicit canonical mappings only."""
+    """Normalize one validated source snapshot using explicit canonical mappings only.
+
+    This strict bridge deliberately performs no fuzzy identity matching and no odds
+    format conversion. Aggregators may identify the underlying bookmaker on each
+    ``SourceMarket``; when present, that bookmaker becomes the canonical quote
+    provider while ``provider`` remains the source/transport provider used for
+    diagnostics and raw provenance.
+    """
     now = _utc(as_of, field_name="as_of")
     if not isinstance(freshness_window, timedelta) or freshness_window <= timedelta(0):
         raise ValueError("freshness_window must be a positive timedelta")
@@ -210,34 +225,32 @@ def normalize_source_snapshot(
             ),
         )
 
-    effective_timestamp = snapshot.source_timestamp or snapshot.ingested_at
-    age = now - effective_timestamp
-    if age < timedelta(0):
-        return NormalizationResult(
-            quotes=(),
-            issues=(
+    for market in snapshot.markets:
+        effective_timestamp, quote_source_timestamp = _market_timestamp(market, snapshot)
+        age = now - effective_timestamp
+        if age < timedelta(0):
+            issues.append(
                 _issue(
                     NormalizationIssueCode.FUTURE_SNAPSHOT,
                     provider,
                     event,
-                    "snapshot source timestamp lies in the future",
-                ),
-            ),
-        )
-    if age > freshness_window:
-        return NormalizationResult(
-            quotes=(),
-            issues=(
+                    "market source timestamp lies in the future",
+                    market=market,
+                )
+            )
+            continue
+        if age > freshness_window:
+            issues.append(
                 _issue(
                     NormalizationIssueCode.STALE_SNAPSHOT,
                     provider,
                     event,
-                    "snapshot exceeds the configured freshness window",
-                ),
-            ),
-        )
+                    "market exceeds the configured freshness window",
+                    market=market,
+                )
+            )
+            continue
 
-    for market in snapshot.markets:
         market_id = hooks.market_id(market)
         canonical_market = None if market_id is None else registry.market(market_id)
         if market_id is None or canonical_market is None:
@@ -274,6 +287,7 @@ def normalize_source_snapshot(
             )
             continue
 
+        quote_provider = market.price_provider or provider
         for selection in market.selections:
             selection_id = hooks.selection_id(market, selection)
             canonical_selection = None if selection_id is None else registry.selection(selection_id)
@@ -319,7 +333,7 @@ def normalize_source_snapshot(
                         NormalizationIssueCode.UNSUPPORTED_ODDS_FORMAT,
                         provider,
                         event,
-                        "Phase 5 only accepts already-decimal synthetic odds",
+                        "strict normalization only accepts already-decimal odds",
                         market=market,
                         selection=selection,
                     )
@@ -343,13 +357,13 @@ def normalize_source_snapshot(
             quotes.append(
                 OddsQuote(
                     id=_quote_id(
-                        provider.id,
+                        quote_provider.id,
                         event_id,
                         market_id,
                         selection_id,
                         effective_timestamp,
                     ),
-                    provider_id=provider.id,
+                    provider_id=quote_provider.id,
                     event_id=event_id,
                     market_id=market_id,
                     selection_id=selection_id,
@@ -357,13 +371,14 @@ def normalize_source_snapshot(
                     source_event_id=event.external_id,
                     source_market_id=market.external_market_id,
                     source_selection_id=selection.external_selection_id,
-                    source_timestamp=snapshot.source_timestamp,
+                    source_timestamp=quote_source_timestamp,
                     ingested_at=snapshot.ingested_at,
                     status=QuoteStatus.ACTIVE,
                     trace_id=snapshot.trace_id,
                     raw_source_reference=(
-                        f"synthetic://{provider.id.value}/{event.external_id}/"
-                        f"{market.external_market_id}/{selection.external_selection_id}"
+                        f"source://{provider.id.value}/{quote_provider.id.value}/"
+                        f"{event.external_id}/{market.external_market_id}/"
+                        f"{selection.external_selection_id}"
                     ),
                 )
             )
