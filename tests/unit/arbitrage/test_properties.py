@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from decimal import Decimal
+from decimal import Decimal, localcontext
 from random import Random
 
 from arbiscan.arbitrage import (
@@ -78,6 +78,21 @@ def test_randomized_quote_order_does_not_change_evaluation() -> None:
         assert shuffled.return_multiplier == baseline.return_multiplier
         assert shuffled.theoretical_profit_margin == baseline.theoretical_profit_margin
         assert shuffled.quotes == baseline.quotes
+
+
+def test_external_decimal_context_does_not_change_evaluation_metrics() -> None:
+    quotes = make_equal_odds_book(3, Decimal("4"))
+    expected = tuple(quote.selection_id for quote in quotes)
+    baseline = evaluate_market(quotes, expected)
+
+    with localcontext() as external_context:
+        external_context.prec = 7
+        constrained = evaluate_market(quotes, expected)
+
+    assert constrained.implied_probability_sum == baseline.implied_probability_sum
+    assert constrained.return_multiplier == baseline.return_multiplier
+    assert constrained.theoretical_profit_margin == baseline.theoretical_profit_margin
+    assert constrained.is_arbitrage == baseline.is_arbitrage
 
 
 def test_randomized_profitable_books_produce_positive_conservative_stake_plans() -> None:
