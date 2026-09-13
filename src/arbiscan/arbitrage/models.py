@@ -91,9 +91,7 @@ class ArbitrageEvaluation:
         if margin != return_multiplier - Decimal("1"):
             raise ArbitrageMathError("profit margin must equal return multiplier minus one")
 
-        expected_flag = (
-            implied_sum < Decimal("1") and margin > Decimal("0") and margin >= threshold
-        )
+        expected_flag = implied_sum < Decimal("1") and margin > Decimal("0") and margin >= threshold
         if self.is_arbitrage is not expected_flag:
             raise ArbitrageMathError("evaluation arbitrage flag is inconsistent with its metrics")
 
