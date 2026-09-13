@@ -69,7 +69,7 @@ def team(identifier: str, name: str) -> Participant:
 
 def test_identifiers_are_opaque_and_type_sensitive() -> None:
     event_id = EventId("shared-value")
-    market_id = MarketId("shared-value")
+    market_id: object = MarketId("shared-value")
 
     assert str(event_id) == "shared-value"
     assert event_id != market_id
