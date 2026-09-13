@@ -89,9 +89,7 @@ class FakeProvider(ProviderAdapter):
         if type(supports_streaming) is not bool:
             raise ProviderContractError("supports_streaming must be bool")
         if fixtures.stream_snapshots and not supports_streaming:
-            raise ProviderContractError(
-                "stream fixtures require supports_streaming=True"
-            )
+            raise ProviderContractError("stream fixtures require supports_streaming=True")
 
         self._provider = provider
         self._fixtures = fixtures

@@ -150,10 +150,7 @@ def test_streaming_capability_can_be_supported_while_stream_is_quiet() -> None:
 
     async def scenario() -> None:
         assert provider.capabilities.supports(ProviderCapability.ODDS_STREAMING)
-        updates = [
-            update
-            async for update in provider.stream_odds(("event:arsenal-chelsea",))
-        ]
+        updates = [update async for update in provider.stream_odds(("event:arsenal-chelsea",))]
         assert updates == []
 
     asyncio.run(scenario())
