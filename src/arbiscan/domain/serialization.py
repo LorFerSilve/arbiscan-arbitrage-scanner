@@ -99,14 +99,15 @@ _ENUM_TYPES: dict[str, type[StrEnum]] = {
 
 
 def _encode(value: object) -> object:
+    # StrEnum must be handled before str because StrEnum subclasses str.
+    if isinstance(value, StrEnum):
+        return {"$enum": type(value).__name__, "value": value.value}
     if value is None or isinstance(value, (bool, int, str)):
         return value
     if isinstance(value, Decimal):
         return {"$decimal": str(value)}
     if isinstance(value, datetime):
         return {"$datetime": value.isoformat()}
-    if isinstance(value, StrEnum):
-        return {"$enum": type(value).__name__, "value": value.value}
     if isinstance(value, tuple):
         return {"$tuple": [_encode(item) for item in value]}
     if is_dataclass(value) and not isinstance(value, type):
