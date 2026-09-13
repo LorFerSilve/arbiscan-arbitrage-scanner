@@ -22,7 +22,15 @@ class _WrongEventSnapshotFake(FakeProvider):
         snapshot = await super().fetch_odds(external_event_id)
         if snapshot is None:
             return None
-        return replace(snapshot, external_event_id="event:misrouted")
+        wrong_event_id = "event:misrouted"
+        markets = tuple(
+            replace(market, external_event_id=wrong_event_id) for market in snapshot.markets
+        )
+        return replace(
+            snapshot,
+            external_event_id=wrong_event_id,
+            markets=markets,
+        )
 
 
 def _clone_alpha(provider_type: type[FakeProvider]) -> FakeProvider:
