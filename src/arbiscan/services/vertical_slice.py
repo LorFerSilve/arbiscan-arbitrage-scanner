@@ -1,7 +1,8 @@
-"""Phase 5 network-free ingestion-to-opportunity orchestration."""
+"""Provider-to-opportunity vertical-slice orchestration."""
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
@@ -20,9 +21,11 @@ from arbiscan.normalization.strict import NormalizationIssue, normalize_source_s
 from arbiscan.providers.contract import ProviderAdapter
 from arbiscan.providers.resilience import ProviderCallPolicy
 
+Clock = Callable[[], datetime]
+
 
 class BookIssueCode(StrEnum):
-    """Reasons a canonical Phase 5 market could not be evaluated."""
+    """Reasons a canonical market could not be evaluated."""
 
     INCOMPLETE_MARKET = "incomplete_market"
     EVALUATION_REJECTED = "evaluation_rejected"
@@ -39,7 +42,7 @@ class BookIssue:
 
 @dataclass(frozen=True, slots=True)
 class VerticalSliceResult:
-    """Complete deterministic Phase 5 pipeline output."""
+    """Complete provider-to-opportunity pipeline output."""
 
     ingestion: IngestionBatch
     quotes: tuple[OddsQuote, ...]
@@ -49,9 +52,13 @@ class VerticalSliceResult:
     book_issues: tuple[BookIssue, ...]
 
 
-def _aware_utc(value: datetime) -> datetime:
+def _utc_now() -> datetime:
+    return datetime.now(UTC)
+
+
+def _aware_utc(value: datetime, *, field_name: str = "as_of") -> datetime:
     if not isinstance(value, datetime) or value.tzinfo is None or value.utcoffset() is None:
-        raise ValueError("as_of must be timezone-aware")
+        raise ValueError(f"{field_name} must be timezone-aware")
     return value.astimezone(UTC)
 
 
@@ -71,14 +78,28 @@ async def run_vertical_slice(
     adapters: tuple[ProviderAdapter, ...],
     registry: CanonicalRegistry,
     sport: Sport,
-    as_of: datetime,
     freshness_window: timedelta,
+    as_of: datetime | None = None,
+    clock: Clock = _utc_now,
     minimum_profit_margin: Decimal = Decimal("0"),
     provider_policy: ProviderCallPolicy | None = None,
 ) -> VerticalSliceResult:
-    """Run the first deterministic provider-to-opportunity pipeline."""
-    detected_at = _aware_utc(as_of)
+    """Run the provider-to-opportunity pipeline in live or replay mode.
+
+    ``as_of=None`` is live mode: collection runs first and the evaluation timestamp
+    is captured immediately afterwards. This guarantees newly ingested live data
+    cannot be rejected merely because its ingestion timestamp is later than a
+    timestamp sampled before network I/O.
+
+    Passing an explicit ``as_of`` selects deterministic replay mode. In that mode
+    the supplied historical timestamp remains authoritative and data ingested
+    after it is correctly rejected by strict normalization.
+    """
+    fixed_as_of = None if as_of is None else _aware_utc(as_of)
     ingestion = await collect_snapshots(adapters, sport, policy=provider_policy)
+    detected_at = (
+        _aware_utc(clock(), field_name="clock") if fixed_as_of is None else fixed_as_of
+    )
 
     normalized_quotes: list[OddsQuote] = []
     normalization_issues: list[NormalizationIssue] = []
@@ -163,8 +184,8 @@ async def run_vertical_slice(
                 build_opportunity(
                     evaluation,
                     opportunity_id=OpportunityId(
-                        f"phase5|{evaluation.event_id.value}|{evaluation.market_id.value}|"
-                        f"{detected_at.isoformat()}"
+                        f"vertical-slice|{evaluation.event_id.value}|"
+                        f"{evaluation.market_id.value}|{detected_at.isoformat()}"
                     ),
                     detected_at=detected_at,
                 )
