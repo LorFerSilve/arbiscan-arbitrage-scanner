@@ -138,4 +138,4 @@ class ProviderExecutor:
         delay = exponential + exponential * self._policy.jitter_ratio * float(sample)
         if error.retry_after is not None:
             delay = max(delay, error.retry_after.total_seconds())
-        return delay
+        return float(delay)

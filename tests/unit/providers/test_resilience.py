@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Awaitable
+from collections.abc import Coroutine
 from datetime import timedelta
+from typing import Any
 
 from arbiscan.domain import Provider, ProviderId, ProviderKind, Sport
 from arbiscan.providers import (
@@ -38,7 +39,7 @@ def make_provider(
     )
 
 
-def run(coro: Awaitable[object]) -> object:
+def run[T](coro: Coroutine[Any, Any, T]) -> T:
     return asyncio.run(coro)
 
 
