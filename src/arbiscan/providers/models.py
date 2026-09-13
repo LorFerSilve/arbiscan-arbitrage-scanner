@@ -11,6 +11,7 @@ from arbiscan.domain import (
     CompetitionId,
     EventId,
     MarketId,
+    Provider,
     ProviderId,
     SelectionId,
     Sport,
@@ -329,13 +330,21 @@ class SourceSelectionQuote:
 
 @dataclass(frozen=True, slots=True)
 class SourceMarket:
-    """Provider market record before canonical market normalization."""
+    """Provider market record before canonical market normalization.
+
+    ``price_provider`` is set by aggregator adapters when the transport/source
+    provider differs from the bookmaker or exchange actually offering the price.
+    ``source_timestamp`` preserves the most specific update timestamp supplied by
+    the upstream feed, allowing freshness to be evaluated per bookmaker market.
+    """
 
     external_event_id: str
     external_market_id: str
     label: str
     selections: tuple[SourceSelectionQuote, ...]
     source_status: str = "active"
+    price_provider: Provider | None = None
+    source_timestamp: datetime | None = None
 
     def __post_init__(self) -> None:
         object.__setattr__(
@@ -368,6 +377,16 @@ class SourceMarket:
             self,
             "source_status",
             _text(self.source_status, field_name="source_market.source_status"),
+        )
+        if self.price_provider is not None and not isinstance(self.price_provider, Provider):
+            raise ProviderContractError("source market price_provider must be Provider")
+        object.__setattr__(
+            self,
+            "source_timestamp",
+            _optional_aware_utc(
+                self.source_timestamp,
+                field_name="source_market.source_timestamp",
+            ),
         )
 
 
