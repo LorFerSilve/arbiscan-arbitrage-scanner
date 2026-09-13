@@ -19,6 +19,7 @@ from arbiscan.domain import (
     EventId,
     MarketId,
     OddsQuote,
+    Opportunity,
     OpportunityId,
     ProviderId,
     QuoteId,
@@ -48,7 +49,7 @@ def make_quote(selection: str, odds: str, *, index: int) -> OddsQuote:
     )
 
 
-def make_opportunity(quotes: tuple[OddsQuote, ...]):
+def make_opportunity(quotes: tuple[OddsQuote, ...]) -> Opportunity:
     evaluation = evaluate_market(quotes, tuple(quote.selection_id for quote in quotes))
     return build_opportunity(
         evaluation,
