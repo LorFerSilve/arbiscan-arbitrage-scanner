@@ -12,7 +12,7 @@ from dataclasses import fields, is_dataclass
 from datetime import datetime
 from decimal import Decimal
 from enum import StrEnum
-from typing import TypeVar, cast
+from typing import cast
 
 from arbiscan.domain.enums import (
     EventStatus,
@@ -53,7 +53,6 @@ from arbiscan.domain.models import (
 )
 
 SCHEMA_VERSION = 1
-T = TypeVar("T")
 
 _MODEL_TYPES: dict[str, Callable[..., object]] = {
     type_.__name__: type_
@@ -186,7 +185,7 @@ def dumps(value: object) -> str:
     return json.dumps(envelope, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
 
 
-def loads(data: str, expected_type: type[T]) -> T:
+def loads[T](data: str, expected_type: type[T]) -> T:
     """Deserialize canonical JSON and require the expected root type."""
     try:
         parsed = cast(object, json.loads(data))
