@@ -93,8 +93,8 @@ class CanonicalRegistry:
             if market.event_id not in event_map:
                 raise ValueError("registry market references an unknown event")
         for selection in selections:
-            market = market_map.get(selection.market_id)
-            if market is None:
+            selection_market = market_map.get(selection.market_id)
+            if selection_market is None:
                 raise ValueError("registry selection references an unknown market")
             if selection.kind is SelectionKind.PARTICIPANT:
                 participant_id = selection.participant_id
@@ -102,8 +102,10 @@ class CanonicalRegistry:
                     raise ValueError(
                         "registry participant selection references an unknown participant"
                     )
-                event = event_map[market.event_id]
-                if participant_id not in {participant.id for participant in event.participants}:
+                selection_event = event_map[selection_market.event_id]
+                if participant_id not in {
+                    participant.id for participant in selection_event.participants
+                }:
                     raise ValueError(
                         "registry participant selection references a participant outside its event"
                     )
