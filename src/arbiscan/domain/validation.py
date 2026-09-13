@@ -4,14 +4,11 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from decimal import Decimal
-from typing import TypeVar
 
 from arbiscan.domain.errors import DomainValidationError
 
-T = TypeVar("T")
 
-
-def require_instance(value: object, expected_type: type[T], *, field: str) -> T:
+def require_instance[T](value: object, expected_type: type[T], *, field: str) -> T:
     """Require an exact domain/runtime type compatible with expected_type."""
     if not isinstance(value, expected_type):
         raise DomainValidationError(
