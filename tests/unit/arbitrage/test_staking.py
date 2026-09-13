@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from datetime import UTC, datetime
-from decimal import Decimal
+from decimal import Decimal, localcontext
 
 from arbiscan.arbitrage import (
     CurrencyRoundingPolicy,
@@ -194,6 +194,61 @@ def test_stake_increment_is_respected() -> None:
 
     assert plan is not None
     assert all(allocation.amount % Decimal("0.05") == 0 for allocation in plan.allocations)
+
+
+def test_discrete_search_finds_profitable_plan_below_adjacent_continuous_grid() -> None:
+    quotes = (
+        make_quote("selection:a", "1.5", index=1),
+        make_quote("selection:b", "3.5", index=2),
+    )
+    opportunity = make_opportunity(quotes)
+
+    plan = allocate_stakes(
+        opportunity,
+        quotes,
+        bankroll=Decimal("0.25"),
+        stake_plan_id=StakePlanId("stake-plan:lower-breakpoint"),
+        created_at=NOW,
+        rounding_policy=EUR,
+    )
+
+    assert plan is not None
+    assert tuple(allocation.amount for allocation in plan.allocations) == (
+        Decimal("0.16"),
+        Decimal("0.07"),
+    )
+    assert plan.guaranteed_payout == Decimal("0.24")
+    assert plan.guaranteed_profit == Decimal("0.01")
+
+
+def test_stake_totals_ignore_reduced_external_decimal_precision() -> None:
+    quotes = (
+        make_quote("selection:a", "1.5", index=1),
+        make_quote("selection:b", "3.5", index=2),
+    )
+    opportunity = make_opportunity(quotes)
+    constraints = (
+        StakeConstraint(quote_id=quotes[0].id, stake_increment=Decimal("0.01")),
+        StakeConstraint(quote_id=quotes[1].id, stake_increment=Decimal("0.05")),
+    )
+
+    with localcontext() as external_context:
+        external_context.prec = 2
+        plan = allocate_stakes(
+            opportunity,
+            quotes,
+            bankroll=Decimal("1.10"),
+            stake_plan_id=StakePlanId("stake-plan:context"),
+            created_at=NOW,
+            rounding_policy=EUR,
+            constraints=constraints,
+        )
+
+    assert plan is not None
+    total_staked = sum((allocation.amount for allocation in plan.allocations), Decimal("0"))
+    assert total_staked <= Decimal("1.10")
+    assert plan.guaranteed_profit == plan.guaranteed_payout - total_staked
+    assert plan.guaranteed_profit > Decimal("0")
 
 
 def test_post_rounding_loss_of_arbitrage_returns_no_guaranteed_plan() -> None:
