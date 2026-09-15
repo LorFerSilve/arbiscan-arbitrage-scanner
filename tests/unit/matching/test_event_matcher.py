@@ -19,9 +19,9 @@ from arbiscan.matching import (
     CanonicalEventMatchMetadata,
     CanonicalRegistry,
     EventMatchConfig,
+    EventMatcher,
     EventMatchReason,
     EventMatchStatus,
-    EventMatcher,
     NormalizedEventEvidence,
     ParticipantOrderPolicy,
 )
