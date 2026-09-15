@@ -4,9 +4,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import Generic, TypeVar
-
-T = TypeVar("T")
 
 
 class ResolutionStatus(StrEnum):
@@ -18,7 +15,7 @@ class ResolutionStatus(StrEnum):
 
 
 @dataclass(frozen=True, slots=True)
-class Resolution(Generic[T]):
+class Resolution[T]:
     """A canonical value or an explicit fail-closed resolution outcome."""
 
     status: ResolutionStatus
