@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import timedelta
 
 from arbiscan.domain import Event, EventId
@@ -39,7 +39,7 @@ class EventMatcher:
     """Match normalized provider evidence to one canonical event or fail closed."""
 
     registry: CanonicalRegistry
-    config: EventMatchConfig = EventMatchConfig()
+    config: EventMatchConfig = field(default_factory=EventMatchConfig)
     metadata: tuple[CanonicalEventMatchMetadata, ...] = ()
 
     def __post_init__(self) -> None:
