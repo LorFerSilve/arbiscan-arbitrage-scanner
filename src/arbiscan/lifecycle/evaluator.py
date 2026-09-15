@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from decimal import Context, Decimal, ROUND_HALF_EVEN, localcontext
+from decimal import ROUND_HALF_EVEN, Context, Decimal, localcontext
 
 from arbiscan.arbitrage.core import evaluate_market
 from arbiscan.arbitrage.staking import allocate_stakes
@@ -18,7 +18,6 @@ from arbiscan.lifecycle.models import (
 
 _CONTEXT = Context(prec=60, rounding=ROUND_HALF_EVEN)
 _ZERO = Decimal("0")
-_ONE = Decimal("1")
 
 
 def _assumptions(policy: ActionabilityPolicy) -> OperationalAssumptions:
