@@ -9,7 +9,7 @@
 
 Phase 9 constructs one canonical, auditable comparison book for each eligible event/market before arbitrage mathematics runs.
 
-The phase replaces the temporary best-quote selection that existed in the Phase-5 vertical slice with a dedicated provider-independent `marketbook` boundary. Quotes can influence arbitrage only after canonical identity, provider policy, status, freshness and completeness checks have succeeded.
+The phase replaces the temporary best-quote selection that existed in the Phase-5 vertical slice with a dedicated provider-independent `marketbook` boundary. Quotes can influence arbitrage only after canonical identity, provider policy, status, historical availability, freshness and completeness checks have succeeded.
 
 ## Deliverables
 
@@ -76,18 +76,19 @@ Provider policy is applied before best-price selection. A filtered provider ther
 
 If filtering removes the only eligible quote for an expected outcome, the canonical market is incomplete and is not emitted.
 
-### 9.5 Status and freshness eligibility — complete
+### 9.5 Status, historical availability and freshness eligibility — complete
 
 Only `QuoteStatus.ACTIVE` quotes may participate.
 
-Freshness uses the quote's source timestamp when available and otherwise its ingestion timestamp.
+Historical availability and freshness are checked independently:
 
-At one explicit construction `as_of`:
-
-- future quotes are rejected;
+- `ingested_at` must be less than or equal to the construction `as_of`; a quote ingested later was not available to ArbiScan at that replay/evaluation time;
+- freshness uses `source_timestamp` when available and otherwise `ingested_at`;
+- an old source timestamp cannot mask future ingestion;
+- effective timestamps after `as_of` are rejected;
 - quotes older than the configured freshness window are rejected;
 - inactive/suspended/closed/unknown quotes are rejected;
-- freshness filtering occurs before best-price selection.
+- all eligibility filtering occurs before best-price selection.
 
 `MarketBookFreshness` records:
 
@@ -117,9 +118,9 @@ The canonical registry defines the expected outcome set for each market.
 A market book is emitted only when:
 
 - at least two canonical selections exist; and
-- every expected selection has at least one eligible quote after identity, provider, status and freshness filtering.
+- every expected selection has at least one eligible quote after identity, provider, status, historical-availability and freshness filtering.
 
-Missing outcomes produce `INCOMPLETE_MARKET`; the partial market never reaches arbitrage mathematics.
+Missing outcomes produce `INCOMPLETE_MARKET`; the partial market never reaches arbitrage mathematics. Canonical markets defining fewer than two outcomes produce `INSUFFICIENT_OUTCOMES` and are skipped before arithmetic.
 
 ### 9.8 Vertical-slice integration — complete
 
@@ -148,6 +149,8 @@ Integration coverage proves that:
 - incomplete markets are rejected before the arithmetic stage;
 - provider exclusions are visible before price selection.
 
+The compatibility bridge maps `INCOMPLETE_MARKET` to the existing incomplete-market issue and `INSUFFICIENT_OUTCOMES` to `EVALUATION_REJECTED`, preserving a skip reason for pre-Phase-9 consumers.
+
 ## Diagnostic policy
 
 Stable Phase-9 diagnostic codes cover:
@@ -157,7 +160,8 @@ Stable Phase-9 diagnostic codes cover:
 - event/market and selection/market mismatches;
 - provider filtering;
 - inactive quotes;
-- future quotes;
+- future ingestion;
+- future source/effective timestamps;
 - stale quotes;
 - canonical markets with insufficient outcomes;
 - incomplete canonical markets.
@@ -172,9 +176,11 @@ The Phase-9 suite includes regressions for the roadmap's correctness-critical ca
 | --- | --- |
 | stale high price wins comparison | stale quote is excluded before price selection |
 | suspended high price wins comparison | inactive quote is excluded before price selection |
-| future timestamp influences book | future quote is rejected |
+| future timestamp influences book | future effective quote is rejected |
+| replay uses quote not yet available | future `ingested_at` is rejected even when `source_timestamp` is historical |
 | provider should not be considered | include/exclude policy is applied before comparison |
 | missing expected outcome | market is rejected as incomplete |
+| canonical market has fewer than two outcomes | skip remains visible through legacy `EVALUATION_REJECTED` compatibility issue |
 | totals/handicap-style variant mixing | 2.5 and 3.5 total markets remain separate |
 | wrong selection attached to market | selection/market mismatch fails closed |
 | equal prices depend on input ordering | freshness then stable IDs determine the same winner under reordered input |
@@ -183,7 +189,7 @@ The Phase-9 suite includes regressions for the roadmap's correctness-critical ca
 
 ## Test and quality evidence
 
-On the fully code-bearing Phase-9 head before documentation-only completion commits, the repository quality runner completed successfully with:
+On the fully code-bearing Phase-9 head before the review-correction regressions and documentation-only completion commits, the repository quality runner completed successfully with:
 
 ```text
 uv lock --check      PASS
@@ -194,7 +200,21 @@ pytest               PASS — 136 tests
 pip-audit            PASS — no known vulnerabilities
 ```
 
-The 136-test suite includes all prior Phase 0–8 regressions plus the new Phase-9 unit and integration coverage.
+The final protected-branch merge gate re-runs the same complete quality/security suite on the exact final PR head, including the two review regressions described below.
+
+## Review corrections
+
+Automated PR review identified two valid regressions before merge:
+
+1. a persisted quote with `source_timestamp <= as_of` but `ingested_at > as_of` could pass Phase-9 freshness checks because the historical source timestamp masked the fact that ArbiScan had not received the quote yet;
+2. a canonical market with fewer than two outcomes produced `INSUFFICIENT_OUTCOMES` in the new diagnostic model but was not forwarded to the pre-existing `book_issues` compatibility API.
+
+The corrections:
+
+- `build_market_books()` now checks `ingested_at <= as_of` independently before evaluating the effective source/freshness timestamp and emits `FUTURE_INGESTION` when violated;
+- a dedicated regression proves that a future-ingested high price cannot win a historical/replay book even when its source timestamp lies in the past;
+- the compatibility bridge now maps `INSUFFICIENT_OUTCOMES` to `BookIssueCode.EVALUATION_REJECTED`;
+- a regression proves the legacy consumer still receives that skip reason.
 
 ## Architecture decision
 
@@ -203,7 +223,7 @@ ADR-0009 is the normative record for:
 - exact canonical market identity as the alignment boundary;
 - defensive quote-reference validation;
 - provider filtering before price comparison;
-- active/fresh quote eligibility;
+- active/historically-available/fresh quote eligibility;
 - the deterministic price/freshness/provider/quote tie-break order;
 - mandatory outcome completeness;
 - book-level provenance/freshness diagnostics;
@@ -214,10 +234,12 @@ ADR-0009 is the normative record for:
 - **Every candidate arbitrage has a traceable best-price book:** satisfied. Arbitrage evaluation consumes the exact selected `CanonicalMarketBook.quotes`, and opportunity quote IDs derive from that evaluated quote tuple.
 - **Incomplete markets are rejected:** satisfied. A book is emitted only when every expected canonical selection has an eligible quote.
 - **Semantically incompatible market variants are rejected/separated:** satisfied. Exact canonical `MarketId` is the grouping key; line/period variants represented by different canonical markets cannot cross-fill outcomes.
-- **Stale-data policy is enforced before arbitrage math:** satisfied. Future/stale/inactive quotes are removed before best-price selection and no partial book reaches `evaluate_market()`.
+- **Stale-data policy is enforced before arbitrage math:** satisfied. Future-ingested, future-effective, stale and inactive quotes are removed before best-price selection and no partial book reaches `evaluate_market()`.
+- **Historical replay cannot see future data:** satisfied. `ingested_at` is validated independently against `as_of`.
 - **Provider attribution is preserved:** satisfied. Each best outcome carries its original selected `OddsQuote` and canonical `ProviderId`.
 - **Bookmaker/provider inclusion/exclusion is configurable:** satisfied through `ProviderBookPolicy`.
 - **Construction is deterministic:** satisfied through canonical sorting plus explicit tie-break rules independent of input order.
+- **Legacy skip diagnostics remain available:** satisfied for both incomplete and insufficient-outcome markets.
 
 ## Explicitly deferred
 
@@ -233,4 +255,4 @@ Phase 9 does not implement:
 
 ## Merge gate
 
-This completion record does not bypass repository protections. The exact final PR head including ADR-0009 and this completion file must pass repository quality and CodeQL checks, and all review conversations must be resolved, before squash merge to `main`.
+This completion record does not bypass repository protections. The exact final PR head including ADR-0009, review corrections and this completion file must pass repository quality and CodeQL checks, and all review conversations must be resolved, before squash merge to `main`.
