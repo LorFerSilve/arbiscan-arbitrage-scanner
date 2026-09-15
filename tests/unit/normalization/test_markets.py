@@ -154,6 +154,5 @@ def test_semantically_ambiguous_market_alias_fails_closed() -> None:
 
 def test_unknown_market_alias_is_not_guessed() -> None:
     assert (
-        _normalizer().resolve("Result-ish", sport=Sport.FOOTBALL).status
-        is ResolutionStatus.UNKNOWN
+        _normalizer().resolve("Result-ish", sport=Sport.FOOTBALL).status is ResolutionStatus.UNKNOWN
     )
