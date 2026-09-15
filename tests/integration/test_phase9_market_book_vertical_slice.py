@@ -30,9 +30,7 @@ def test_arbitrage_evaluation_consumes_exact_phase9_best_price_book() -> None:
     arb_book = next(
         book for book in result.market_books if book.event.id == EventId("event:phase5:arb")
     )
-    evaluation = next(
-        value for value in result.evaluations if value.event_id == arb_book.event.id
-    )
+    evaluation = next(value for value in result.evaluations if value.event_id == arb_book.event.id)
 
     assert evaluation.quotes == arb_book.quotes
     assert evaluation.expected_selection_ids == arb_book.expected_selection_ids
