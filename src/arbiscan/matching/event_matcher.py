@@ -25,11 +25,7 @@ def _comparison_key(value: str) -> str:
 
 
 def _timedelta_microseconds(value: timedelta) -> int:
-    return (
-        value.days * 86_400_000_000
-        + value.seconds * 1_000_000
-        + value.microseconds
-    )
+    return value.days * 86_400_000_000 + value.seconds * 1_000_000 + value.microseconds
 
 
 def _time_score(delta: timedelta, tolerance: timedelta) -> int:
@@ -119,8 +115,7 @@ class EventMatcher:
         ambiguous = tuple(
             candidate
             for candidate in eligible[1:]
-            if best.confidence_bps - candidate.confidence_bps
-            <= self.config.ambiguity_margin_bps
+            if best.confidence_bps - candidate.confidence_bps <= self.config.ambiguity_margin_bps
         )
         if ambiguous:
             contenders = (best, *ambiguous)
