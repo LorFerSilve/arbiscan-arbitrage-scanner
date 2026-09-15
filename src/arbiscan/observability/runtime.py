@@ -159,7 +159,7 @@ class HealthPolicy:
 
     def __post_init__(self) -> None:
         ratios = (self.provider_failure_ratio, self.stale_quote_ratio)
-        if any(isinstance(value, bool) or not math.isfinite(value) or not 0 <= value <= 1 for value in ratios):
+        if any(not math.isfinite(value) or not 0 <= value <= 1 for value in ratios):
             raise ValueError("health ratios must be finite values in [0, 1]")
         if self.max_detection_latency.total_seconds() <= 0:
             raise ValueError("max_detection_latency must be positive")
