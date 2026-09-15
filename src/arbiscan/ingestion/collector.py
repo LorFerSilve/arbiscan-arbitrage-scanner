@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import timedelta
 from functools import partial
 
 from arbiscan.domain import Provider, ProviderId, Sport
@@ -36,6 +37,7 @@ class IngestionIssue:
     kind: ProviderErrorKind
     detail: str
     external_event_id: str | None = None
+    retry_after: timedelta | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -53,6 +55,7 @@ def _issue(error: ProviderError, *, external_event_id: str | None = None) -> Ing
         kind=error.kind,
         detail=str(error),
         external_event_id=external_event_id,
+        retry_after=error.retry_after,
     )
 
 
