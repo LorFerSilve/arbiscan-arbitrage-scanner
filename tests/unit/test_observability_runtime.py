@@ -1,5 +1,7 @@
 from datetime import UTC, datetime, timedelta
 
+import pytest
+
 from arbiscan.domain import ProviderId
 from arbiscan.observability import (
     HealthPolicy,
@@ -41,6 +43,18 @@ def test_isolated_provider_failure_degrades_without_making_system_unready() -> N
     assert report.ready is True
 
 
+def test_unavailable_provider_without_request_history_is_reported() -> None:
+    metrics = MetricsRegistry()
+    provider = ProviderId("provider-a")
+    metrics.provider_availability(provider, False)
+
+    report = assess_health(metrics.snapshot())
+
+    assert report.providers[provider] is HealthState.DEGRADED
+    assert report.system is HealthState.DEGRADED
+    assert report.ready is True
+
+
 def test_stale_quote_failure_is_system_unhealthy() -> None:
     metrics = MetricsRegistry()
     metrics.quote_counts(active=2, stale=8)
@@ -64,6 +78,22 @@ def test_detection_latency_is_visible_as_system_degradation() -> None:
 
     assert report.system is HealthState.DEGRADED
     assert "system:detection_latency" in report.reasons
+
+
+def test_detection_latency_rejects_non_finite_values() -> None:
+    metrics = MetricsRegistry()
+
+    with pytest.raises(ValueError, match="finite and non-negative"):
+        metrics.detection_latency(float("nan"))
+    with pytest.raises(ValueError, match="finite and non-negative"):
+        metrics.detection_latency(float("inf"))
+
+
+def test_health_policy_rejects_non_finite_ratios() -> None:
+    with pytest.raises(ValueError, match="finite values"):
+        HealthPolicy(provider_failure_ratio=float("nan"))
+    with pytest.raises(ValueError, match="finite values"):
+        HealthPolicy(stale_quote_ratio=float("inf"))
 
 
 def test_metrics_cover_phase_14_minimum_surface() -> None:
