@@ -2,7 +2,7 @@
 
 import asyncio
 
-from arbiscan.domain import EventId
+from arbiscan.domain import EventId, ProviderId
 from arbiscan.matching import (
     EventMatcher,
     MatchedCanonicalIdHooks,
@@ -10,19 +10,25 @@ from arbiscan.matching import (
     ParticipantOrderPolicy,
 )
 from arbiscan.normalization import NormalizationIssueCode, normalize_source_snapshot
-from arbiscan.providers.synthetic import build_phase5_synthetic_scenario
+from arbiscan.providers.models import SourceEvent
+from arbiscan.providers.synthetic import SyntheticScenario, build_phase5_synthetic_scenario
 
 
-def _evidence_for(event_id: EventId, source_event: object, scenario: object, provider_id: object) -> NormalizedEventEvidence:
-    canonical = scenario.registry.event(event_id)  # type: ignore[attr-defined]
+def _evidence_for(
+    event_id: EventId,
+    source_event: SourceEvent,
+    scenario: SyntheticScenario,
+    provider_id: ProviderId,
+) -> NormalizedEventEvidence:
+    canonical = scenario.registry.event(event_id)
     assert canonical is not None
     return NormalizedEventEvidence(
-        provider_id=provider_id,  # type: ignore[arg-type]
-        external_event_id=source_event.external_id,  # type: ignore[attr-defined]
+        provider_id=provider_id,
+        external_event_id=source_event.external_id,
         sport=canonical.sport,
         competition_id=canonical.competition.id,
         participant_ids=tuple(participant.id for participant in canonical.participants),
-        scheduled_start=source_event.scheduled_start,  # type: ignore[attr-defined]
+        scheduled_start=source_event.scheduled_start,
         order_policy=ParticipantOrderPolicy.ORDERED,
     )
 
