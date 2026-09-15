@@ -1,6 +1,6 @@
 """Tests for exact odds-format normalization."""
 
-from decimal import Decimal
+from decimal import Decimal, localcontext
 
 from arbiscan.normalization import OddsNormalizationError, normalize_odds
 from arbiscan.providers.models import SourceOddsFormat
@@ -42,3 +42,22 @@ def test_non_finite_or_non_profitable_prices_are_rejected() -> None:
     _assert_invalid("NaN", SourceOddsFormat.DECIMAL)
     _assert_invalid("Infinity", SourceOddsFormat.DECIMAL)
     _assert_invalid("1", SourceOddsFormat.DECIMAL)
+
+
+def test_repeating_conversions_are_independent_of_global_decimal_precision() -> None:
+    cases = (
+        ("1/3", SourceOddsFormat.FRACTIONAL),
+        ("-110", SourceOddsFormat.AMERICAN),
+        ("0.3", SourceOddsFormat.IMPLIED_PROBABILITY),
+    )
+
+    with localcontext() as context:
+        context.prec = 7
+        low_precision = tuple(normalize_odds(price, format_) for price, format_ in cases)
+
+    with localcontext() as context:
+        context.prec = 50
+        high_precision = tuple(normalize_odds(price, format_) for price, format_ in cases)
+
+    assert low_precision == high_precision
+    assert all(len(value.as_tuple().digits) > 7 for value in low_precision)
