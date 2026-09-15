@@ -179,7 +179,9 @@ class SqliteAuditStore:
         """Load and validate the complete canonical evidence for an opportunity."""
         try:
             with self._connect() as connection:
-                opportunity = loads(self._payload(connection, "opportunity", opportunity_id), Opportunity)
+                opportunity = loads(
+                    self._payload(connection, "opportunity", opportunity_id), Opportunity
+                )
                 rows = connection.execute(
                     "SELECT quote_id FROM opportunity_quotes WHERE opportunity_id = ? ORDER BY ordinal",
                     (opportunity_id,),
