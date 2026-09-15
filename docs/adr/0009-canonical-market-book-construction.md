@@ -58,7 +58,7 @@ This defensive validation is intentional even though normalized quotes should al
 
 A filtered provider cannot win an outcome merely because it exposes a higher price. If filtering removes the only quote for an expected outcome, the market becomes incomplete and is rejected.
 
-### 4. Only active and fresh quotes are eligible
+### 4. Only active and historically available fresh quotes are eligible
 
 Only `QuoteStatus.ACTIVE` quotes can enter a market book.
 
@@ -69,11 +69,13 @@ The effective freshness timestamp is:
 
 At construction time `as_of`:
 
-- effective timestamps after `as_of` are rejected as future data;
+- `ingested_at` after `as_of` is rejected independently, because that quote was not yet available to the system at the replay/evaluation time;
+- an old `source_timestamp` can therefore never mask future ingestion;
+- effective timestamps after `as_of` are rejected as future source/effective data;
 - quote age greater than the configured freshness window is rejected as stale;
-- eligible selected quotes are guaranteed to lie inside the configured freshness window.
+- eligible selected quotes are guaranteed to have been ingested by `as_of` and to lie inside the configured freshness window.
 
-Freshness filtering occurs before best-price selection and therefore before arbitrage mathematics.
+Ingestion-time eligibility and freshness filtering occur before best-price selection and therefore before arbitrage mathematics.
 
 ### 5. Best-price selection is deterministic
 
@@ -112,7 +114,7 @@ The book's outcome set must equal the expected canonical selection set exactly.
 - `MarketBookFreshness` with construction time, configured freshness window, oldest selected quote and newest selected quote;
 - construction diagnostics associated with that market.
 
-The batch builder also returns all diagnostics, including rejected quotes and incomplete markets.
+The batch builder also returns all diagnostics, including rejected quotes and incomplete markets. Future ingestion is distinguished from future source/effective timestamps so replay failures remain explainable.
 
 This makes every candidate arbitrage traceable to an explicit best-price comparison book.
 
@@ -126,7 +128,7 @@ evaluate_market(book.quotes, book.expected_selection_ids, ...)
 
 The mathematical core therefore receives exactly one already-selected active quote per expected canonical outcome.
 
-The legacy vertical-slice `BookIssue` output remains as a compatibility surface, but market-book diagnostics are the richer Phase-9 source of construction evidence.
+The legacy vertical-slice `BookIssue` output remains as a compatibility surface, but market-book diagnostics are the richer Phase-9 source of construction evidence. Canonical markets with fewer than two outcomes are mapped to the legacy `EVALUATION_REJECTED` issue so pre-Phase-9 consumers continue to receive a skip reason.
 
 ### 9. Execution realism remains out of scope
 
@@ -148,7 +150,7 @@ Those concerns belong to the later opportunity/execution-realism phase and must 
 
 The safest system boundary is to make semantic alignment and quote eligibility explicit before arithmetic. `evaluate_market()` should answer a narrow deterministic question about one complete canonical market, not also decide whether provider data is stale, whether one bookmaker is allowed, or whether two market variants are equivalent.
 
-Exact canonical market IDs make incompatible variants impossible to combine accidentally. Applying freshness/status/provider policy before price shopping prevents an attractive but ineligible quote from influencing the book. Keeping the original selected `OddsQuote` preserves full provenance for later auditing and opportunity lifecycle work.
+Exact canonical market IDs make incompatible variants impossible to combine accidentally. Applying ingestion availability, freshness, status and provider policy before price shopping prevents an attractive but ineligible quote from influencing the book. Keeping the original selected `OddsQuote` preserves full provenance for later auditing and opportunity lifecycle work.
 
 The deterministic tie-break rule guarantees reproducible results independent of provider response order, ingestion ordering or Python container ordering.
 
@@ -157,7 +159,8 @@ The deterministic tie-break rule guarantees reproducible results independent of 
 ### Positive
 
 - every arbitrage evaluation is backed by a traceable `CanonicalMarketBook`;
-- stale, future, inactive and provider-filtered quotes cannot influence best price;
+- stale, future-ingested, future-timestamped, inactive and provider-filtered quotes cannot influence best price;
+- historical replay cannot use quotes that were not yet ingested at `as_of`;
 - incomplete markets fail closed before arbitrage math;
 - incompatible canonical market variants cannot cross-fill outcomes;
 - provider attribution and raw quote provenance are preserved;
@@ -190,6 +193,10 @@ Rejected because provider/input ordering is not a stable semantic property and w
 ### Choose only by highest price and ignore freshness until later
 
 Rejected because a stale high price could manufacture an apparent arbitrage before being noticed downstream. Freshness is an eligibility condition, not a presentation filter.
+
+### Trust source timestamps without checking ingestion time
+
+Rejected for replay. A historical source timestamp does not prove the quote was available to ArbiScan at the historical `as_of`; persisted quotes must independently satisfy `ingested_at <= as_of`.
 
 ### Emit partial books and let arbitrage math reject them
 
