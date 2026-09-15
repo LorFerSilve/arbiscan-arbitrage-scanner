@@ -8,6 +8,7 @@ from arbiscan.normalization.aliases import (
     SportAlias,
     SportNormalizer,
 )
+from arbiscan.normalization.event_identity import EventEvidencePreparation, prepare_event_evidence
 from arbiscan.normalization.markets import MarketAlias, MarketNormalizer, MarketSemantic
 from arbiscan.normalization.odds import OddsNormalizationError, normalize_odds
 from arbiscan.normalization.resolution import Resolution, ResolutionStatus
@@ -22,6 +23,7 @@ from arbiscan.normalization.text import normalize_alias_key
 __all__ = [
     "CompetitionAlias",
     "CompetitionNormalizer",
+    "EventEvidencePreparation",
     "MarketAlias",
     "MarketNormalizer",
     "MarketSemantic",
@@ -38,4 +40,5 @@ __all__ = [
     "normalize_alias_key",
     "normalize_odds",
     "normalize_source_snapshot",
+    "prepare_event_evidence",
 ]

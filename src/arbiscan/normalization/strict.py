@@ -17,6 +17,7 @@ from arbiscan.domain import (
     SelectionId,
 )
 from arbiscan.matching.catalog import CanonicalRegistry
+from arbiscan.matching.hooks import MatchedCanonicalIdHooks
 from arbiscan.normalization.odds import OddsNormalizationError, normalize_odds
 from arbiscan.providers.models import (
     CanonicalIdHooks,
@@ -148,6 +149,11 @@ def normalize_source_snapshot(
     each ``SourceMarket``; when present, that bookmaker becomes the canonical quote
     provider while ``provider`` remains the source/transport provider used for
     diagnostics and raw provenance.
+
+    Static/legacy identity hooks still require an exact source/canonical scheduled
+    start. A ``MatchedCanonicalIdHooks`` wrapper may carry a Phase-8 ``MATCHED``
+    decision; only that verified decision is permitted to relax the exact timestamp
+    equality after the matcher has already enforced its configured tolerance.
     """
     now = _utc(as_of, field_name="as_of")
     if not isinstance(freshness_window, timedelta) or freshness_window <= timedelta(0):
@@ -184,9 +190,11 @@ def normalize_source_snapshot(
             ),
         )
 
-    if (
-        canonical_event.sport is not event.sport
-        or canonical_event.scheduled_start != event.scheduled_start
+    verified_phase8_match = isinstance(
+        hooks, MatchedCanonicalIdHooks
+    ) and hooks.has_verified_event_match(event, event_id)
+    if canonical_event.sport is not event.sport or (
+        canonical_event.scheduled_start != event.scheduled_start and not verified_phase8_match
     ):
         return NormalizationResult(
             quotes=(),
@@ -195,7 +203,7 @@ def normalize_source_snapshot(
                     NormalizationIssueCode.IDENTITY_MISMATCH,
                     provider,
                     event,
-                    "explicit event mapping conflicts with canonical sport or start time",
+                    "explicit event mapping conflicts with canonical sport or unverified start time",
                 ),
             ),
         )
