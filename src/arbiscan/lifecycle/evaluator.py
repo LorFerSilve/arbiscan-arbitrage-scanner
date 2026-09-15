@@ -125,7 +125,9 @@ def revalidate_opportunity(
 
     if policy.maximum_margin_drift is not None:
         with localcontext(_CONTEXT):
-            deterioration = opportunity.theoretical_profit_margin - evaluation.theoretical_profit_margin
+            deterioration = (
+                opportunity.theoretical_profit_margin - evaluation.theoretical_profit_margin
+            )
         if deterioration > policy.maximum_margin_drift:
             return _result(
                 state=LifecycleState.INVALIDATED,
