@@ -119,7 +119,7 @@ def test_out_of_order_quote_beyond_skew_tolerance_is_rejected() -> None:
     assert store.fresh_quotes(as_of=AS_OF + timedelta(seconds=11)) == (current,)
 
 
-def test_small_future_source_clock_skew_is_stored_but_not_actionable_until_time_catches_up() -> None:
+def test_small_future_source_skew_waits_for_local_clock() -> None:
     policy = RealtimeIngestionPolicy(clock_skew_tolerance=timedelta(seconds=5))
     store = LiveQuoteStore(policy)
     future = _quote(source_seconds=3, quote_suffix="future-small")
