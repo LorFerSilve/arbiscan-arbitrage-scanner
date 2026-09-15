@@ -161,10 +161,7 @@ def test_participant_aliases_are_explicit_not_fuzzy() -> None:
 
     assert _resolve_team(normalizer, "Man United", premier_league).value == man_united
     assert _resolve_team(normalizer, "MUN", premier_league).value == man_united
-    assert (
-        _resolve_team(normalizer, "United", premier_league).status
-        is ResolutionStatus.AMBIGUOUS
-    )
+    assert _resolve_team(normalizer, "United", premier_league).status is ResolutionStatus.AMBIGUOUS
     assert (
         _resolve_team(normalizer, "Manchester United Women", premier_league).status
         is ResolutionStatus.UNKNOWN
@@ -195,6 +192,4 @@ def test_localized_participant_names_need_explicit_alias_data() -> None:
 
     assert _resolve_team(normalizer, "Bayern München", bundesliga).value == bayern
     assert _resolve_team(normalizer, "Bayern Munich", bundesliga).value == bayern
-    assert (
-        _resolve_team(normalizer, "Bayern-Munich", bundesliga).status is ResolutionStatus.UNKNOWN
-    )
+    assert _resolve_team(normalizer, "Bayern-Munich", bundesliga).status is ResolutionStatus.UNKNOWN
