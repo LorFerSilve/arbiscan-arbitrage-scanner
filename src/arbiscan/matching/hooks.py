@@ -44,6 +44,19 @@ class MatchedCanonicalIdHooks(CanonicalIdHooks):
             return None
         return decision.matched_event_id
 
+    def has_verified_event_match(self, record: SourceEvent, event_id: EventId) -> bool:
+        """Return whether Phase 8 explicitly matched this source record to ``event_id``."""
+        if not isinstance(record, SourceEvent):
+            raise ValueError("record must be SourceEvent")
+        if not isinstance(event_id, EventId):
+            raise ValueError("event_id must be EventId")
+        decision = self.event_decisions.get(record.external_id)
+        return (
+            decision is not None
+            and decision.status is EventMatchStatus.MATCHED
+            and decision.matched_event_id == event_id
+        )
+
     def market_id(self, record: SourceMarket) -> MarketId | None:
         return self.base.market_id(record)
 
