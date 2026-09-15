@@ -40,7 +40,9 @@ def _registry(
     *,
     sport: Sport,
     kind: ParticipantKind,
-    event_specs: tuple[tuple[str, datetime, tuple[Participant, ...], tuple[ProviderEventReference, ...]], ...],
+    event_specs: tuple[
+        tuple[str, datetime, tuple[Participant, ...], tuple[ProviderEventReference, ...]], ...
+    ],
 ) -> CanonicalRegistry:
     competition = Competition(
         id=CompetitionId(f"competition:{sport.value}:test"),
