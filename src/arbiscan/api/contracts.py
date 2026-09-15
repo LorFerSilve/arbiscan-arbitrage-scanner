@@ -4,9 +4,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import StrEnum
-from typing import Generic, TypeVar
-
-T = TypeVar("T")
 
 
 class ErrorCode(StrEnum):
@@ -46,7 +43,7 @@ class PageRequest:
 
 
 @dataclass(frozen=True, slots=True)
-class Page(Generic[T]):
+class Page[T]:
     """Stable paginated response independent of persistence implementation."""
 
     items: tuple[T, ...]
