@@ -72,7 +72,11 @@ class ActionabilityPolicy:
         if self.commission_rate >= Decimal("1") or self.tax_rate >= Decimal("1"):
             raise ValueError("commission_rate and tax_rate must be below 1")
         if self.maximum_exposure is not None:
-            _decimal(self.maximum_exposure, field="maximum_exposure", minimum=Decimal("0.0000000001"))
+            _decimal(
+                self.maximum_exposure,
+                field="maximum_exposure",
+                minimum=Decimal("0.0000000001"),
+            )
         if self.maximum_margin_drift is not None:
             _decimal(self.maximum_margin_drift, field="maximum_margin_drift")
 
