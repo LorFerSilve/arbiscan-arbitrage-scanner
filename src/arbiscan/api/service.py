@@ -98,7 +98,8 @@ class ArbiScanApi:
         values = tuple(
             event
             for event in self._source.events()
-            if (sport is None or event.sport == sport) and (status is None or event.status == status)
+            if (sport is None or event.sport == sport)
+            and (status is None or event.status == status)
         )
         return _page(values, page or PageRequest())
 
