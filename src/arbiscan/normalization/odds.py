@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from decimal import Context, Decimal, InvalidOperation, localcontext
+from decimal import Context, Decimal, DecimalException, InvalidOperation, localcontext
 
 from arbiscan.providers.models import SourceOddsFormat
 
@@ -29,7 +29,8 @@ def normalize_odds(price: str, odds_format: SourceOddsFormat) -> Decimal:
     """Convert a supported source price to deterministic canonical decimal odds.
 
     Division runs under a private 60-digit decimal context, so callers cannot alter
-    canonical odds by changing Python's process-local Decimal precision. Implied
+    canonical odds by changing Python's process-local Decimal precision. Arithmetic
+    signals such as overflow are contained at this provider-data boundary. Implied
     probability input is deliberately interpreted as a probability in the open
     interval ``(0, 1)``. Percentage-looking inputs such as ``40`` are rejected
     instead of being silently interpreted as ``40%``.
@@ -42,38 +43,43 @@ def normalize_odds(price: str, odds_format: SourceOddsFormat) -> Decimal:
     raw = price.strip()
     decimal_price: Decimal
 
-    with localcontext(_ODDS_CONTEXT) as context:
-        if odds_format is SourceOddsFormat.DECIMAL:
-            decimal_price = _parse_decimal(raw, field_name="decimal odds")
-        elif odds_format is SourceOddsFormat.FRACTIONAL:
-            parts = raw.split("/")
-            if len(parts) != 2 or any(not part.strip() for part in parts):
-                raise OddsNormalizationError("fractional odds must use numerator/denominator")
-            numerator = _parse_decimal(parts[0].strip(), field_name="fractional numerator")
-            denominator = _parse_decimal(parts[1].strip(), field_name="fractional denominator")
-            if numerator <= 0 or denominator <= 0:
-                raise OddsNormalizationError(
-                    "fractional numerator and denominator must be positive"
-                )
-            decimal_price = context.add(_ONE, context.divide(numerator, denominator))
-        elif odds_format is SourceOddsFormat.AMERICAN:
-            american = _parse_decimal(raw, field_name="American odds")
-            if american == 0:
-                raise OddsNormalizationError("American odds must be non-zero")
-            if american > 0:
-                decimal_price = context.add(_ONE, context.divide(american, _HUNDRED))
+    try:
+        with localcontext(_ODDS_CONTEXT) as context:
+            if odds_format is SourceOddsFormat.DECIMAL:
+                decimal_price = _parse_decimal(raw, field_name="decimal odds")
+            elif odds_format is SourceOddsFormat.FRACTIONAL:
+                parts = raw.split("/")
+                if len(parts) != 2 or any(not part.strip() for part in parts):
+                    raise OddsNormalizationError("fractional odds must use numerator/denominator")
+                numerator = _parse_decimal(parts[0].strip(), field_name="fractional numerator")
+                denominator = _parse_decimal(parts[1].strip(), field_name="fractional denominator")
+                if numerator <= 0 or denominator <= 0:
+                    raise OddsNormalizationError(
+                        "fractional numerator and denominator must be positive"
+                    )
+                decimal_price = context.add(_ONE, context.divide(numerator, denominator))
+            elif odds_format is SourceOddsFormat.AMERICAN:
+                american = _parse_decimal(raw, field_name="American odds")
+                if american == 0:
+                    raise OddsNormalizationError("American odds must be non-zero")
+                if american > 0:
+                    decimal_price = context.add(_ONE, context.divide(american, _HUNDRED))
+                else:
+                    decimal_price = context.add(
+                        _ONE,
+                        context.divide(_HUNDRED, abs(american)),
+                    )
+            elif odds_format is SourceOddsFormat.IMPLIED_PROBABILITY:
+                probability = _parse_decimal(raw, field_name="implied probability")
+                if not 0 < probability < _ONE:
+                    raise OddsNormalizationError(
+                        "implied probability must be strictly between 0 and 1"
+                    )
+                decimal_price = context.divide(_ONE, probability)
             else:
-                decimal_price = context.add(
-                    _ONE,
-                    context.divide(_HUNDRED, abs(american)),
-                )
-        elif odds_format is SourceOddsFormat.IMPLIED_PROBABILITY:
-            probability = _parse_decimal(raw, field_name="implied probability")
-            if not 0 < probability < _ONE:
-                raise OddsNormalizationError("implied probability must be strictly between 0 and 1")
-            decimal_price = context.divide(_ONE, probability)
-        else:
-            raise OddsNormalizationError(f"unsupported odds format: {odds_format!r}")
+                raise OddsNormalizationError(f"unsupported odds format: {odds_format!r}")
+    except DecimalException as exc:
+        raise OddsNormalizationError("odds arithmetic exceeds the supported decimal range") from exc
 
     if not decimal_price.is_finite() or decimal_price <= _ONE:
         raise OddsNormalizationError("normalized decimal odds must be finite and greater than 1")
