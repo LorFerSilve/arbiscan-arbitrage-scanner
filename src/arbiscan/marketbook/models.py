@@ -46,11 +46,7 @@ class ProviderBookPolicy:
     excluded_provider_ids: tuple[ProviderId, ...] = field(default_factory=tuple)
 
     def __post_init__(self) -> None:
-        included = (
-            None
-            if self.included_provider_ids is None
-            else tuple(self.included_provider_ids)
-        )
+        included = None if self.included_provider_ids is None else tuple(self.included_provider_ids)
         excluded = tuple(self.excluded_provider_ids)
 
         for label, values in (("included", included), ("excluded", excluded)):
@@ -156,7 +152,9 @@ class MarketBookFreshness:
             self.newest_quote_at,
             field="market_book_freshness.newest_quote_at",
         )
-        if not isinstance(self.freshness_window, timedelta) or self.freshness_window <= timedelta(0):
+        if not isinstance(self.freshness_window, timedelta) or self.freshness_window <= timedelta(
+            0
+        ):
             raise ValueError("freshness_window must be a positive timedelta")
         if oldest > newest:
             raise ValueError("oldest_quote_at cannot be later than newest_quote_at")
