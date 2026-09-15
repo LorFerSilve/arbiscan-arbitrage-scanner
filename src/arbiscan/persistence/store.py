@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
+from arbiscan.domain.errors import DomainValidationError
 from arbiscan.domain.models import OddsQuote, Opportunity, StakePlan
 from arbiscan.domain.serialization import dumps, loads
 
@@ -94,7 +95,9 @@ class SqliteAuditStore:
                 for version, sql in _MIGRATIONS:
                     if version in applied:
                         continue
-                    connection.executescript(sql)
+                    for statement in sql.split(";"):
+                        if statement.strip():
+                            connection.execute(statement)
                     connection.execute(
                         "INSERT INTO schema_migrations(version, applied_at) VALUES (?, ?)",
                         (version, datetime.now(UTC).isoformat()),
@@ -131,6 +134,7 @@ class SqliteAuditStore:
 
         try:
             with self._connect() as connection:
+                opportunity_id = _id(opportunity.id)
                 for quote_id in expected:
                     quote = quote_by_id[quote_id]
                     self._upsert(
@@ -145,7 +149,7 @@ class SqliteAuditStore:
                 self._upsert(
                     connection,
                     "opportunity",
-                    _id(opportunity.id),
+                    opportunity_id,
                     _id(opportunity.event_id),
                     None,
                     opportunity.detected_at,
@@ -155,13 +159,23 @@ class SqliteAuditStore:
                     connection.execute(
                         "INSERT OR IGNORE INTO opportunity_quotes"
                         "(opportunity_id, quote_id, ordinal) VALUES (?, ?, ?)",
-                        (_id(opportunity.id), quote_id, ordinal),
+                        (opportunity_id, quote_id, ordinal),
                     )
                 if stake_plan is not None:
+                    plan_id = _id(stake_plan.id)
+                    existing_plan = connection.execute(
+                        "SELECT stake_plan_id FROM opportunity_stake_plans "
+                        "WHERE opportunity_id = ?",
+                        (opportunity_id,),
+                    ).fetchone()
+                    if existing_plan is not None and existing_plan[0] != plan_id:
+                        raise PersistenceError(
+                            "opportunity already has different persisted stake-plan evidence"
+                        )
                     self._upsert(
                         connection,
                         "stake_plan",
-                        _id(stake_plan.id),
+                        plan_id,
                         _id(opportunity.event_id),
                         None,
                         stake_plan.created_at,
@@ -170,7 +184,7 @@ class SqliteAuditStore:
                     connection.execute(
                         "INSERT OR IGNORE INTO opportunity_stake_plans"
                         "(opportunity_id, stake_plan_id) VALUES (?, ?)",
-                        (_id(opportunity.id), _id(stake_plan.id)),
+                        (opportunity_id, plan_id),
                     )
         except sqlite3.Error as exc:
             raise PersistenceError("failed to persist opportunity evidence") from exc
@@ -199,7 +213,7 @@ class SqliteAuditStore:
                     if stake_row is None
                     else loads(self._payload(connection, "stake_plan", stake_row[0]), StakePlan)
                 )
-        except sqlite3.Error as exc:
+        except (sqlite3.Error, DomainValidationError) as exc:
             raise PersistenceError("failed to reconstruct opportunity evidence") from exc
         if tuple(quote.id for quote in quotes) != opportunity.quote_ids:
             raise PersistenceError("persisted opportunity evidence is incomplete or inconsistent")
