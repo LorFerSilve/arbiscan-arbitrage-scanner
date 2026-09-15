@@ -37,6 +37,7 @@ class MarketKind(StrEnum):
 
     MATCH_WINNER_2_WAY = "match_winner_2_way"
     MATCH_WINNER_3_WAY = "match_winner_3_way"
+    QUALIFICATION_WINNER = "qualification_winner"
     TOTAL_POINTS = "total_points"
     HANDICAP = "handicap"
     SET_WINNER = "set_winner"
