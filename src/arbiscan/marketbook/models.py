@@ -32,6 +32,7 @@ class MarketBookDiagnosticCode(StrEnum):
     QUOTE_SELECTION_MISMATCH = "quote_selection_mismatch"
     PROVIDER_FILTERED = "provider_filtered"
     INACTIVE_QUOTE = "inactive_quote"
+    FUTURE_INGESTION = "future_ingestion"
     FUTURE_QUOTE = "future_quote"
     STALE_QUOTE = "stale_quote"
     INSUFFICIENT_OUTCOMES = "insufficient_outcomes"
