@@ -72,6 +72,4 @@ def test_extreme_source_odds_are_rejected_without_aborting_the_snapshot() -> Non
     )
 
     assert len(result.quotes) == 2
-    assert tuple(issue.code for issue in result.issues) == (
-        NormalizationIssueCode.MALFORMED_PRICE,
-    )
+    assert tuple(issue.code for issue in result.issues) == (NormalizationIssueCode.MALFORMED_PRICE,)
