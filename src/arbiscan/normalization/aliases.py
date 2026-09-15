@@ -52,11 +52,15 @@ class SportNormalizer:
         exact = tuple(entry for entry in self.entries if entry.alias == key)
         if provider_id is not None:
             provider_specific = tuple(entry for entry in exact if entry.provider_id == provider_id)
-            matches = provider_specific or tuple(entry for entry in exact if entry.provider_id is None)
+            matches = provider_specific or tuple(
+                entry for entry in exact if entry.provider_id is None
+            )
         else:
             matches = tuple(entry for entry in exact if entry.provider_id is None)
 
-        candidates = tuple(sorted({entry.sport for entry in matches}, key=lambda value: value.value))
+        candidates = tuple(
+            sorted({entry.sport for entry in matches}, key=lambda value: value.value)
+        )
         if len(candidates) == 1:
             return Resolution.resolved(candidates[0], detail="explicit sport alias")
         if len(candidates) > 1:
