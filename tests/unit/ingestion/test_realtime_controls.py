@@ -141,7 +141,6 @@ def test_poll_scheduler_drops_missed_intervals_instead_of_building_backlog() -> 
         first = await anext(cycles)
         clock.value = AS_OF + timedelta(seconds=12)
         second = await anext(cycles)
-        await cycles.aclose()
         return (
             first.metrics.missed_poll_intervals_total,
             second.metrics.missed_poll_intervals_total,
