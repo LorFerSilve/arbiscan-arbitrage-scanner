@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from enum import StrEnum
@@ -28,8 +28,7 @@ from arbiscan.providers.models import (
 )
 from arbiscan.providers.resilience import ProviderCallPolicy, ProviderExecutor
 
-
-Clock = callable
+Clock = Callable[[], datetime]
 
 
 def _utc_now() -> datetime:
@@ -192,6 +191,7 @@ class LiveQuoteStore:
 
     @staticmethod
     def _fingerprint(quote: OddsQuote) -> tuple[object, ...]:
+        effective_timestamp = quote.source_timestamp or quote.ingested_at
         return (
             quote.provider_id,
             quote.event_id,
@@ -202,7 +202,7 @@ class LiveQuoteStore:
             quote.source_event_id,
             quote.source_market_id,
             quote.source_selection_id,
-            quote.source_timestamp,
+            effective_timestamp,
         )
 
     @staticmethod
@@ -226,6 +226,10 @@ class LiveQuoteStore:
     ) -> QuoteStoreApplyResult:
         """Apply canonical quotes while rejecting impossible/far-out-of-order updates."""
         observed = _aware_utc(observed_at, field_name="observed_at")
+        quote_values = tuple(quotes)
+        if any(not isinstance(quote, OddsQuote) for quote in quote_values):
+            raise ValueError("quotes must contain OddsQuote values")
+
         accepted: list[QuoteVersion] = []
         diagnostics: list[QuoteStoreDiagnostic] = []
         added_count = 0
@@ -233,9 +237,7 @@ class LiveQuoteStore:
         duplicate_count = 0
         rejected_count = 0
 
-        for quote in sorted(tuple(quotes), key=self._sort_key):
-            if not isinstance(quote, OddsQuote):
-                raise ValueError("quotes must contain OddsQuote values")
+        for quote in sorted(quote_values, key=self._sort_key):
             key = QuoteKey.from_quote(quote)
             effective = quote.source_timestamp or quote.ingested_at
 
@@ -299,7 +301,9 @@ class LiveQuoteStore:
                         QuoteStoreDiagnostic(
                             code=QuoteStoreDiagnosticCode.DUPLICATE,
                             key=key,
-                            detail="incoming quote does not change the current semantic quote state",
+                            detail=(
+                                "incoming quote does not change the current semantic quote state"
+                            ),
                         )
                     )
                     duplicate_count += 1
@@ -384,8 +388,13 @@ class LiveQuoteStore:
         return tuple(version.quote for version in self.fresh_versions(as_of=as_of))
 
     def stale_count(self, *, as_of: datetime) -> int:
-        fresh_keys = {version.key for version in self.fresh_versions(as_of=as_of)}
-        return len(self._current) - len(fresh_keys)
+        moment = _aware_utc(as_of, field_name="as_of")
+        return sum(
+            1
+            for version in self._current.values()
+            if version.effective_timestamp <= moment
+            and moment - version.effective_timestamp > self._policy.freshness_window
+        )
 
     def maximum_quote_age(self, *, as_of: datetime) -> timedelta | None:
         moment = _aware_utc(as_of, field_name="as_of")
@@ -450,12 +459,19 @@ class ProviderRateGate:
             fallback_cooldown,
             field_name="fallback_cooldown",
         )
+        if self._fallback_cooldown <= timedelta(0):
+            raise ValueError("fallback_cooldown must be greater than zero")
         self._next_allowed_at: dict[ProviderId, datetime] = {}
 
     def is_throttled(self, provider_id: ProviderId, *, as_of: datetime) -> bool:
         moment = _aware_utc(as_of, field_name="as_of")
         next_allowed = self._next_allowed_at.get(provider_id)
-        return next_allowed is not None and moment < next_allowed
+        if next_allowed is None:
+            return False
+        if moment >= next_allowed:
+            self._next_allowed_at.pop(provider_id, None)
+            return False
+        return True
 
     def next_allowed_at(self, provider_id: ProviderId) -> datetime | None:
         return self._next_allowed_at.get(provider_id)
@@ -478,13 +494,18 @@ class ProviderRateGate:
     def observe_retry_after(
         self,
         provider_id: ProviderId,
-        retry_after: timedelta,
+        retry_after: timedelta | None,
         *,
         as_of: datetime,
     ) -> None:
         moment = _aware_utc(as_of, field_name="as_of")
-        delay = _non_negative_timedelta(retry_after, field_name="retry_after")
-        self._next_allowed_at[provider_id] = moment + max(delay, self._fallback_cooldown)
+        delay = self._fallback_cooldown
+        if retry_after is not None:
+            delay = max(
+                _non_negative_timedelta(retry_after, field_name="retry_after"),
+                self._fallback_cooldown,
+            )
+        self._next_allowed_at[provider_id] = moment + delay
 
 
 @dataclass(frozen=True, slots=True)
@@ -501,7 +522,11 @@ class ProviderPollMetrics:
     health_state: ProviderHealthState
 
     def __post_init__(self) -> None:
-        object.__setattr__(self, "started_at", _aware_utc(self.started_at, field_name="started_at"))
+        object.__setattr__(
+            self,
+            "started_at",
+            _aware_utc(self.started_at, field_name="started_at"),
+        )
         object.__setattr__(
             self,
             "completed_at",
@@ -580,7 +605,11 @@ class ProviderHealthTracker:
                 state.state = ProviderHealthState.DEGRADED
 
         update_interval = None
-        if previous_update is not None and state.last_update_at is not None:
+        if (
+            snapshot_count > 0
+            and previous_update is not None
+            and state.last_update_at is not None
+        ):
             update_interval = state.last_update_at - previous_update
 
         return self._freeze(provider_id, state), update_interval
@@ -636,7 +665,7 @@ class RealtimeIngestionRuntime:
         *,
         policy: RealtimeIngestionPolicy | None = None,
         provider_call_policy: ProviderCallPolicy | None = None,
-        clock: object = _utc_now,
+        clock: Clock = _utc_now,
     ) -> None:
         self.policy = policy or RealtimeIngestionPolicy()
         self.provider_call_policy = provider_call_policy
@@ -647,10 +676,7 @@ class RealtimeIngestionRuntime:
         self._health = ProviderHealthTracker()
 
     def _now(self) -> datetime:
-        value = self._clock()
-        if not isinstance(value, datetime):
-            raise ValueError("clock must return datetime")
-        return _aware_utc(value, field_name="clock")
+        return _aware_utc(self._clock(), field_name="clock")
 
     async def poll_once(
         self,
@@ -667,7 +693,10 @@ class RealtimeIngestionRuntime:
                 return await self._poll_adapter(adapter, sport)
 
         results = await asyncio.gather(
-            *(run(adapter) for adapter in sorted(adapters, key=lambda item: item.provider.id.value))
+            *(
+                run(adapter)
+                for adapter in sorted(adapters, key=lambda item: item.provider.id.value)
+            )
         )
 
         snapshots = tuple(
@@ -694,7 +723,10 @@ class RealtimeIngestionRuntime:
         return RealtimeIngestionBatch(
             ingestion=IngestionBatch(snapshots=snapshots, issues=issues),
             provider_metrics=tuple(
-                sorted((result.metric for result in results), key=lambda item: item.provider_id.value)
+                sorted(
+                    (result.metric for result in results),
+                    key=lambda item: item.provider_id.value,
+                )
             ),
             provider_health=self._health.snapshots(),
         )
@@ -707,28 +739,11 @@ class RealtimeIngestionRuntime:
         started_at = self._now()
         provider_id = adapter.provider.id
         if self._rate_gate.is_throttled(provider_id, as_of=started_at):
-            completed_at = self._now()
-            health, update_interval = self._health.record(
-                provider_id,
-                completed_at=completed_at,
-                snapshot_count=0,
-                issue_count=0,
-                throttled=True,
-            )
-            return _ProviderPollResult(
-                batch=IngestionBatch(snapshots=(), issues=()),
-                metric=ProviderPollMetrics(
-                    provider_id=provider_id,
-                    started_at=started_at,
-                    completed_at=completed_at,
-                    snapshot_count=0,
-                    issue_count=0,
-                    throttled=True,
-                    rate_limit_remaining=None,
-                    update_interval=update_interval,
-                    consecutive_failures=health.consecutive_failures,
-                    health_state=health.state,
-                ),
+            return self._throttled_result(
+                provider_id=provider_id,
+                started_at=started_at,
+                issues=(),
+                rate_limit_remaining=None,
             )
 
         preflight_issues: list[IngestionIssue] = []
@@ -741,15 +756,26 @@ class RealtimeIngestionRuntime:
                     adapter.rate_limit,
                 )
             except ProviderError as error:
-                preflight_issues.append(
-                    IngestionIssue(
-                        provider_id=error.provider_id,
-                        operation=error.operation,
-                        kind=error.kind,
-                        detail=str(error),
-                        retry_after=error.retry_after,
-                    )
+                issue = IngestionIssue(
+                    provider_id=error.provider_id,
+                    operation=error.operation,
+                    kind=error.kind,
+                    detail=str(error),
+                    retry_after=error.retry_after,
                 )
+                preflight_issues.append(issue)
+                if error.kind is ProviderErrorKind.RATE_LIMITED:
+                    self._rate_gate.observe_retry_after(
+                        provider_id,
+                        error.retry_after,
+                        as_of=self._now(),
+                    )
+                    return self._throttled_result(
+                        provider_id=provider_id,
+                        started_at=started_at,
+                        issues=tuple(preflight_issues),
+                        rate_limit_remaining=None,
+                    )
             else:
                 if rate_limit_snapshot is not None:
                     if rate_limit_snapshot.provider_id != provider_id:
@@ -765,31 +791,11 @@ class RealtimeIngestionRuntime:
                     else:
                         self._rate_gate.observe(rate_limit_snapshot, as_of=self._now())
                         if self._rate_gate.is_throttled(provider_id, as_of=self._now()):
-                            completed_at = self._now()
-                            health, update_interval = self._health.record(
-                                provider_id,
-                                completed_at=completed_at,
-                                snapshot_count=0,
-                                issue_count=len(preflight_issues),
-                                throttled=True,
-                            )
-                            return _ProviderPollResult(
-                                batch=IngestionBatch(
-                                    snapshots=(),
-                                    issues=tuple(preflight_issues),
-                                ),
-                                metric=ProviderPollMetrics(
-                                    provider_id=provider_id,
-                                    started_at=started_at,
-                                    completed_at=completed_at,
-                                    snapshot_count=0,
-                                    issue_count=len(preflight_issues),
-                                    throttled=True,
-                                    rate_limit_remaining=rate_limit_snapshot.remaining,
-                                    update_interval=update_interval,
-                                    consecutive_failures=health.consecutive_failures,
-                                    health_state=health.state,
-                                ),
+                            return self._throttled_result(
+                                provider_id=provider_id,
+                                started_at=started_at,
+                                issues=tuple(preflight_issues),
+                                rate_limit_remaining=rate_limit_snapshot.remaining,
                             )
 
         collected = await collect_snapshots(
@@ -799,9 +805,11 @@ class RealtimeIngestionRuntime:
         )
         issues = [*preflight_issues, *collected.issues]
         completed_at = self._now()
+        encountered_throttle = False
 
         for issue in issues:
-            if issue.kind is ProviderErrorKind.RATE_LIMITED and issue.retry_after is not None:
+            if issue.kind is ProviderErrorKind.RATE_LIMITED:
+                encountered_throttle = True
                 self._rate_gate.observe_retry_after(
                     provider_id,
                     issue.retry_after,
@@ -813,7 +821,7 @@ class RealtimeIngestionRuntime:
             completed_at=completed_at,
             snapshot_count=len(collected.snapshots),
             issue_count=len(issues),
-            throttled=False,
+            throttled=encountered_throttle,
         )
         return _ProviderPollResult(
             batch=IngestionBatch(
@@ -836,10 +844,42 @@ class RealtimeIngestionRuntime:
                 completed_at=completed_at,
                 snapshot_count=len(collected.snapshots),
                 issue_count=len(issues),
-                throttled=False,
+                throttled=encountered_throttle,
                 rate_limit_remaining=(
                     None if rate_limit_snapshot is None else rate_limit_snapshot.remaining
                 ),
+                update_interval=update_interval,
+                consecutive_failures=health.consecutive_failures,
+                health_state=health.state,
+            ),
+        )
+
+    def _throttled_result(
+        self,
+        *,
+        provider_id: ProviderId,
+        started_at: datetime,
+        issues: tuple[IngestionIssue, ...],
+        rate_limit_remaining: int | None,
+    ) -> _ProviderPollResult:
+        completed_at = self._now()
+        health, update_interval = self._health.record(
+            provider_id,
+            completed_at=completed_at,
+            snapshot_count=0,
+            issue_count=len(issues),
+            throttled=True,
+        )
+        return _ProviderPollResult(
+            batch=IngestionBatch(snapshots=(), issues=issues),
+            metric=ProviderPollMetrics(
+                provider_id=provider_id,
+                started_at=started_at,
+                completed_at=completed_at,
+                snapshot_count=0,
+                issue_count=len(issues),
+                throttled=True,
+                rate_limit_remaining=rate_limit_remaining,
                 update_interval=update_interval,
                 consecutive_failures=health.consecutive_failures,
                 health_state=health.state,
