@@ -88,14 +88,18 @@ def _winner_registry() -> tuple[CanonicalRegistry, Event, Market, tuple[Selectio
             participant_id=away.id,
         ),
     )
-    registry = CanonicalRegistry(
-        competitions=(competition,),
-        participants=(home, away),
-        events=(event,),
-        markets=(market,),
-        selections=selections,
+    return (
+        CanonicalRegistry(
+            competitions=(competition,),
+            participants=(home, away),
+            events=(event,),
+            markets=(market,),
+            selections=selections,
+        ),
+        event,
+        market,
+        selections,
     )
-    return registry, event, market, selections
 
 
 def _quote(
@@ -132,56 +136,34 @@ def _complete_quotes(
     market: Market,
     selections: tuple[Selection, ...],
 ) -> tuple[OddsQuote, ...]:
-    return (
+    return tuple(
         _quote(
             provider="alpha",
             event_id=event.id,
             market_id=market.id,
-            selection_id=selections[0].id,
-            price="2.80",
-        ),
-        _quote(
-            provider="alpha",
-            event_id=event.id,
-            market_id=market.id,
-            selection_id=selections[1].id,
-            price="3.50",
-        ),
-        _quote(
-            provider="alpha",
-            event_id=event.id,
-            market_id=market.id,
-            selection_id=selections[2].id,
-            price="3.00",
-        ),
+            selection_id=selection.id,
+            price=price,
+        )
+        for selection, price in zip(selections, ("2.80", "3.50", "3.00"), strict=True)
     )
+
+
+def _selected_quote(result_quotes: tuple[OddsQuote, ...], selection_id: SelectionId) -> OddsQuote:
+    return next(quote for quote in result_quotes if quote.selection_id == selection_id)
 
 
 def test_selects_best_valid_price_per_outcome_with_provider_attribution() -> None:
     registry, event, market, selections = _winner_registry()
     alpha = _complete_quotes(event, market, selections)
-    beta = (
+    beta = tuple(
         _quote(
             provider="beta",
             event_id=event.id,
             market_id=market.id,
-            selection_id=selections[0].id,
-            price="2.90",
-        ),
-        _quote(
-            provider="beta",
-            event_id=event.id,
-            market_id=market.id,
-            selection_id=selections[1].id,
-            price="3.40",
-        ),
-        _quote(
-            provider="beta",
-            event_id=event.id,
-            market_id=market.id,
-            selection_id=selections[2].id,
-            price="3.20",
-        ),
+            selection_id=selection.id,
+            price=price,
+        )
+        for selection, price in zip(selections, ("2.90", "3.40", "3.20"), strict=True)
     )
 
     result = build_market_books(
@@ -204,8 +186,8 @@ def test_selects_best_valid_price_per_outcome_with_provider_attribution() -> Non
 
 def test_stale_high_price_is_removed_before_best_price_selection() -> None:
     registry, event, market, selections = _winner_registry()
-    quotes = list(_complete_quotes(event, market, selections))
-    quotes.append(
+    quotes = (
+        *_complete_quotes(event, market, selections),
         _quote(
             provider="stale",
             event_id=event.id,
@@ -213,7 +195,7 @@ def test_stale_high_price_is_removed_before_best_price_selection() -> None:
             selection_id=selections[0].id,
             price="9.00",
             seconds_old=600,
-        )
+        ),
     )
 
     result = build_market_books(
@@ -223,7 +205,8 @@ def test_stale_high_price_is_removed_before_best_price_selection() -> None:
         freshness_window=WINDOW,
     )
 
-    assert result.books[0].outcomes[1].quote.decimal_price != Decimal("9.00")
+    selected = _selected_quote(result.books[0].quotes, selections[0].id)
+    assert selected.decimal_price == Decimal("2.80")
     assert MarketBookDiagnosticCode.STALE_QUOTE in {
         diagnostic.code for diagnostic in result.diagnostics
     }
@@ -231,8 +214,8 @@ def test_stale_high_price_is_removed_before_best_price_selection() -> None:
 
 def test_inactive_quote_is_removed_before_best_price_selection() -> None:
     registry, event, market, selections = _winner_registry()
-    quotes = list(_complete_quotes(event, market, selections))
-    quotes.append(
+    quotes = (
+        *_complete_quotes(event, market, selections),
         _quote(
             provider="suspended",
             event_id=event.id,
@@ -240,7 +223,7 @@ def test_inactive_quote_is_removed_before_best_price_selection() -> None:
             selection_id=selections[1].id,
             price="9.00",
             status=QuoteStatus.SUSPENDED,
-        )
+        ),
     )
 
     result = build_market_books(
@@ -250,7 +233,10 @@ def test_inactive_quote_is_removed_before_best_price_selection() -> None:
         freshness_window=WINDOW,
     )
 
-    assert all(outcome.quote.provider_id != ProviderId("provider:suspended") for outcome in result.books[0].outcomes)
+    assert all(
+        outcome.quote.provider_id != ProviderId("provider:suspended")
+        for outcome in result.books[0].outcomes
+    )
     assert MarketBookDiagnosticCode.INACTIVE_QUOTE in {
         diagnostic.code for diagnostic in result.diagnostics
     }
@@ -277,11 +263,7 @@ def test_provider_exclusion_forces_best_price_fallback() -> None:
         ),
     )
 
-    selected = next(
-        outcome.quote
-        for outcome in result.books[0].outcomes
-        if outcome.selection.id == selections[0].id
-    )
+    selected = _selected_quote(result.books[0].quotes, selections[0].id)
     assert selected.provider_id == ProviderId("provider:alpha")
     assert MarketBookDiagnosticCode.PROVIDER_FILTERED in {
         diagnostic.code for diagnostic in result.diagnostics
@@ -440,9 +422,10 @@ def test_incompatible_total_lines_are_never_combined() -> None:
 
 def test_equal_prices_use_freshness_then_stable_identity_independent_of_input_order() -> None:
     registry, event, market, selections = _winner_registry()
-    base = list(_complete_quotes(event, market, selections))
     target = selections[0].id
-    base = [quote for quote in base if quote.selection_id != target]
+    base = tuple(
+        quote for quote in _complete_quotes(event, market, selections) if quote.selection_id != target
+    )
     older = _quote(
         provider="alpha",
         event_id=event.id,
@@ -482,18 +465,12 @@ def test_equal_prices_use_freshness_then_stable_identity_independent_of_input_or
         freshness_window=WINDOW,
     )
 
-    first_quote = next(
-        outcome.quote for outcome in first.books[0].outcomes if outcome.selection.id == target
-    )
-    second_quote = next(
-        outcome.quote for outcome in second.books[0].outcomes if outcome.selection.id == target
-    )
-    assert first_quote == second_quote == fresher_alpha
+    assert _selected_quote(first.books[0].quotes, target) == fresher_alpha
+    assert _selected_quote(second.books[0].quotes, target) == fresher_alpha
 
 
 def test_future_quote_is_rejected() -> None:
     registry, event, market, selections = _winner_registry()
-    quotes = list(_complete_quotes(event, market, selections))
     future = OddsQuote(
         id=QuoteId("quote:future"),
         provider_id=ProviderId("provider:future"),
@@ -509,10 +486,9 @@ def test_future_quote_is_rejected() -> None:
         status=QuoteStatus.ACTIVE,
         trace_id="trace:future",
     )
-    quotes.append(future)
 
     result = build_market_books(
-        quotes,
+        (*_complete_quotes(event, market, selections), future),
         registry=registry,
         as_of=AS_OF,
         freshness_window=WINDOW,
@@ -521,7 +497,7 @@ def test_future_quote_is_rejected() -> None:
     assert MarketBookDiagnosticCode.FUTURE_QUOTE in {
         diagnostic.code for diagnostic in result.diagnostics
     }
-    assert all(outcome.quote != future for outcome in result.books[0].outcomes)
+    assert future not in result.books[0].quotes
 
 
 def test_quote_with_selection_from_another_market_fails_closed() -> None:
