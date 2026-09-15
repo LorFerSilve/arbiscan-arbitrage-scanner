@@ -5,10 +5,10 @@ import asyncio
 from arbiscan.domain import EventId, ProviderId, Sport
 from arbiscan.marketbook import MarketBookDiagnosticCode, ProviderBookPolicy
 from arbiscan.providers.synthetic import build_phase5_synthetic_scenario
-from arbiscan.services import run_vertical_slice
+from arbiscan.services import VerticalSliceResult, run_vertical_slice
 
 
-def _run(*, policy: ProviderBookPolicy | None = None):
+def _run(*, policy: ProviderBookPolicy | None = None) -> VerticalSliceResult:
     scenario = build_phase5_synthetic_scenario()
     return asyncio.run(
         run_vertical_slice(
