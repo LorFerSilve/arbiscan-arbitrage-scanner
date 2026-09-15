@@ -4,12 +4,16 @@ from __future__ import annotations
 
 import json
 import math
+from collections import deque
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from enum import StrEnum
 from typing import Protocol
 
 from arbiscan.domain import ProviderId
+
+_LATENCY_WINDOW_SIZE = 256
+_RESERVED_LOG_FIELDS = frozenset({"observed_at", "event", "correlation_id", "provider_id"})
 
 
 def _utc(value: datetime, *, name: str) -> datetime:
@@ -40,14 +44,20 @@ class StructuredLogRecord:
         object.__setattr__(self, "observed_at", _utc(self.observed_at, name="observed_at"))
         if not self.event.strip() or not self.correlation_id.strip():
             raise ValueError("event and correlation_id must be non-empty")
+        reserved = _RESERVED_LOG_FIELDS.intersection(self.fields)
+        if reserved:
+            names = ", ".join(sorted(reserved))
+            raise ValueError(f"structured log fields use reserved keys: {names}")
 
     def to_json(self) -> str:
-        payload: dict[str, object] = {
-            "observed_at": self.observed_at.isoformat(),
-            "event": self.event,
-            "correlation_id": self.correlation_id,
-            **self.fields,
-        }
+        payload: dict[str, object] = dict(self.fields)
+        payload.update(
+            {
+                "observed_at": self.observed_at.isoformat(),
+                "event": self.event,
+                "correlation_id": self.correlation_id,
+            }
+        )
         if self.provider_id is not None:
             payload["provider_id"] = self.provider_id.value
         return json.dumps(payload, sort_keys=True, separators=(",", ":"))
@@ -94,7 +104,7 @@ class MetricsRegistry:
         self._counters: dict[str, int] = {}
         self._active_quotes = 0
         self._stale_quotes = 0
-        self._latencies: list[float] = []
+        self._latencies: deque[float] = deque(maxlen=_LATENCY_WINDOW_SIZE)
 
     def provider_request(self, provider_id: ProviderId, *, success: bool) -> None:
         self._provider_requests[provider_id] = self._provider_requests.get(provider_id, 0) + 1
@@ -181,7 +191,9 @@ def assess_health(metrics: MetricsSnapshot, policy: HealthPolicy | None = None) 
     policy = policy or HealthPolicy()
     providers: dict[ProviderId, HealthState] = {}
     reasons: list[str] = []
-    provider_ids = set(metrics.provider_requests) | set(metrics.provider_available)
+    provider_ids = (
+        set(metrics.provider_requests) | set(metrics.provider_errors) | set(metrics.provider_available)
+    )
     for provider_id in sorted(provider_ids, key=lambda value: value.value):
         requests = metrics.provider_requests.get(provider_id, 0)
         errors = metrics.provider_errors.get(provider_id, 0)
