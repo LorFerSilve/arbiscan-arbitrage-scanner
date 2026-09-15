@@ -70,9 +70,7 @@ def normalize_odds(price: str, odds_format: SourceOddsFormat) -> Decimal:
         elif odds_format is SourceOddsFormat.IMPLIED_PROBABILITY:
             probability = _parse_decimal(raw, field_name="implied probability")
             if not 0 < probability < _ONE:
-                raise OddsNormalizationError(
-                    "implied probability must be strictly between 0 and 1"
-                )
+                raise OddsNormalizationError("implied probability must be strictly between 0 and 1")
             decimal_price = context.divide(_ONE, probability)
         else:
             raise OddsNormalizationError(f"unsupported odds format: {odds_format!r}")
