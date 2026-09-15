@@ -9,16 +9,6 @@ from arbiscan.providers.models import SourceOddsFormat
 from arbiscan.providers.synthetic import build_phase5_synthetic_scenario
 
 
-def _scenario_snapshot() -> tuple[object, object, object]:
-    scenario = build_phase5_synthetic_scenario()
-    alpha = scenario.adapters[0]
-    events = asyncio.run(alpha.discover_events("alpha:epl"))
-    event = next(value for value in events if value.external_id == "alpha:arb")
-    snapshot = asyncio.run(alpha.fetch_odds(event.external_id))
-    assert snapshot is not None
-    return scenario, event, snapshot
-
-
 def test_strict_bridge_converts_fractional_source_odds_to_decimal() -> None:
     scenario = build_phase5_synthetic_scenario()
     alpha = scenario.adapters[0]
