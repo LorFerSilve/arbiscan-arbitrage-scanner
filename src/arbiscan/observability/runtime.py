@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import math
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from enum import StrEnum
@@ -124,8 +125,13 @@ class MetricsRegistry:
         self._active_quotes, self._stale_quotes = active, stale
 
     def detection_latency(self, seconds: float) -> None:
-        if isinstance(seconds, bool) or not isinstance(seconds, (int, float)) or seconds < 0:
-            raise ValueError("detection latency must be non-negative")
+        if (
+            isinstance(seconds, bool)
+            or not isinstance(seconds, (int, float))
+            or not math.isfinite(seconds)
+            or seconds < 0
+        ):
+            raise ValueError("detection latency must be finite and non-negative")
         self._latencies.append(float(seconds))
 
     def snapshot(self) -> MetricsSnapshot:
@@ -152,8 +158,9 @@ class HealthPolicy:
     max_detection_latency: timedelta = timedelta(seconds=5)
 
     def __post_init__(self) -> None:
-        if not 0 <= self.provider_failure_ratio <= 1 or not 0 <= self.stale_quote_ratio <= 1:
-            raise ValueError("health ratios must be in [0, 1]")
+        ratios = (self.provider_failure_ratio, self.stale_quote_ratio)
+        if any(isinstance(value, bool) or not math.isfinite(value) or not 0 <= value <= 1 for value in ratios):
+            raise ValueError("health ratios must be finite values in [0, 1]")
         if self.max_detection_latency.total_seconds() <= 0:
             raise ValueError("max_detection_latency must be positive")
 
@@ -174,8 +181,9 @@ def assess_health(metrics: MetricsSnapshot, policy: HealthPolicy | None = None) 
     policy = policy or HealthPolicy()
     providers: dict[ProviderId, HealthState] = {}
     reasons: list[str] = []
-    for provider_id in sorted(metrics.provider_requests, key=lambda value: value.value):
-        requests = metrics.provider_requests[provider_id]
+    provider_ids = set(metrics.provider_requests) | set(metrics.provider_available)
+    for provider_id in sorted(provider_ids, key=lambda value: value.value):
+        requests = metrics.provider_requests.get(provider_id, 0)
         errors = metrics.provider_errors.get(provider_id, 0)
         available = metrics.provider_available.get(provider_id, True)
         ratio = errors / requests if requests else 0.0
@@ -191,7 +199,10 @@ def assess_health(metrics: MetricsSnapshot, policy: HealthPolicy | None = None) 
     if stale_ratio >= policy.stale_quote_ratio and total_quotes:
         system = HealthState.UNHEALTHY
         reasons.append("system:stale_quote_ratio")
-    elif metrics.detection_latency_seconds and max(metrics.detection_latency_seconds) > policy.max_detection_latency.total_seconds():
+    elif (
+        metrics.detection_latency_seconds
+        and max(metrics.detection_latency_seconds) > policy.max_detection_latency.total_seconds()
+    ):
         system = HealthState.DEGRADED
         reasons.append("system:detection_latency")
     elif any(state is HealthState.DEGRADED for state in providers.values()):
