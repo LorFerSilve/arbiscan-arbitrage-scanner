@@ -58,7 +58,9 @@ class MarketAlias:
     requires_period_index: bool = False
 
     def __post_init__(self) -> None:
-        object.__setattr__(self, "alias", normalize_alias_key(self.alias, field_name="market alias"))
+        object.__setattr__(
+            self, "alias", normalize_alias_key(self.alias, field_name="market alias")
+        )
         if not isinstance(self.sport, Sport):
             raise ValueError("market alias sport must be Sport")
         if not isinstance(self.kind, MarketKind):
@@ -100,15 +102,23 @@ class MarketNormalizer:
         if provider_id is not None and not isinstance(provider_id, ProviderId):
             raise ValueError("provider_id must be ProviderId")
 
-        exact = tuple(entry for entry in self.entries if entry.alias == key and entry.sport is sport)
+        exact = tuple(
+            entry for entry in self.entries if entry.alias == key and entry.sport is sport
+        )
         if provider_id is not None:
             provider_specific = tuple(entry for entry in exact if entry.provider_id == provider_id)
-            matches = provider_specific or tuple(entry for entry in exact if entry.provider_id is None)
+            matches = provider_specific or tuple(
+                entry for entry in exact if entry.provider_id is None
+            )
         else:
             matches = tuple(entry for entry in exact if entry.provider_id is None)
 
         if not matches:
-            if exact and provider_id is None and any(entry.provider_id is not None for entry in exact):
+            if (
+                exact
+                and provider_id is None
+                and any(entry.provider_id is not None for entry in exact)
+            ):
                 return Resolution.unknown(detail="market alias requires provider context")
             return Resolution.unknown(detail="unknown market alias")
 
@@ -160,7 +170,9 @@ class MarketNormalizer:
             return Resolution.ambiguous(ordered, detail="market alias maps to multiple semantics")
         if missing_context:
             return Resolution.unknown(detail="market alias requires additional structured context")
-        return Resolution.unknown(detail="market alias conflicts with supplied line or period context")
+        return Resolution.unknown(
+            detail="market alias conflicts with supplied line or period context"
+        )
 
 
 def _normalize_line(value: str | Decimal | None) -> Decimal | None:
