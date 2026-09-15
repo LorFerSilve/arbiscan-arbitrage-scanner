@@ -16,6 +16,13 @@ from arbiscan.arbitrage import (
 )
 from arbiscan.domain import MarketId, OddsQuote, Opportunity, OpportunityId, Sport
 from arbiscan.ingestion.collector import IngestionBatch, collect_snapshots
+from arbiscan.marketbook import (
+    CanonicalMarketBook,
+    MarketBookDiagnostic,
+    MarketBookDiagnosticCode,
+    ProviderBookPolicy,
+    build_market_books,
+)
 from arbiscan.matching.catalog import CanonicalRegistry
 from arbiscan.normalization.strict import NormalizationIssue, normalize_source_snapshot
 from arbiscan.providers.contract import ProviderAdapter
@@ -25,7 +32,7 @@ Clock = Callable[[], datetime]
 
 
 class BookIssueCode(StrEnum):
-    """Reasons a canonical market could not be evaluated."""
+    """Compatibility reasons a canonical market could not be evaluated."""
 
     INCOMPLETE_MARKET = "incomplete_market"
     EVALUATION_REJECTED = "evaluation_rejected"
@@ -33,7 +40,7 @@ class BookIssueCode(StrEnum):
 
 @dataclass(frozen=True, slots=True)
 class BookIssue:
-    """Fail-closed diagnostic for a canonical market-book construction attempt."""
+    """Compatibility diagnostic retained for the original vertical-slice API."""
 
     code: BookIssueCode
     market_id: MarketId
@@ -47,6 +54,8 @@ class VerticalSliceResult:
     ingestion: IngestionBatch
     quotes: tuple[OddsQuote, ...]
     normalization_issues: tuple[NormalizationIssue, ...]
+    market_books: tuple[CanonicalMarketBook, ...]
+    market_book_diagnostics: tuple[MarketBookDiagnostic, ...]
     evaluations: tuple[ArbitrageEvaluation, ...]
     opportunities: tuple[Opportunity, ...]
     book_issues: tuple[BookIssue, ...]
@@ -62,17 +71,6 @@ def _aware_utc(value: datetime, *, field_name: str = "as_of") -> datetime:
     return value.astimezone(UTC)
 
 
-def _best_quote(candidates: tuple[OddsQuote, ...]) -> OddsQuote:
-    return max(
-        candidates,
-        key=lambda quote: (
-            quote.decimal_price,
-            quote.provider_id.value,
-            quote.id.value,
-        ),
-    )
-
-
 async def run_vertical_slice(
     *,
     adapters: tuple[ProviderAdapter, ...],
@@ -83,6 +81,7 @@ async def run_vertical_slice(
     clock: Clock = _utc_now,
     minimum_profit_margin: Decimal = Decimal("0"),
     provider_policy: ProviderCallPolicy | None = None,
+    book_provider_policy: ProviderBookPolicy | None = None,
 ) -> VerticalSliceResult:
     """Run the provider-to-opportunity pipeline in live or replay mode.
 
@@ -126,51 +125,45 @@ async def run_vertical_slice(
         )
     )
 
+    market_scope = tuple(
+        market.id
+        for market in registry.markets
+        if (event := registry.event(market.event_id)) is not None and event.sport is sport
+    )
+    market_book_batch = build_market_books(
+        quotes,
+        registry=registry,
+        as_of=detected_at,
+        freshness_window=freshness_window,
+        provider_policy=book_provider_policy,
+        market_ids=market_scope,
+    )
+
     evaluations: list[ArbitrageEvaluation] = []
     opportunities: list[Opportunity] = []
-    book_issues: list[BookIssue] = []
+    book_issues: list[BookIssue] = [
+        BookIssue(
+            code=BookIssueCode.INCOMPLETE_MARKET,
+            market_id=diagnostic.market_id,
+            detail=diagnostic.detail,
+        )
+        for diagnostic in market_book_batch.diagnostics
+        if diagnostic.code is MarketBookDiagnosticCode.INCOMPLETE_MARKET
+        and diagnostic.market_id is not None
+    ]
 
-    for market in sorted(registry.markets, key=lambda value: value.id.value):
-        event = registry.event(market.event_id)
-        if event is None or event.sport is not sport:
-            continue
-
-        expected = registry.selection_ids_for_market(market.id)
-        best_quotes: list[OddsQuote] = []
-        missing: list[str] = []
-
-        for selection_id in expected:
-            candidates = tuple(
-                quote
-                for quote in quotes
-                if quote.market_id == market.id and quote.selection_id == selection_id
-            )
-            if not candidates:
-                missing.append(selection_id.value)
-                continue
-            best_quotes.append(_best_quote(candidates))
-
-        if missing:
-            book_issues.append(
-                BookIssue(
-                    code=BookIssueCode.INCOMPLETE_MARKET,
-                    market_id=market.id,
-                    detail=f"missing canonical selections: {sorted(missing)}",
-                )
-            )
-            continue
-
+    for book in market_book_batch.books:
         try:
             evaluation = evaluate_market(
-                best_quotes,
-                expected,
+                book.quotes,
+                book.expected_selection_ids,
                 minimum_profit_margin=minimum_profit_margin,
             )
         except ArbitrageMathError as error:
             book_issues.append(
                 BookIssue(
                     code=BookIssueCode.EVALUATION_REJECTED,
-                    market_id=market.id,
+                    market_id=book.market.id,
                     detail=str(error),
                 )
             )
@@ -204,6 +197,8 @@ async def run_vertical_slice(
                 ),
             )
         ),
+        market_books=market_book_batch.books,
+        market_book_diagnostics=market_book_batch.diagnostics,
         evaluations=tuple(
             sorted(evaluations, key=lambda item: (item.event_id.value, item.market_id.value))
         ),
