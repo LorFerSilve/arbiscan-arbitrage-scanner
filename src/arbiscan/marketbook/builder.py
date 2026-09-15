@@ -215,6 +215,15 @@ def build_market_books(
                 )
             )
             continue
+        if quote.ingested_at > now:
+            diagnostics.append(
+                _diagnostic(
+                    MarketBookDiagnosticCode.FUTURE_INGESTION,
+                    quote,
+                    "quote was ingested after market-book construction time",
+                )
+            )
+            continue
 
         effective_at = quote_effective_timestamp(quote)
         age = now - effective_at
