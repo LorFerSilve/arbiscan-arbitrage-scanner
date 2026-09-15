@@ -82,15 +82,15 @@ class ArbiScanApi:
         checks = dict(self._source.readiness_checks())
         return ReadinessResponse(ready=bool(checks) and all(checks.values()), checks=checks)
 
-    def providers(self, page: PageRequest = PageRequest()) -> Page[ProviderStatusResponse]:
-        return _page(self._source.provider_statuses(), page)
+    def providers(self, page: PageRequest | None = None) -> Page[ProviderStatusResponse]:
+        return _page(self._source.provider_statuses(), page or PageRequest())
 
-    def sports(self, page: PageRequest = PageRequest()) -> Page[SportResponse]:
-        return _page(self._source.sports(), page)
+    def sports(self, page: PageRequest | None = None) -> Page[SportResponse]:
+        return _page(self._source.sports(), page or PageRequest())
 
     def events(
         self,
-        page: PageRequest = PageRequest(),
+        page: PageRequest | None = None,
         *,
         sport: str | None = None,
         status: str | None = None,
@@ -100,11 +100,11 @@ class ArbiScanApi:
             for event in self._source.events()
             if (sport is None or event.sport == sport) and (status is None or event.status == status)
         )
-        return _page(values, page)
+        return _page(values, page or PageRequest())
 
     def odds(
         self,
-        page: PageRequest = PageRequest(),
+        page: PageRequest | None = None,
         *,
         event_id: str | None = None,
         provider_id: str | None = None,
@@ -115,11 +115,11 @@ class ArbiScanApi:
             if (event_id is None or quote.event_id == event_id)
             and (provider_id is None or quote.provider_id == provider_id)
         )
-        return _page(values, page)
+        return _page(values, page or PageRequest())
 
     def opportunities(
         self,
-        page: PageRequest = PageRequest(),
+        page: PageRequest | None = None,
         *,
         event_id: str | None = None,
     ) -> Page[OpportunitySummaryResponse]:
@@ -128,7 +128,7 @@ class ArbiScanApi:
             for item in self._source.opportunities()
             if event_id is None or item.event_id == event_id
         )
-        return _page(values, page)
+        return _page(values, page or PageRequest())
 
     def opportunity(self, opportunity_id: str) -> OpportunityDetailResponse | None:
         if not opportunity_id.strip():
