@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import AsyncIterator, Awaitable, Callable
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
@@ -196,11 +196,6 @@ class RealtimeScanner:
             normalization_issues.extend(normalized.issues)
 
         quote_updates = self.store.apply(normalized_quotes, observed_at=detected_at)
-        stale_before_eviction = sum(
-            1
-            for version in self.store.fresh_versions(as_of=detected_at)
-            if detected_at - version.effective_timestamp > self.policy.freshness_window
-        )
         evictions = self.store.evict_stale(as_of=detected_at)
         stale_evicted = sum(
             1
@@ -260,7 +255,7 @@ class RealtimeScanner:
             duplicate_quote_updates=quote_updates.duplicate_count,
             rejected_quote_updates=quote_updates.rejected_count,
             current_fresh_quote_count=len(fresh_quotes),
-            stale_quote_count=stale_before_eviction + stale_evicted,
+            stale_quote_count=stale_evicted,
             quote_age_max=self.store.maximum_quote_age(as_of=detected_at),
             ingestion_to_detection_latency_max=ingestion_latency,
             throttling_events=ingestion.throttling_events,
@@ -312,11 +307,9 @@ class RealtimeScanner:
 
     async def cycles(self, *, sleep: Sleep = asyncio.sleep) -> AsyncIterator[RealtimeScanCycle]:
         """Yield non-overlapping polling cycles with explicit no-backlog backpressure."""
-        cycle_number = 0
         while True:
             cycle_started_at = self._now()
             result = await self.run_cycle()
-            cycle_number += 1
             yield result
 
             elapsed = self._now() - cycle_started_at
