@@ -179,6 +179,7 @@ class RealtimeScanner:
         started_at = self._now()
         ingestion = await self.runtime.poll_once(self.adapters, self.sport)
         detected_at = self._now()
+        normalization_as_of = detected_at + self.policy.clock_skew_tolerance
 
         normalized_quotes: list[OddsQuote] = []
         normalization_issues: list[NormalizationIssue] = []
@@ -189,7 +190,7 @@ class RealtimeScanner:
                 event=ingested.event,
                 snapshot=ingested.snapshot,
                 registry=self.registry,
-                as_of=detected_at,
+                as_of=normalization_as_of,
                 freshness_window=self.policy.freshness_window,
             )
             normalized_quotes.extend(normalized.quotes)
