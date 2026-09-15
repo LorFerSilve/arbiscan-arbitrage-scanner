@@ -179,11 +179,11 @@ def test_swapped_order_is_rejected_when_home_away_order_is_semantic() -> None:
 
 def test_tennis_participant_order_can_be_explicitly_non_semantic() -> None:
     starts_at = datetime(2026, 9, 21, 13, 0, tzinfo=UTC)
-    first = _participant("player-a", "Player A", Sport.TENNIS, ParticipantKind.PERSON)
-    second = _participant("player-b", "Player B", Sport.TENNIS, ParticipantKind.PERSON)
+    first = _participant("player-a", "Player A", Sport.TENNIS, ParticipantKind.INDIVIDUAL)
+    second = _participant("player-b", "Player B", Sport.TENNIS, ParticipantKind.INDIVIDUAL)
     registry = _registry(
         sport=Sport.TENNIS,
-        kind=ParticipantKind.PERSON,
+        kind=ParticipantKind.INDIVIDUAL,
         event_specs=(("tennis", starts_at, (first, second), ()),),
     )
 
@@ -200,12 +200,12 @@ def test_tennis_participant_order_can_be_explicitly_non_semantic() -> None:
 
 
 def test_repeated_tennis_matchup_fails_closed_when_candidates_tie() -> None:
-    first = _participant("player-a", "Player A", Sport.TENNIS, ParticipantKind.PERSON)
-    second = _participant("player-b", "Player B", Sport.TENNIS, ParticipantKind.PERSON)
+    first = _participant("player-a", "Player A", Sport.TENNIS, ParticipantKind.INDIVIDUAL)
+    second = _participant("player-b", "Player B", Sport.TENNIS, ParticipantKind.INDIVIDUAL)
     source_start = datetime(2026, 9, 21, 13, 2, tzinfo=UTC)
     registry = _registry(
         sport=Sport.TENNIS,
-        kind=ParticipantKind.PERSON,
+        kind=ParticipantKind.INDIVIDUAL,
         event_specs=(
             ("match-one", source_start - timedelta(minutes=2), (first, second), ()),
             ("match-two", source_start + timedelta(minutes=2), (first, second), ()),
