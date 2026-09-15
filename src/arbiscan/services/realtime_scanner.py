@@ -15,9 +15,11 @@ from arbiscan.arbitrage import (
     evaluate_market,
 )
 from arbiscan.domain import MarketId, OddsQuote, Opportunity, OpportunityId, Sport
+from arbiscan.ingestion.collector import IngestedSnapshot
 from arbiscan.ingestion.realtime import (
     LiveQuoteStore,
     ProviderPollMetrics,
+    QuoteKey,
     QuoteStoreApplyResult,
     QuoteStoreDiagnosticCode,
     QuoteStoreEvictionResult,
@@ -49,6 +51,19 @@ def _aware_utc(value: datetime, *, field_name: str) -> datetime:
     return value.astimezone(UTC)
 
 
+def _source_status_is_active(value: str) -> bool:
+    return value.strip().casefold() == "active"
+
+
+def _quote_key_sort(key: QuoteKey) -> tuple[str, str, str, str]:
+    return (
+        key.provider_id.value,
+        key.event_id.value,
+        key.market_id.value,
+        key.selection_id.value,
+    )
+
+
 @dataclass(frozen=True, slots=True)
 class RealtimeEvaluationIssue:
     market_id: MarketId
@@ -67,6 +82,7 @@ class RealtimeCycleMetrics:
     accepted_quote_updates: int
     duplicate_quote_updates: int
     rejected_quote_updates: int
+    source_invalidated_quote_count: int
     current_fresh_quote_count: int
     stale_quote_count: int
     quote_age_max: timedelta | None
@@ -108,6 +124,7 @@ class RealtimeScanCycle:
     normalization_issues: tuple[NormalizationIssue, ...]
     quote_updates: QuoteStoreApplyResult
     evictions: QuoteStoreEvictionResult
+    source_invalidated_quote_keys: tuple[QuoteKey, ...]
     fresh_quotes: tuple[OddsQuote, ...]
     market_books: tuple[CanonicalMarketBook, ...]
     market_book_diagnostics: tuple[MarketBookDiagnostic, ...]
@@ -162,6 +179,7 @@ class RealtimeScanner:
         self.minimum_profit_margin = minimum_profit_margin
         self._clock = clock
         self._missed_poll_intervals_total = 0
+        self._source_invalidated_quote_keys: set[QuoteKey] = set()
 
     def _now(self) -> datetime:
         return _aware_utc(self._clock(), field_name="clock")
@@ -174,6 +192,63 @@ class RealtimeScanner:
             and event.sport is self.sport
         )
 
+    def _explicit_inactive_quote_keys(self, ingested: IngestedSnapshot) -> set[QuoteKey]:
+        hooks = ingested.canonical_id_hooks
+        if hooks is None:
+            return set()
+        event_id = hooks.event_id(ingested.event)
+        canonical_event = None if event_id is None else self.registry.event(event_id)
+        if event_id is None or canonical_event is None:
+            return set()
+
+        keys: set[QuoteKey] = set()
+        for market in ingested.snapshot.markets:
+            market_id = hooks.market_id(market)
+            canonical_market = None if market_id is None else self.registry.market(market_id)
+            if (
+                market_id is None
+                or canonical_market is None
+                or canonical_market.event_id != event_id
+            ):
+                continue
+
+            quote_provider = market.price_provider or ingested.provider
+            if not _source_status_is_active(market.source_status):
+                for selection in self.registry.selections:
+                    if selection.market_id == market_id:
+                        keys.add(
+                            QuoteKey(
+                                provider_id=quote_provider.id,
+                                event_id=event_id,
+                                market_id=market_id,
+                                selection_id=selection.id,
+                            )
+                        )
+                continue
+
+            for source_selection in market.selections:
+                if _source_status_is_active(source_selection.source_status):
+                    continue
+                selection_id = hooks.selection_id(market, source_selection)
+                canonical_selection = (
+                    None if selection_id is None else self.registry.selection(selection_id)
+                )
+                if (
+                    selection_id is None
+                    or canonical_selection is None
+                    or canonical_selection.market_id != market_id
+                ):
+                    continue
+                keys.add(
+                    QuoteKey(
+                        provider_id=quote_provider.id,
+                        event_id=event_id,
+                        market_id=market_id,
+                        selection_id=selection_id,
+                    )
+                )
+        return keys
+
     async def run_cycle(self) -> RealtimeScanCycle:
         """Poll, normalize, version, evict, align, and evaluate one live cycle."""
         started_at = self._now()
@@ -183,7 +258,9 @@ class RealtimeScanner:
 
         normalized_quotes: list[OddsQuote] = []
         normalization_issues: list[NormalizationIssue] = []
+        explicit_invalidations: set[QuoteKey] = set()
         for ingested in ingestion.ingestion.snapshots:
+            explicit_invalidations.update(self._explicit_inactive_quote_keys(ingested))
             normalized = normalize_source_snapshot(
                 provider=ingested.provider,
                 hooks=ingested.canonical_id_hooks,
@@ -197,13 +274,23 @@ class RealtimeScanner:
             normalization_issues.extend(normalized.issues)
 
         quote_updates = self.store.apply(normalized_quotes, observed_at=detected_at)
+        active_observed_keys = {QuoteKey.from_quote(quote) for quote in normalized_quotes}
+        self._source_invalidated_quote_keys.difference_update(active_observed_keys)
+        self._source_invalidated_quote_keys.update(explicit_invalidations)
+
         evictions = self.store.evict_stale(as_of=detected_at)
+        for version in evictions.evicted:
+            self._source_invalidated_quote_keys.discard(version.key)
         stale_evicted = sum(
             1
             for diagnostic in evictions.diagnostics
             if diagnostic.code is QuoteStoreDiagnosticCode.STALE_EVICTED
         )
-        fresh_quotes = self.store.fresh_quotes(as_of=detected_at)
+        fresh_quotes = tuple(
+            quote
+            for quote in self.store.fresh_quotes(as_of=detected_at)
+            if QuoteKey.from_quote(quote) not in self._source_invalidated_quote_keys
+        )
 
         market_batch = build_market_books(
             fresh_quotes,
@@ -242,10 +329,6 @@ class RealtimeScanner:
                     )
                 )
 
-        ingestion_latency = self._maximum_ingestion_to_detection_latency(
-            fresh_quotes,
-            detected_at=detected_at,
-        )
         metrics = RealtimeCycleMetrics(
             started_at=started_at,
             detected_at=detected_at,
@@ -255,10 +338,14 @@ class RealtimeScanner:
             accepted_quote_updates=len(quote_updates.accepted),
             duplicate_quote_updates=quote_updates.duplicate_count,
             rejected_quote_updates=quote_updates.rejected_count,
+            source_invalidated_quote_count=len(explicit_invalidations),
             current_fresh_quote_count=len(fresh_quotes),
             stale_quote_count=stale_evicted,
-            quote_age_max=self.store.maximum_quote_age(as_of=detected_at),
-            ingestion_to_detection_latency_max=ingestion_latency,
+            quote_age_max=self._maximum_quote_age(fresh_quotes, as_of=detected_at),
+            ingestion_to_detection_latency_max=self._maximum_ingestion_to_detection_latency(
+                fresh_quotes,
+                detected_at=detected_at,
+            ),
             throttling_events=ingestion.throttling_events,
             market_book_count=len(market_batch.books),
             opportunity_count=len(opportunities),
@@ -281,6 +368,9 @@ class RealtimeScanner:
             ),
             quote_updates=quote_updates,
             evictions=evictions,
+            source_invalidated_quote_keys=tuple(
+                sorted(explicit_invalidations, key=_quote_key_sort)
+            ),
             fresh_quotes=fresh_quotes,
             market_books=market_batch.books,
             market_book_diagnostics=market_batch.diagnostics,
@@ -295,6 +385,16 @@ class RealtimeScanner:
             ),
             metrics=metrics,
         )
+
+    @staticmethod
+    def _maximum_quote_age(
+        quotes: tuple[OddsQuote, ...],
+        *,
+        as_of: datetime,
+    ) -> timedelta | None:
+        if not quotes:
+            return None
+        return max(as_of - (quote.source_timestamp or quote.ingested_at) for quote in quotes)
 
     @staticmethod
     def _maximum_ingestion_to_detection_latency(
