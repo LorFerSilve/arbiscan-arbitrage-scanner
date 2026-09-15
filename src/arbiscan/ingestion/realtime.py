@@ -605,11 +605,7 @@ class ProviderHealthTracker:
                 state.state = ProviderHealthState.DEGRADED
 
         update_interval = None
-        if (
-            snapshot_count > 0
-            and previous_update is not None
-            and state.last_update_at is not None
-        ):
+        if snapshot_count > 0 and previous_update is not None and state.last_update_at is not None:
             update_interval = state.last_update_at - previous_update
 
         return self._freeze(provider_id, state), update_interval
@@ -693,10 +689,7 @@ class RealtimeIngestionRuntime:
                 return await self._poll_adapter(adapter, sport)
 
         results = await asyncio.gather(
-            *(
-                run(adapter)
-                for adapter in sorted(adapters, key=lambda item: item.provider.id.value)
-            )
+            *(run(adapter) for adapter in sorted(adapters, key=lambda item: item.provider.id.value))
         )
 
         snapshots = tuple(
