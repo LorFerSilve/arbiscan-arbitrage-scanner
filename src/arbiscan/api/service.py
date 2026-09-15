@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Protocol, TypeVar
+from typing import Protocol
 
 from arbiscan.api.contracts import (
     ConfigurationStatusResponse,
@@ -20,8 +20,6 @@ from arbiscan.api.contracts import (
     ReadinessResponse,
     SportResponse,
 )
-
-T = TypeVar("T")
 
 
 class ApiDataSource(Protocol):
@@ -147,7 +145,7 @@ class ArbiScanApi:
         return MetricsResponse(values=dict(self._source.metrics()))
 
 
-def _page(values: Sequence[T], request: PageRequest) -> Page[T]:
+def _page[T](values: Sequence[T], request: PageRequest) -> Page[T]:
     items = tuple(values)
     start = request.offset
     end = start + request.limit
