@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
-from decimal import Decimal, InvalidOperation
 from enum import StrEnum
 
 from arbiscan.domain import (
@@ -18,12 +17,12 @@ from arbiscan.domain import (
     SelectionId,
 )
 from arbiscan.matching.catalog import CanonicalRegistry
+from arbiscan.normalization.odds import OddsNormalizationError, normalize_odds
 from arbiscan.providers.models import (
     CanonicalIdHooks,
     OddsSnapshot,
     SourceEvent,
     SourceMarket,
-    SourceOddsFormat,
     SourceSelectionQuote,
 )
 
@@ -103,18 +102,6 @@ def _issue(
     )
 
 
-def _decimal_price(selection: SourceSelectionQuote) -> Decimal | None:
-    if selection.odds_format is not SourceOddsFormat.DECIMAL:
-        return None
-    try:
-        price = Decimal(selection.price)
-    except InvalidOperation:
-        return None
-    if not price.is_finite() or price <= Decimal("1"):
-        return None
-    return price
-
-
 def _quote_id(
     provider_id: ProviderId,
     event_id: EventId,
@@ -155,9 +142,10 @@ def normalize_source_snapshot(
 ) -> NormalizationResult:
     """Normalize one validated source snapshot using explicit canonical mappings only.
 
-    This strict bridge deliberately performs no fuzzy identity matching and no odds
-    format conversion. Aggregators may identify the underlying bookmaker on each
-    ``SourceMarket``; when present, that bookmaker becomes the canonical quote
+    This bridge deliberately performs no fuzzy event/market/selection identity matching.
+    Source odds are converted through the Phase 7 exact odds normalizer before an
+    ``OddsQuote`` is created. Aggregators may identify the underlying bookmaker on
+    each ``SourceMarket``; when present, that bookmaker becomes the canonical quote
     provider while ``provider`` remains the source/transport provider used for
     diagnostics and raw provenance.
     """
@@ -327,27 +315,16 @@ def normalize_source_snapshot(
                     )
                 )
                 continue
-            if selection.odds_format is not SourceOddsFormat.DECIMAL:
-                issues.append(
-                    _issue(
-                        NormalizationIssueCode.UNSUPPORTED_ODDS_FORMAT,
-                        provider,
-                        event,
-                        "strict normalization only accepts already-decimal odds",
-                        market=market,
-                        selection=selection,
-                    )
-                )
-                continue
 
-            price = _decimal_price(selection)
-            if price is None:
+            try:
+                price = normalize_odds(selection.price, selection.odds_format)
+            except OddsNormalizationError as exc:
                 issues.append(
                     _issue(
                         NormalizationIssueCode.MALFORMED_PRICE,
                         provider,
                         event,
-                        "decimal odds must be finite and greater than 1",
+                        str(exc),
                         market=market,
                         selection=selection,
                     )
