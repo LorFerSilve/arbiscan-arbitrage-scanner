@@ -3,8 +3,6 @@
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
-import pytest
-
 from arbiscan.domain import (
     Competition,
     CompetitionId,
@@ -545,8 +543,12 @@ def test_quote_with_selection_from_another_market_fails_closed() -> None:
 
 def test_provider_policy_rejects_overlap() -> None:
     provider_id = ProviderId("provider:alpha")
-    with pytest.raises(ValueError, match="both included and excluded"):
+    try:
         ProviderBookPolicy(
             included_provider_ids=(provider_id,),
             excluded_provider_ids=(provider_id,),
         )
+    except ValueError as error:
+        assert "both included and excluded" in str(error)
+    else:
+        raise AssertionError("overlapping provider allow/deny policy must be rejected")
