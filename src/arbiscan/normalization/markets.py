@@ -27,9 +27,10 @@ class MarketSemantic:
             raise ValueError("market semantic kind must be MarketKind")
         if not isinstance(self.period, MarketPeriod):
             raise ValueError("market semantic period must be MarketPeriod")
-        if self.line is not None:
-            if not isinstance(self.line, Decimal) or not self.line.is_finite():
-                raise ValueError("market semantic line must be a finite Decimal")
+        if self.line is not None and (
+            not isinstance(self.line, Decimal) or not self.line.is_finite()
+        ):
+            raise ValueError("market semantic line must be a finite Decimal")
         if self.kind in _PARAMETERIZED and self.line is None:
             raise ValueError(f"{self.kind.value} requires a line")
         if self.kind not in _PARAMETERIZED and self.line is not None:
