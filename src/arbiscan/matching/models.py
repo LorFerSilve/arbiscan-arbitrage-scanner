@@ -72,18 +72,15 @@ class EventMatchConfig:
     ambiguity_margin_bps: int = 250
 
     def __post_init__(self) -> None:
-        if (
-            not isinstance(self.start_time_tolerance, timedelta)
-            or self.start_time_tolerance <= timedelta(0)
-        ):
+        if not isinstance(
+            self.start_time_tolerance, timedelta
+        ) or self.start_time_tolerance <= timedelta(0):
             raise ValueError("start_time_tolerance must be positive")
         if (
             not isinstance(self.referenced_start_time_tolerance, timedelta)
             or self.referenced_start_time_tolerance < self.start_time_tolerance
         ):
-            raise ValueError(
-                "referenced_start_time_tolerance must be >= start_time_tolerance"
-            )
+            raise ValueError("referenced_start_time_tolerance must be >= start_time_tolerance")
         for name, value in (
             ("minimum_confidence_bps", self.minimum_confidence_bps),
             ("ambiguity_margin_bps", self.ambiguity_margin_bps),
@@ -194,9 +191,7 @@ class EventMatchDiagnostic:
             raise ValueError("diagnostic reason must be EventMatchReason")
         if not isinstance(self.detail, str) or not self.detail.strip():
             raise ValueError("diagnostic detail must be non-empty text")
-        if self.candidate_event_id is not None and not isinstance(
-            self.candidate_event_id, EventId
-        ):
+        if self.candidate_event_id is not None and not isinstance(self.candidate_event_id, EventId):
             raise ValueError("candidate_event_id must be EventId")
         object.__setattr__(self, "detail", self.detail.strip())
 
