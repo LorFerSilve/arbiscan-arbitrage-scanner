@@ -190,9 +190,9 @@ def normalize_source_snapshot(
             ),
         )
 
-    verified_phase8_match = isinstance(hooks, MatchedCanonicalIdHooks) and hooks.has_verified_event_match(
-        event, event_id
-    )
+    verified_phase8_match = isinstance(
+        hooks, MatchedCanonicalIdHooks
+    ) and hooks.has_verified_event_match(event, event_id)
     if canonical_event.sport is not event.sport or (
         canonical_event.scheduled_start != event.scheduled_start and not verified_phase8_match
     ):
