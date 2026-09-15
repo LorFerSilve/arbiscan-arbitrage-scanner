@@ -12,11 +12,25 @@ from arbiscan.normalization import (
     CompetitionNormalizer,
     ParticipantAlias,
     ParticipantNormalizer,
+    Resolution,
     ResolutionStatus,
     SportAlias,
     SportNormalizer,
     normalize_alias_key,
 )
+
+
+def _resolve_team(
+    normalizer: ParticipantNormalizer,
+    alias: str,
+    competition_id: CompetitionId,
+) -> Resolution[ParticipantId]:
+    return normalizer.resolve(
+        alias,
+        sport=Sport.FOOTBALL,
+        kind=ParticipantKind.TEAM,
+        competition_id=competition_id,
+    )
 
 
 def test_alias_key_is_conservative() -> None:
@@ -145,16 +159,15 @@ def test_participant_aliases_are_explicit_not_fuzzy() -> None:
         )
     )
 
-    context = {
-        "sport": Sport.FOOTBALL,
-        "kind": ParticipantKind.TEAM,
-        "competition_id": premier_league,
-    }
-    assert normalizer.resolve("Man United", **context).value == man_united
-    assert normalizer.resolve("MUN", **context).value == man_united
-    assert normalizer.resolve("United", **context).status is ResolutionStatus.AMBIGUOUS
+    assert _resolve_team(normalizer, "Man United", premier_league).value == man_united
+    assert _resolve_team(normalizer, "MUN", premier_league).value == man_united
     assert (
-        normalizer.resolve("Manchester United Women", **context).status is ResolutionStatus.UNKNOWN
+        _resolve_team(normalizer, "United", premier_league).status
+        is ResolutionStatus.AMBIGUOUS
+    )
+    assert (
+        _resolve_team(normalizer, "Manchester United Women", premier_league).status
+        is ResolutionStatus.UNKNOWN
     )
 
 
@@ -180,11 +193,8 @@ def test_localized_participant_names_need_explicit_alias_data() -> None:
         )
     )
 
-    context = {
-        "sport": Sport.FOOTBALL,
-        "kind": ParticipantKind.TEAM,
-        "competition_id": bundesliga,
-    }
-    assert normalizer.resolve("Bayern München", **context).value == bayern
-    assert normalizer.resolve("Bayern Munich", **context).value == bayern
-    assert normalizer.resolve("Bayern-Munich", **context).status is ResolutionStatus.UNKNOWN
+    assert _resolve_team(normalizer, "Bayern München", bundesliga).value == bayern
+    assert _resolve_team(normalizer, "Bayern Munich", bundesliga).value == bayern
+    assert (
+        _resolve_team(normalizer, "Bayern-Munich", bundesliga).status is ResolutionStatus.UNKNOWN
+    )
