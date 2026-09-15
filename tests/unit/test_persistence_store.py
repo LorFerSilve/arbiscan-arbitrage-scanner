@@ -4,8 +4,6 @@ from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
 
-import pytest
-
 from arbiscan.domain.enums import QuoteStatus
 from arbiscan.domain.identifiers import (
     EventId,
@@ -48,6 +46,17 @@ def _opportunity(quotes: tuple[OddsQuote, ...], *, at: datetime) -> Opportunity:
     )
 
 
+def _assert_persistence_error(action: object, expected: str) -> None:
+    try:
+        callable_action = action
+        assert callable(callable_action)
+        callable_action()
+    except PersistenceError as exc:
+        assert expected in str(exc)
+    else:
+        raise AssertionError("expected PersistenceError")
+
+
 def test_migrations_are_idempotent(tmp_path: Path) -> None:
     store = SqliteAuditStore(tmp_path / "arbiscan.db")
     store.migrate()
@@ -60,9 +69,9 @@ def test_opportunity_can_be_reconstructed_from_persisted_evidence(tmp_path: Path
     now = datetime(2026, 9, 15, 16, 0, tzinfo=UTC)
     quotes = (_quote(1, at=now), _quote(2, at=now))
     opportunity = _opportunity(quotes, at=now)
+    store.persist_opportunity(opportunity, quotes)
+    store.persist_opportunity(opportunity, quotes)
 
-    store.persist_opportunity(opportunity, quotes)
-    store.persist_opportunity(opportunity, quotes)
     evidence = store.reconstruct_opportunity("opportunity-1")
 
     assert evidence.opportunity == opportunity
@@ -75,9 +84,12 @@ def test_persist_opportunity_rejects_incomplete_evidence(tmp_path: Path) -> None
     store.migrate()
     now = datetime(2026, 9, 15, 16, 0, tzinfo=UTC)
     quotes = (_quote(1, at=now), _quote(2, at=now))
+    opportunity = _opportunity(quotes, at=now)
 
-    with pytest.raises(PersistenceError, match="exactly its referenced quotes"):
-        store.persist_opportunity(_opportunity(quotes, at=now), quotes[:1])
+    _assert_persistence_error(
+        lambda: store.persist_opportunity(opportunity, quotes[:1]),
+        "exactly its referenced quotes",
+    )
 
 
 def test_same_id_with_different_payload_fails_closed(tmp_path: Path) -> None:
@@ -86,8 +98,9 @@ def test_same_id_with_different_payload_fails_closed(tmp_path: Path) -> None:
     now = datetime(2026, 9, 15, 16, 0, tzinfo=UTC)
     store.persist_quote(_quote(1, at=now))
 
-    with pytest.raises(PersistenceError, match="ID collision"):
-        store.persist_quote(_quote(1, at=now, price="2.20"))
+    _assert_persistence_error(
+        lambda: store.persist_quote(_quote(1, at=now, price="2.20")), "ID collision"
+    )
 
 
 def test_retention_preserves_quotes_referenced_by_opportunities(tmp_path: Path) -> None:
