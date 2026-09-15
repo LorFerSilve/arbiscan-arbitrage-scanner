@@ -8,7 +8,6 @@ from datetime import datetime, timedelta
 
 from arbiscan.domain import MarketId, OddsQuote, QuoteId, QuoteStatus, SelectionId
 from arbiscan.domain.validation import normalize_datetime
-from arbiscan.matching.catalog import CanonicalRegistry
 from arbiscan.marketbook.models import (
     BestPriceOutcome,
     CanonicalMarketBook,
@@ -18,6 +17,7 @@ from arbiscan.marketbook.models import (
     MarketBookFreshness,
     ProviderBookPolicy,
 )
+from arbiscan.matching.catalog import CanonicalRegistry
 
 
 def quote_effective_timestamp(quote: OddsQuote) -> datetime:
