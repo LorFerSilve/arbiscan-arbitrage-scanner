@@ -71,6 +71,32 @@ def _aware_utc(value: datetime, *, field_name: str = "as_of") -> datetime:
     return value.astimezone(UTC)
 
 
+def _compatibility_book_issues(
+    diagnostics: tuple[MarketBookDiagnostic, ...],
+) -> list[BookIssue]:
+    issues: list[BookIssue] = []
+    for diagnostic in diagnostics:
+        if diagnostic.market_id is None:
+            continue
+        if diagnostic.code is MarketBookDiagnosticCode.INCOMPLETE_MARKET:
+            issues.append(
+                BookIssue(
+                    code=BookIssueCode.INCOMPLETE_MARKET,
+                    market_id=diagnostic.market_id,
+                    detail=diagnostic.detail,
+                )
+            )
+        elif diagnostic.code is MarketBookDiagnosticCode.INSUFFICIENT_OUTCOMES:
+            issues.append(
+                BookIssue(
+                    code=BookIssueCode.EVALUATION_REJECTED,
+                    market_id=diagnostic.market_id,
+                    detail=diagnostic.detail,
+                )
+            )
+    return issues
+
+
 async def run_vertical_slice(
     *,
     adapters: tuple[ProviderAdapter, ...],
@@ -141,16 +167,7 @@ async def run_vertical_slice(
 
     evaluations: list[ArbitrageEvaluation] = []
     opportunities: list[Opportunity] = []
-    book_issues: list[BookIssue] = [
-        BookIssue(
-            code=BookIssueCode.INCOMPLETE_MARKET,
-            market_id=diagnostic.market_id,
-            detail=diagnostic.detail,
-        )
-        for diagnostic in market_book_batch.diagnostics
-        if diagnostic.code is MarketBookDiagnosticCode.INCOMPLETE_MARKET
-        and diagnostic.market_id is not None
-    ]
+    book_issues = _compatibility_book_issues(market_book_batch.diagnostics)
 
     for book in market_book_batch.books:
         try:
