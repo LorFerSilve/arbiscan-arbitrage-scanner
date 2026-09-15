@@ -1,9 +1,6 @@
 """Dependency-free OpenAPI description of the Phase 13 public surface."""
 
-from __future__ import annotations
-
 from typing import Any
-
 
 _ENDPOINTS: tuple[tuple[str, str, str], ...] = (
     ("/health", "get", "Health and version"),
