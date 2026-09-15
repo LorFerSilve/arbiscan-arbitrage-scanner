@@ -82,7 +82,10 @@ def test_competition_season_and_hierarchy_are_contextual() -> None:
         )
     )
 
-    assert normalizer.resolve("Group Stage", sport=Sport.FOOTBALL).status is ResolutionStatus.UNKNOWN
+    assert (
+        normalizer.resolve("Group Stage", sport=Sport.FOOTBALL).status
+        is ResolutionStatus.UNKNOWN
+    )
     resolved = normalizer.resolve(
         "Group Stage",
         sport=Sport.FOOTBALL,
@@ -151,7 +154,10 @@ def test_participant_aliases_are_explicit_not_fuzzy() -> None:
     assert normalizer.resolve("Man United", **context).value == man_united
     assert normalizer.resolve("MUN", **context).value == man_united
     assert normalizer.resolve("United", **context).status is ResolutionStatus.AMBIGUOUS
-    assert normalizer.resolve("Manchester United Women", **context).status is ResolutionStatus.UNKNOWN
+    assert (
+        normalizer.resolve("Manchester United Women", **context).status
+        is ResolutionStatus.UNKNOWN
+    )
 
 
 def test_localized_participant_names_need_explicit_alias_data() -> None:
