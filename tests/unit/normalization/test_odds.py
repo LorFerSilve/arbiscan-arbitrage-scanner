@@ -44,6 +44,10 @@ def test_non_finite_or_non_profitable_prices_are_rejected() -> None:
     _assert_invalid("1", SourceOddsFormat.DECIMAL)
 
 
+def test_decimal_arithmetic_range_failures_are_normalization_errors() -> None:
+    _assert_invalid("1e-999999999", SourceOddsFormat.IMPLIED_PROBABILITY)
+
+
 def test_repeating_conversions_are_independent_of_global_decimal_precision() -> None:
     cases = (
         ("1/3", SourceOddsFormat.FRACTIONAL),
