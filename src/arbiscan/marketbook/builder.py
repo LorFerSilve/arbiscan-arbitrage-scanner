@@ -6,7 +6,7 @@ from collections import Counter, defaultdict
 from collections.abc import Iterable
 from datetime import datetime, timedelta
 
-from arbiscan.domain import MarketId, OddsQuote, QuoteStatus, SelectionId
+from arbiscan.domain import MarketId, OddsQuote, QuoteId, QuoteStatus, SelectionId
 from arbiscan.domain.validation import normalize_datetime
 from arbiscan.matching.catalog import CanonicalRegistry
 from arbiscan.marketbook.models import (
@@ -111,12 +111,12 @@ def build_market_books(
         if len(set(scoped_market_ids)) != len(scoped_market_ids):
             raise ValueError("market_ids must be unique")
         unknown_scope = [
-            market_id.value
-            for market_id in scoped_market_ids
-            if registry.market(market_id) is None
+            market_id.value for market_id in scoped_market_ids if registry.market(market_id) is None
         ]
         if unknown_scope:
-            raise ValueError(f"market_ids contain unknown canonical markets: {sorted(unknown_scope)}")
+            raise ValueError(
+                f"market_ids contain unknown canonical markets: {sorted(unknown_scope)}"
+            )
         scoped_market_ids = tuple(sorted(scoped_market_ids, key=lambda value: value.value))
 
     scope_set = set(scoped_market_ids)
@@ -128,7 +128,7 @@ def build_market_books(
 
     id_counts = Counter(quote.id for quote in quote_values)
     duplicate_ids = {quote_id for quote_id, count in id_counts.items() if count > 1}
-    duplicate_reported: set[object] = set()
+    duplicate_reported: set[QuoteId] = set()
 
     for quote in quote_values:
         if quote.id in duplicate_ids:
