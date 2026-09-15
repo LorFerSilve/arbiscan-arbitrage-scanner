@@ -27,24 +27,46 @@ class FakeSource:
     def events(self) -> tuple[EventSummaryResponse, ...]:
         return (
             EventSummaryResponse(
-                "event-1", "football", "League", ("A", "B"), "2026-01-01T12:00:00+00:00", "scheduled"
+                "event-1",
+                "football",
+                "League",
+                ("A", "B"),
+                "2026-01-01T12:00:00+00:00",
+                "scheduled",
             ),
             EventSummaryResponse(
-                "event-2", "tennis", "Open", ("C", "D"), "2026-01-01T13:00:00+00:00", "scheduled"
+                "event-2",
+                "tennis",
+                "Open",
+                ("C", "D"),
+                "2026-01-01T13:00:00+00:00",
+                "scheduled",
             ),
         )
 
     def odds(self) -> tuple[OddsResponse, ...]:
         return (
             OddsResponse(
-                "quote-1", "event-1", "market-1", "selection-1", "provider-a", "2.10", "active", "2026-01-01T11:59:00+00:00"
+                "quote-1",
+                "event-1",
+                "market-1",
+                "selection-1",
+                "provider-a",
+                "2.10",
+                "active",
+                "2026-01-01T11:59:00+00:00",
             ),
         )
 
     def opportunities(self) -> tuple[OpportunitySummaryResponse, ...]:
         return (
             OpportunitySummaryResponse(
-                "opp-1", "event-1", "market-1", "0.95", "0.05", "2026-01-01T11:59:30+00:00"
+                "opp-1",
+                "event-1",
+                "market-1",
+                "0.95",
+                "0.05",
+                "2026-01-01T11:59:30+00:00",
             ),
         )
 
