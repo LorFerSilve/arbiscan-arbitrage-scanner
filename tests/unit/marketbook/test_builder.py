@@ -424,7 +424,9 @@ def test_equal_prices_use_freshness_then_stable_identity_independent_of_input_or
     registry, event, market, selections = _winner_registry()
     target = selections[0].id
     base = tuple(
-        quote for quote in _complete_quotes(event, market, selections) if quote.selection_id != target
+        quote
+        for quote in _complete_quotes(event, market, selections)
+        if quote.selection_id != target
     )
     older = _quote(
         provider="alpha",
