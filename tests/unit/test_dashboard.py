@@ -10,6 +10,7 @@ from arbiscan.dashboard import (
     DashboardLeg,
     DashboardOpportunity,
     filter_opportunities,
+    render_dashboard,
 )
 from arbiscan.lifecycle import LifecycleState
 
@@ -69,6 +70,19 @@ def test_filters_cover_sport_competition_provider_roi_profit_and_state() -> None
     stale = _opportunity(state=LifecycleState.STALE)
     assert filter_opportunities((stale,), DashboardFilter()) == ()
     assert filter_opportunities((stale,), DashboardFilter(include_inactive=True)) == (stale,)
+
+
+def test_renderer_keeps_backend_values_age_provider_and_provenance_visible() -> None:
+    html = render_dashboard((_opportunity(competition="<script>x</script>"),))
+    assert "2.5s" in html
+    assert "provider-a" in html
+    assert "odds 2.10" in html
+    assert "stake 50" in html
+    assert "Guaranteed payout: 102.50" in html
+    assert "Guaranteed profit: 2.50" in html
+    assert "book:event-1:winner" in html
+    assert "<script>" not in html
+    assert "&lt;script&gt;x&lt;/script&gt;" in html
 
 
 def test_alerts_are_deduplicated_and_age_is_not_material() -> None:
