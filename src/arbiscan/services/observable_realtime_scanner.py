@@ -7,8 +7,10 @@ Phase-10 scanner remains responsible for ingestion and arbitrage semantics.
 from __future__ import annotations
 
 from arbiscan.observability import InMemoryLogSink, MetricsRegistry, StructuredLogRecord
-from arbiscan.services.realtime_scanner import RealtimeScanCycle
-from arbiscan.services.realtime_scanner import RealtimeScanner as CoreRealtimeScanner
+from arbiscan.services.realtime_scanner import (
+    RealtimeScanCycle,
+    RealtimeScanner as CoreRealtimeScanner,
+)
 
 
 class RealtimeScanner(CoreRealtimeScanner):
