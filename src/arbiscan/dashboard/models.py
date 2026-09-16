@@ -39,6 +39,8 @@ class DashboardOpportunity:
     roi: Decimal
     guaranteed_payout: Decimal
     guaranteed_profit: Decimal
+    currency: str
+    assumptions: tuple[str, ...]
     legs: tuple[DashboardLeg, ...]
     provenance: tuple[str, ...]
 
@@ -53,6 +55,12 @@ class DashboardOpportunity:
             raise ValueError("dashboard opportunity numeric values must be finite")
         if self.age_seconds < 0:
             raise ValueError("age_seconds cannot be negative")
+        currency = self.currency.strip().upper()
+        if len(currency) != 3 or not currency.isalpha():
+            raise ValueError("currency must be a three-letter code")
+        object.__setattr__(self, "currency", currency)
+        if not self.assumptions:
+            raise ValueError("dashboard opportunity requires calculation assumptions")
         if not self.legs:
             raise ValueError("dashboard opportunity requires at least one leg")
 
