@@ -52,6 +52,9 @@ A risk with high correctness or security impact must not be dismissed merely bec
 | R-034 | Automated betting scope creeps into MVP without threat/legal review | Medium | Critical | Scanner-only ADR and roadmap gate | Open |
 | R-035 | Arbitrage math is correct but based on semantically invalid inputs | Medium | Critical | Validation and normalization gates precede math | Open |
 | R-036 | Opportunity cannot be reproduced after detection | Medium | High | Preserve normalized inputs, provenance, configuration/version references | Open |
+| R-037 | The same bookmaker price origin is observed through multiple transports and counted twice or overwritten ambiguously | Medium | Critical | ADR-0012 source-observation provenance, price-origin consolidation, conflict fail-closed policy | Mitigating |
+| R-038 | Multiple bookmakers from one aggregator are mistaken for multiple independent data sources | Medium | High | Explicit transport-source definition and Phase 16 independent-source exit criterion | Mitigating |
+| R-039 | Two transport sources report conflicting same-time prices/status for one bookmaker and selection | Medium | High | Preserve both observations; exclude conflicting slot unless an explicit trust policy resolves it | Mitigating |
 
 ## Critical risk themes
 
@@ -71,7 +74,11 @@ ArbiScan can prove only what follows from the data and modeled constraints avail
 
 Every real provider integration can impose different rules for access, storage, caching, redistribution, commercial usage, and geography. These constraints belong in provider onboarding and cannot be generalized away.
 
-### 5. Supply-chain and secret risk
+### 5. Multi-source provenance and overlap
+
+Phase 16 adds a second dimension to provider correctness: ArbiScan must distinguish the transport/data vendor from the bookmaker or exchange that originates a price. Multiple feeds may report the same bookmaker. Those observations must remain independently auditable but must never be counted as separate executable price origins. Equal-time conflicts must fail closed rather than resolving through incidental arrival order.
+
+### 6. Supply-chain and secret risk
 
 The public nature of the repository increases the impact of accidental credential disclosure. Repository controls, least-privilege CI, dependency hygiene, and secret redaction are required before real credentials are introduced.
 
