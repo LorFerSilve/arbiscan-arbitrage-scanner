@@ -192,7 +192,9 @@ def assess_health(metrics: MetricsSnapshot, policy: HealthPolicy | None = None) 
     providers: dict[ProviderId, HealthState] = {}
     reasons: list[str] = []
     provider_ids = (
-        set(metrics.provider_requests) | set(metrics.provider_errors) | set(metrics.provider_available)
+        set(metrics.provider_requests)
+        | set(metrics.provider_errors)
+        | set(metrics.provider_available)
     )
     for provider_id in sorted(provider_ids, key=lambda value: value.value):
         requests = metrics.provider_requests.get(provider_id, 0)
