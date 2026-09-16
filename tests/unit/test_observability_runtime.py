@@ -33,8 +33,8 @@ def test_structured_log_is_correlated_and_machine_readable() -> None:
     sink.emit(record)
 
     assert sink.records == (record,)
-    assert '\"correlation_id\":\"batch-42\"' in record.to_json()
-    assert '\"provider_id\":\"provider-a\"' in record.to_json()
+    assert '"correlation_id":"batch-42"' in record.to_json()
+    assert '"provider_id":"provider-a"' in record.to_json()
 
 
 def test_isolated_provider_failure_degrades_without_making_system_unready() -> None:
