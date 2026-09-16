@@ -19,6 +19,10 @@ class DashboardLeg:
     stake: Decimal
     quote_observed_at: str
 
+    def __post_init__(self) -> None:
+        if not self.decimal_price.is_finite() or not self.stake.is_finite():
+            raise ValueError("dashboard leg numeric values must be finite")
+
 
 @dataclass(frozen=True, slots=True)
 class DashboardOpportunity:
@@ -39,6 +43,14 @@ class DashboardOpportunity:
     provenance: tuple[str, ...]
 
     def __post_init__(self) -> None:
+        numeric_values = (
+            self.age_seconds,
+            self.roi,
+            self.guaranteed_payout,
+            self.guaranteed_profit,
+        )
+        if any(not value.is_finite() for value in numeric_values):
+            raise ValueError("dashboard opportunity numeric values must be finite")
         if self.age_seconds < 0:
             raise ValueError("age_seconds cannot be negative")
         if not self.legs:
