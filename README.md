@@ -4,7 +4,9 @@ ArbiScan is a multi-bookmaker sports-odds aggregation and arbitrage-detection en
 
 ## Current status
 
-Phases 0 through 15 of [`roadmap.md`](roadmap.md) are implemented. The repository is currently prepared for **Phase 16 — multi-provider expansion**.
+Phases 0 through 15 of [`roadmap.md`](roadmap.md) are implemented. **Phase 16.1 — provider candidate review and selection — is complete.** OddsPapi is the selected development target for the second real transport source, while production enablement remains blocked pending explicit data-rights clarification and the remaining Phase 16 correctness gates.
+
+The next implementation dependency is **Phase 16.2 — multi-source provenance hardening**: source observations from different transport providers must remain auditable and must not cause the same bookmaker to be counted twice.
 
 The implemented core now includes:
 
@@ -23,7 +25,7 @@ The implemented core now includes:
 
 The project is still versioned as development software and is **not** being productized into a packaged local launcher yet. That is deliberate: provider coverage and correctness work take priority over packaging/deployment.
 
-See [`docs/providers/phase-16-readiness.md`](docs/providers/phase-16-readiness.md) for the exact hand-off into Phase 16 and the multi-source correctness gates that must be satisfied before a second real source is enabled.
+See [`docs/providers/phase-16-readiness.md`](docs/providers/phase-16-readiness.md) for the Phase 16 implementation sequence and [`docs/providers/phase-16.1-provider-selection.md`](docs/providers/phase-16.1-provider-selection.md) for the completed provider decision.
 
 ## Current market scope
 
@@ -55,6 +57,8 @@ CI uses deterministic fixtures and does not require live provider credentials.
 - Provider integration checklist: [`docs/product/provider-integration-checklist.md`](docs/product/provider-integration-checklist.md)
 - The Odds API integration: [`docs/providers/the-odds-api.md`](docs/providers/the-odds-api.md)
 - Phase 16 readiness: [`docs/providers/phase-16-readiness.md`](docs/providers/phase-16-readiness.md)
+- Phase 16.1 provider selection: [`docs/providers/phase-16.1-provider-selection.md`](docs/providers/phase-16.1-provider-selection.md)
+- OddsPapi onboarding record: [`docs/providers/oddspapi.md`](docs/providers/oddspapi.md)
 - Dashboard/alert boundary: [`docs/product/dashboard-and-alerts.md`](docs/product/dashboard-and-alerts.md)
 - Architecture decisions: [`docs/adr/`](docs/adr/)
 - Development roadmap: [`roadmap.md`](roadmap.md)
