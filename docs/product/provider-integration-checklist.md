@@ -160,7 +160,26 @@ Before enabling the provider:
 - [ ] Parsing/normalization failures measurable.
 - [ ] Provider health can be surfaced without leaking credentials.
 
-## 15. Production-readiness decision
+## 15. Multi-source coexistence requirements
+
+These checks are mandatory for Phase 16 and later whenever another real transport/data source is introduced.
+
+- [ ] Transport/source provider identity is explicitly distinguished from bookmaker/exchange price-origin identity.
+- [ ] The source has an operationally independent authentication/quota/failure domain from already enabled sources if it is intended to satisfy the Phase 16 independent-source criterion.
+- [ ] Expected bookmaker/price-origin overlap with existing sources is documented.
+- [ ] Overlapping observations preserve both transport-source and price-origin provenance as required by ADR-0012.
+- [ ] The same bookmaker observed through multiple transports cannot be counted as multiple executable price providers.
+- [ ] Source-observation identifiers remain collision-safe across independent transports.
+- [ ] A deterministic overlap-resolution policy exists for fresher/equivalent observations.
+- [ ] Same-time materially conflicting observations fail closed unless an explicit documented trust policy resolves them.
+- [ ] Source-specific outages, throttling, stale data, and malformed responses cannot corrupt unrelated provider state.
+- [ ] Cross-source event matching is covered by adversarial fixtures before shared market books are enabled.
+- [ ] Persisted opportunity evidence can identify both the selected price origin and the transport source from which it was observed.
+- [ ] Source-specific telemetry can diagnose overlap/conflict behavior without parsing opaque trace strings.
+
+Multiple bookmakers returned by a single aggregator do not by themselves satisfy the Phase 16 requirement for multiple independent real data sources.
+
+## 16. Production-readiness decision
 
 A provider can be marked production-ready only if:
 
@@ -171,4 +190,5 @@ A provider can be marked production-ready only if:
 5. contract tests pass;
 6. secrets are handled safely;
 7. known unresolved risks are recorded in the risk register;
-8. no unresolved issue can cause silent false-positive arbitrage detection.
+8. no unresolved issue can cause silent false-positive arbitrage detection;
+9. for Phase 16+, all applicable multi-source coexistence requirements above are satisfied before joint enablement.
