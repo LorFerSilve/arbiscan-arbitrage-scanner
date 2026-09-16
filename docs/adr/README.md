@@ -92,6 +92,11 @@ What evidence or change should cause this decision to be reconsidered?
 5. Security/correctness invariants should not be weakened implicitly through code changes.
 6. ADRs should link to relevant requirements, risks, issues, and PRs when available.
 
+## Current expansion-critical decisions
+
+- [`0006-aggregator-price-origin-boundary.md`](0006-aggregator-price-origin-boundary.md) — separates transport/data-vendor identity from bookmaker/exchange price-origin identity.
+- [`0012-multi-source-price-observation-provenance.md`](0012-multi-source-price-observation-provenance.md) — defines how Phase 16 must preserve transport provenance and resolve overlapping observations without double-counting a bookmaker.
+
 ## Initial ADR topics
 
 The roadmap is expected to produce ADRs for decisions including:
