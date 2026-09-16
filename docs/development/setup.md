@@ -2,7 +2,7 @@
 
 ## Toolchain
 
-Phase 1 pins the engineering baseline to:
+The engineering baseline is pinned to:
 
 - CPython 3.13.15;
 - uv 0.12.12;
@@ -12,7 +12,7 @@ Phase 1 pins the engineering baseline to:
 - pre-commit 4.6.2;
 - pip-audit 2.10.1.
 
-Python 3.13 is intentionally retained for the initial implementation even though Python 3.14 is available. The roadmap selected 3.13 as the compatibility baseline, and changing the minor version should be a deliberate engineering decision rather than an incidental local upgrade.
+Python 3.13 is intentionally retained for the current implementation even though newer Python versions may exist. Changing the minor version should be a deliberate engineering decision validated against the full repository quality gate rather than an incidental local upgrade.
 
 ## First-time setup
 
@@ -57,6 +57,10 @@ Copy `.env.example` to `.env` only when local runtime configuration is needed. N
 
 Provider-specific variables must not be added until that provider has passed `docs/product/provider-integration-checklist.md`.
 
+The current real-provider integration uses `THE_ODDS_API_KEY`. CI and deterministic fixture tests do not require a live value.
+
 ## Source layout
 
-The repository uses a `src/` layout. Provider integrations, normalization, matching, arbitrage, persistence, services, and observability are separate package boundaries from the start. The package skeleton intentionally contains no domain implementation yet; Phase 2 owns the canonical domain model.
+The repository uses a `src/` layout with separate package boundaries for the canonical domain, providers, ingestion, normalization, matching, market-book construction, arbitrage, lifecycle/actionability, persistence, services/API, observability, and dashboard presentation.
+
+Phases 0 through 15 are implemented. The next roadmap dependency is Phase 16 multi-provider expansion; see `docs/providers/phase-16-readiness.md` before adding another real source. Packaging the project as an end-user launcher is intentionally not part of the current setup baseline.
