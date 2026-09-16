@@ -1,3 +1,4 @@
+from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 
 from arbiscan.domain import ProviderId
@@ -11,9 +12,9 @@ from arbiscan.observability import (
 )
 
 
-def _assert_value_error(operation: object, expected_message: str) -> None:
+def _assert_value_error(operation: Callable[[], object], expected_message: str) -> None:
     try:
-        operation()  # type: ignore[operator]
+        operation()
     except ValueError as exc:
         assert expected_message in str(exc)
     else:
@@ -32,8 +33,8 @@ def test_structured_log_is_correlated_and_machine_readable() -> None:
     sink.emit(record)
 
     assert sink.records == (record,)
-    assert '"correlation_id":"batch-42"' in record.to_json()
-    assert '"provider_id":"provider-a"' in record.to_json()
+    assert '\"correlation_id\":\"batch-42\"' in record.to_json()
+    assert '\"provider_id\":\"provider-a\"' in record.to_json()
 
 
 def test_isolated_provider_failure_degrades_without_making_system_unready() -> None:
