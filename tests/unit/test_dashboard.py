@@ -35,7 +35,7 @@ def _opportunity(**overrides: object) -> DashboardOpportunity:
         "sport": "football",
         "competition": "Premier League",
         "market_id": "match-winner",
-        "state": LifecycleState.ACTIVE,
+        "state": LifecycleState.ACTIONABLE,
         "detected_at": "2026-09-16T10:00:01Z",
         "age_seconds": Decimal("1.25"),
         "roi": Decimal("0.0250"),
