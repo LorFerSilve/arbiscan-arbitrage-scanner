@@ -13,12 +13,12 @@ from arbiscan.services.realtime_scanner import RealtimeScanCycle, RealtimeScanne
 class RealtimeScanner(CoreRealtimeScanner):
     """Realtime scanner whose real cycles feed the Phase-14 observability surface."""
 
-    def __init_subclass__(cls, **kwargs: object) -> None:
-        super().__init_subclass__()
+    _phase14_metrics_registry: MetricsRegistry | None = None
+    _phase14_log_sink: InMemoryLogSink | None = None
 
     @property
     def metrics_registry(self) -> MetricsRegistry:
-        registry = getattr(self, "_phase14_metrics_registry", None)
+        registry = self._phase14_metrics_registry
         if registry is None:
             registry = MetricsRegistry()
             self._phase14_metrics_registry = registry
@@ -26,7 +26,7 @@ class RealtimeScanner(CoreRealtimeScanner):
 
     @property
     def log_sink(self) -> InMemoryLogSink:
-        sink = getattr(self, "_phase14_log_sink", None)
+        sink = self._phase14_log_sink
         if sink is None:
             sink = InMemoryLogSink()
             self._phase14_log_sink = sink
