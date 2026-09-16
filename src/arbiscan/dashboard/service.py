@@ -44,15 +44,16 @@ class AlertTracker:
     """Emit only new, materially changed, or newly expired opportunities."""
 
     def __init__(self) -> None:
-        self._fingerprints: dict[str, str] = {}
-        self._states: dict[str, LifecycleState] = {}
+        self._fingerprints: dict[tuple[str, str], str] = {}
+        self._states: dict[tuple[str, str], LifecycleState] = {}
 
     def evaluate(self, opportunity: DashboardOpportunity) -> OpportunityAlert | None:
+        key = _logical_key(opportunity)
         fingerprint = _fingerprint(opportunity)
-        previous_fingerprint = self._fingerprints.get(opportunity.opportunity_id)
-        previous_state = self._states.get(opportunity.opportunity_id)
-        self._fingerprints[opportunity.opportunity_id] = fingerprint
-        self._states[opportunity.opportunity_id] = opportunity.state
+        previous_fingerprint = self._fingerprints.get(key)
+        previous_state = self._states.get(key)
+        self._fingerprints[key] = fingerprint
+        self._states[key] = opportunity.state
 
         if previous_fingerprint is None:
             kind = AlertKind.EXPIRED if opportunity.state in _INACTIVE_STATES else AlertKind.CREATED
@@ -70,19 +71,29 @@ class AlertTracker:
         )
 
 
+def _logical_key(opportunity: DashboardOpportunity) -> tuple[str, str]:
+    """Identify the single canonical opportunity for an event/market across scan cycles."""
+    return (opportunity.event_id, opportunity.market_id)
+
+
 def _fingerprint(opportunity: DashboardOpportunity) -> str:
-    """Fingerprint only material opportunity data; age alone must not create alert spam."""
+    """Fingerprint material opportunity data while excluding refresh-only age and IDs."""
     legs = tuple(
         (leg.selection_id, leg.provider_id, str(leg.decimal_price), str(leg.stake))
         for leg in opportunity.legs
     )
     material = (
         opportunity.event_id,
+        opportunity.sport,
+        opportunity.competition,
         opportunity.market_id,
         opportunity.state.value,
         str(opportunity.roi),
         str(opportunity.guaranteed_payout),
         str(opportunity.guaranteed_profit),
+        opportunity.currency,
+        opportunity.assumptions,
+        opportunity.provenance,
         legs,
     )
     return hashlib.sha256(repr(material).encode()).hexdigest()
