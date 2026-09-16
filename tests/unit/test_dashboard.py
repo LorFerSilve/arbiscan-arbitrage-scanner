@@ -28,8 +28,20 @@ def _opportunity(**changes: object) -> DashboardOpportunity:
         guaranteed_payout=Decimal("102.50"),
         guaranteed_profit=Decimal("2.50"),
         legs=(
-            DashboardLeg("home", "provider-a", Decimal("2.10"), Decimal("50"), "2026-09-16T10:00:01Z"),
-            DashboardLeg("away", "provider-b", Decimal("2.05"), Decimal("50"), "2026-09-16T10:00:01Z"),
+            DashboardLeg(
+                "home",
+                "provider-a",
+                Decimal("2.10"),
+                Decimal("50"),
+                "2026-09-16T10:00:01Z",
+            ),
+            DashboardLeg(
+                "away",
+                "provider-b",
+                Decimal("2.05"),
+                Decimal("50"),
+                "2026-09-16T10:00:01Z",
+            ),
         ),
         provenance=("book:event-1:winner",),
     )
@@ -50,7 +62,9 @@ def test_filters_cover_sport_competition_provider_roi_profit_and_state() -> None
     assert filter_opportunities((item,), DashboardFilter(provider_id="provider-b")) == (item,)
     assert filter_opportunities((item,), DashboardFilter(provider_id="provider-c")) == ()
     assert filter_opportunities((item,), DashboardFilter(minimum_roi=Decimal("0.03"))) == ()
-    assert filter_opportunities((item,), DashboardFilter(minimum_profit=Decimal("2.00"))) == (item,)
+    assert filter_opportunities((item,), DashboardFilter(minimum_profit=Decimal("2.00"))) == (
+        item,
+    )
 
     stale = _opportunity(state=LifecycleState.STALE)
     assert filter_opportunities((stale,), DashboardFilter()) == ()
@@ -75,4 +89,7 @@ def test_transition_to_stale_emits_expiration_once() -> None:
     tracker.evaluate(item)
     expired = tracker.evaluate(replace(item, state=LifecycleState.STALE))
     assert expired is not None and expired.kind is AlertKind.EXPIRED
-    assert tracker.evaluate(replace(item, state=LifecycleState.STALE, age_seconds=Decimal("20"))) is None
+    assert (
+        tracker.evaluate(replace(item, state=LifecycleState.STALE, age_seconds=Decimal("20")))
+        is None
+    )
