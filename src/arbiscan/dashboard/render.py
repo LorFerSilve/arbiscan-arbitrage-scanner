@@ -12,12 +12,7 @@ def render_dashboard(opportunities: tuple[DashboardOpportunity, ...]) -> str:
     cards = "".join(_render_opportunity(item) for item in opportunities)
     if not cards:
         cards = '<p class="empty">No active opportunities.</p>'
-    return (
-        '<main class="arbiscan-dashboard">'
-        "<h1>ArbiScan opportunities</h1>"
-        f"{cards}"
-        "</main>"
-    )
+    return f'<main class="arbiscan-dashboard"><h1>ArbiScan opportunities</h1>{cards}</main>'
 
 
 def _render_opportunity(item: DashboardOpportunity) -> str:
@@ -38,7 +33,7 @@ def _render_opportunity(item: DashboardOpportunity) -> str:
         f"<p>ROI: {escape(str(item.roi))}</p>"
         f"<p>Guaranteed payout: {escape(str(item.guaranteed_payout))}</p>"
         f"<p>Guaranteed profit: {escape(str(item.guaranteed_profit))}</p>"
-        f"<ul class=\"legs\">{legs}</ul>"
-        f"<ul class=\"provenance\">{provenance}</ul>"
+        f'<ul class="legs">{legs}</ul>'
+        f'<ul class="provenance">{provenance}</ul>'
         "</article>"
     )
