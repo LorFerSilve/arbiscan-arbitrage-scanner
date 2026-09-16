@@ -7,6 +7,7 @@ from arbiscan.dashboard.models import (
     DashboardOpportunity,
     OpportunityAlert,
 )
+from arbiscan.dashboard.render import render_dashboard
 from arbiscan.dashboard.service import AlertTracker, filter_opportunities
 
 __all__ = [
@@ -17,4 +18,5 @@ __all__ = [
     "DashboardOpportunity",
     "OpportunityAlert",
     "filter_opportunities",
+    "render_dashboard",
 ]
