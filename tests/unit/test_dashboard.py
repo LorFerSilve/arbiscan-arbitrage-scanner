@@ -2,19 +2,18 @@ from __future__ import annotations
 
 from dataclasses import replace
 from decimal import Decimal
-
-import pytest
+from unittest import TestCase
 
 from arbiscan.dashboard import (
-    AlertDeduplicator,
-    AlertEventKind,
+    AlertKind,
+    AlertTracker,
     DashboardFilter,
     DashboardLeg,
     DashboardOpportunity,
-    LifecycleState,
     filter_opportunities,
     render_dashboard,
 )
+from arbiscan.lifecycle import LifecycleState
 
 
 def _leg(**overrides: object) -> DashboardLeg:
@@ -32,10 +31,12 @@ def _leg(**overrides: object) -> DashboardLeg:
 def _opportunity(**overrides: object) -> DashboardOpportunity:
     values: dict[str, object] = {
         "opportunity_id": "opp-1",
+        "event_id": "event-1",
         "sport": "football",
         "competition": "Premier League",
         "market_id": "match-winner",
         "state": LifecycleState.ACTIVE,
+        "detected_at": "2026-09-16T10:00:01Z",
         "age_seconds": Decimal("1.25"),
         "roi": Decimal("0.0250"),
         "guaranteed_payout": Decimal("102.50"),
@@ -48,12 +49,15 @@ def _opportunity(**overrides: object) -> DashboardOpportunity:
 
 
 def test_projection_rejects_invalid_backend_values() -> None:
-    with pytest.raises(ValueError, match="age_seconds"):
+    case = TestCase()
+    with case.assertRaisesRegex(ValueError, "age_seconds"):
         _opportunity(age_seconds=Decimal("-1"))
-    with pytest.raises(ValueError, match="finite"):
+    with case.assertRaisesRegex(ValueError, "finite"):
         _opportunity(roi=Decimal("NaN"))
-    with pytest.raises(ValueError, match="at least one leg"):
+    with case.assertRaisesRegex(ValueError, "at least one leg"):
         _opportunity(legs=())
+    with case.assertRaisesRegex(ValueError, "finite"):
+        _leg(decimal_price=Decimal("Infinity"))
 
 
 def test_filters_cover_sport_competition_provider_roi_profit_and_state() -> None:
@@ -93,38 +97,38 @@ def test_renderer_escapes_untrusted_display_values() -> None:
 
 
 def test_alert_deduplication_tracks_created_material_change_and_expiry() -> None:
-    deduplicator = AlertDeduplicator()
+    tracker = AlertTracker()
     original = _opportunity()
 
-    created = deduplicator.evaluate(original)
+    created = tracker.evaluate(original)
     assert created is not None
-    assert created.kind is AlertEventKind.CREATED
-    assert deduplicator.evaluate(original) is None
+    assert created.kind is AlertKind.CREATED
+    assert tracker.evaluate(original) is None
 
     immaterial = replace(original, age_seconds=Decimal("2.00"))
-    assert deduplicator.evaluate(immaterial) is None
+    assert tracker.evaluate(immaterial) is None
 
     changed = replace(original, guaranteed_profit=Decimal("3.00"))
-    material = deduplicator.evaluate(changed)
+    material = tracker.evaluate(changed)
     assert material is not None
-    assert material.kind is AlertEventKind.MATERIALLY_CHANGED
-    assert deduplicator.evaluate(changed) is None
+    assert material.kind is AlertKind.CHANGED
+    assert tracker.evaluate(changed) is None
 
     expired = replace(changed, state=LifecycleState.EXPIRED)
-    expiry = deduplicator.evaluate(expired)
+    expiry = tracker.evaluate(expired)
     assert expiry is not None
-    assert expiry.kind is AlertEventKind.EXPIRED
-    assert deduplicator.evaluate(expired) is None
+    assert expiry.kind is AlertKind.EXPIRED
+    assert tracker.evaluate(expired) is None
 
 
 def test_invalidation_alert_is_emitted_once_and_hidden_by_default() -> None:
-    deduplicator = AlertDeduplicator()
+    tracker = AlertTracker()
     active = _opportunity()
-    deduplicator.evaluate(active)
+    tracker.evaluate(active)
     invalidated = replace(active, state=LifecycleState.INVALIDATED)
 
-    event = deduplicator.evaluate(invalidated)
+    event = tracker.evaluate(invalidated)
     assert event is not None
-    assert event.kind is AlertEventKind.EXPIRED
-    assert deduplicator.evaluate(invalidated) is None
+    assert event.kind is AlertKind.EXPIRED
+    assert tracker.evaluate(invalidated) is None
     assert filter_opportunities((invalidated,), DashboardFilter()) == ()
