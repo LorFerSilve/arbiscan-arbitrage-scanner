@@ -35,6 +35,7 @@ class MarketBookDiagnosticCode(StrEnum):
     FUTURE_INGESTION = "future_ingestion"
     FUTURE_QUOTE = "future_quote"
     STALE_QUOTE = "stale_quote"
+    CONFLICTING_SOURCE_OBSERVATIONS = "conflicting_source_observations"
     INSUFFICIENT_OUTCOMES = "insufficient_outcomes"
     INCOMPLETE_MARKET = "incomplete_market"
 
@@ -90,6 +91,7 @@ class MarketBookDiagnostic:
     market_id: MarketId | None = None
     selection_id: SelectionId | None = None
     provider_id: ProviderId | None = None
+    source_provider_id: ProviderId | None = None
     quote_id: QuoteId | None = None
 
     def __post_init__(self) -> None:
@@ -102,6 +104,7 @@ class MarketBookDiagnostic:
             (self.market_id, MarketId, "market_id"),
             (self.selection_id, SelectionId, "selection_id"),
             (self.provider_id, ProviderId, "provider_id"),
+            (self.source_provider_id, ProviderId, "source_provider_id"),
             (self.quote_id, QuoteId, "quote_id"),
         ):
             if value is not None and not isinstance(value, expected_type):
@@ -130,7 +133,7 @@ class BestPriceOutcome:
 
     @property
     def provider_id(self) -> ProviderId:
-        """Expose provider attribution without duplicating quote provenance."""
+        """Expose price-provider attribution without duplicating quote provenance."""
         return self.quote.provider_id
 
 

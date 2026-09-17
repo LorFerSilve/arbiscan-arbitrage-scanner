@@ -92,12 +92,19 @@ class RealtimeIngestionPolicy:
 
 @dataclass(frozen=True, slots=True, order=True)
 class QuoteKey:
-    """Stable live identity for one provider/canonical outcome quote."""
+    """Stable live identity for one transport observation of a canonical price slot."""
 
     provider_id: ProviderId
     event_id: EventId
     market_id: MarketId
     selection_id: SelectionId
+    source_provider_id: ProviderId | None = None
+
+    def __post_init__(self) -> None:
+        source_provider_id = self.provider_id if self.source_provider_id is None else self.source_provider_id
+        if not isinstance(source_provider_id, ProviderId):
+            raise ValueError("quote key source_provider_id must be ProviderId")
+        object.__setattr__(self, "source_provider_id", source_provider_id)
 
     @classmethod
     def from_quote(cls, quote: OddsQuote) -> QuoteKey:
@@ -106,6 +113,7 @@ class QuoteKey:
             event_id=quote.event_id,
             market_id=quote.market_id,
             selection_id=quote.selection_id,
+            source_provider_id=quote.source_provider_id,
         )
 
 
@@ -194,6 +202,7 @@ class LiveQuoteStore:
         effective_timestamp = quote.source_timestamp or quote.ingested_at
         return (
             quote.provider_id,
+            quote.source_provider_id,
             quote.event_id,
             quote.market_id,
             quote.selection_id,
@@ -206,10 +215,14 @@ class LiveQuoteStore:
         )
 
     @staticmethod
-    def _sort_key(quote: OddsQuote) -> tuple[str, str, str, str, datetime, datetime, str]:
+    def _sort_key(
+        quote: OddsQuote,
+    ) -> tuple[str, str, str, str, str, datetime, datetime, str]:
         effective = quote.source_timestamp or quote.ingested_at
+        source_provider_id = quote.source_provider_id or quote.provider_id
         return (
             quote.provider_id.value,
+            source_provider_id.value,
             quote.event_id.value,
             quote.market_id.value,
             quote.selection_id.value,
@@ -345,6 +358,7 @@ class LiveQuoteStore:
                     diagnostics,
                     key=lambda item: (
                         item.key.provider_id.value,
+                        (item.key.source_provider_id or item.key.provider_id).value,
                         item.key.event_id.value,
                         item.key.market_id.value,
                         item.key.selection_id.value,
@@ -380,6 +394,7 @@ class LiveQuoteStore:
                     item.key.market_id.value,
                     item.key.selection_id.value,
                     item.key.provider_id.value,
+                    (item.key.source_provider_id or item.key.provider_id).value,
                 ),
             )
         )
@@ -433,6 +448,7 @@ class LiveQuoteStore:
                         item.key.market_id.value,
                         item.key.selection_id.value,
                         item.key.provider_id.value,
+                        (item.key.source_provider_id or item.key.provider_id).value,
                     ),
                 )
             ),
@@ -441,6 +457,7 @@ class LiveQuoteStore:
                     diagnostics,
                     key=lambda item: (
                         item.key.provider_id.value,
+                        (item.key.source_provider_id or item.key.provider_id).value,
                         item.key.event_id.value,
                         item.key.market_id.value,
                         item.key.selection_id.value,
