@@ -55,5 +55,5 @@ def test_live_store_keeps_same_bookmaker_observations_from_two_transports() -> N
     assert QuoteKey.from_quote(the_odds) != QuoteKey.from_quote(oddspapi)
     assert {version.key.source_provider_id for version in applied.accepted} == {
         THE_ODDS_API,
-        ODSPAPI,
+        ODDSPAPI,
     }
