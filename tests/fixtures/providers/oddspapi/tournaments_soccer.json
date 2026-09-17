@@ -1,0 +1,12 @@
+[
+  {
+    "tournamentId": 17,
+    "tournamentSlug": "premier-league",
+    "tournamentName": "Premier League",
+    "categorySlug": "england",
+    "categoryName": "England",
+    "futureFixtures": 12,
+    "upcomingFixtures": 2,
+    "liveFixtures": 1
+  }
+]

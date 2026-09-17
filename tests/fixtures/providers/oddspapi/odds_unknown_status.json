@@ -1,0 +1,18 @@
+{
+  "fixtureId": "id1000001761301153",
+  "participant1Id": 35,
+  "participant2Id": 34,
+  "sportId": 10,
+  "tournamentId": 17,
+  "seasonId": 130281,
+  "statusId": 99,
+  "hasOdds": true,
+  "startTime": "2026-09-17T18:00:00.000Z",
+  "updatedAt": "2026-09-17T10:15:00.000Z",
+  "statusName": "Future-New-State",
+  "participant1Name": "Liverpool FC",
+  "participant2Name": "Manchester United",
+  "sportName": "Soccer",
+  "tournamentName": "Premier League",
+  "bookmakerOdds": {}
+}
