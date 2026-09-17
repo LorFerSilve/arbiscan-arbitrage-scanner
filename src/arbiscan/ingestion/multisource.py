@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from collections.abc import Iterable
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from enum import StrEnum
 
@@ -27,7 +27,7 @@ def _transport_provider_id(quote: OddsQuote) -> ProviderId:
 
 @dataclass(frozen=True, slots=True)
 class SourceQuoteKey:
-    """Identity of one live observation from one transport source."""
+    """Identity of one bookmaker quote observation from one transport source."""
 
     transport_provider_id: ProviderId
     provider_id: ProviderId
@@ -109,8 +109,8 @@ class SourceQuoteStoreDiagnostic:
 
 @dataclass(frozen=True, slots=True)
 class SourceQuoteStoreApplyResult:
-    accepted: tuple[SourceQuoteVersion, ...] = field(default_factory=tuple)
-    diagnostics: tuple[SourceQuoteStoreDiagnostic, ...] = field(default_factory=tuple)
+    accepted: tuple[SourceQuoteVersion, ...] = ()
+    diagnostics: tuple[SourceQuoteStoreDiagnostic, ...] = ()
     added_count: int = 0
     updated_count: int = 0
     duplicate_count: int = 0
@@ -145,22 +145,20 @@ class QuoteConsolidationResult:
     @property
     def conflict_count(self) -> int:
         return sum(
-            1
+            item.code is QuoteConsolidationDiagnosticCode.CONFLICTING_SOURCE_OBSERVATIONS
             for item in self.diagnostics
-            if item.code is QuoteConsolidationDiagnosticCode.CONFLICTING_SOURCE_OBSERVATIONS
         )
 
     @property
     def equivalent_overlap_count(self) -> int:
         return sum(
-            1
+            item.code is QuoteConsolidationDiagnosticCode.EQUIVALENT_SOURCE_OBSERVATIONS
             for item in self.diagnostics
-            if item.code is QuoteConsolidationDiagnosticCode.EQUIVALENT_SOURCE_OBSERVATIONS
         )
 
 
 class MultiSourceQuoteStore:
-    """Keep transport observations separate, then consolidate by executable price origin."""
+    """Retain source observations separately and consolidate only for executable use."""
 
     def __init__(self, policy: RealtimeIngestionPolicy) -> None:
         if not isinstance(policy, RealtimeIngestionPolicy):
@@ -177,7 +175,6 @@ class MultiSourceQuoteStore:
 
     @staticmethod
     def _fingerprint(quote: OddsQuote) -> tuple[object, ...]:
-        effective_timestamp = quote.source_timestamp or quote.ingested_at
         return (
             _transport_provider_id(quote),
             quote.provider_id,
@@ -189,41 +186,36 @@ class MultiSourceQuoteStore:
             quote.source_event_id,
             quote.source_market_id,
             quote.source_selection_id,
-            effective_timestamp,
+            quote.source_timestamp or quote.ingested_at,
         )
 
     @staticmethod
-    def _sort_key(
+    def _quote_sort_key(
         quote: OddsQuote,
     ) -> tuple[str, str, str, str, str, datetime, datetime, str]:
-        effective = quote.source_timestamp or quote.ingested_at
         return (
             quote.provider_id.value,
             _transport_provider_id(quote).value,
             quote.event_id.value,
             quote.market_id.value,
             quote.selection_id.value,
-            effective,
+            quote.source_timestamp or quote.ingested_at,
             quote.ingested_at,
             quote.id.value,
         )
 
     @staticmethod
-    def _diagnostic_sort_key(
-        diagnostic: SourceQuoteStoreDiagnostic,
-    ) -> tuple[str, str, str, str, str, str]:
-        key = diagnostic.key
+    def _source_key_sort(key: SourceQuoteKey) -> tuple[str, str, str, str, str]:
         return (
-            key.provider_id.value,
-            key.transport_provider_id.value,
             key.event_id.value,
             key.market_id.value,
             key.selection_id.value,
-            diagnostic.code.value,
+            key.provider_id.value,
+            key.transport_provider_id.value,
         )
 
     @staticmethod
-    def _slot_sort_key(slot: PriceSlotKey) -> tuple[str, str, str, str]:
+    def _slot_sort(slot: PriceSlotKey) -> tuple[str, str, str, str]:
         return (
             slot.event_id.value,
             slot.market_id.value,
@@ -249,16 +241,16 @@ class MultiSourceQuoteStore:
         duplicate_count = 0
         rejected_count = 0
 
-        for quote in sorted(quote_values, key=self._sort_key):
+        for quote in sorted(quote_values, key=self._quote_sort_key):
             key = SourceQuoteKey.from_quote(quote)
             effective = quote.source_timestamp or quote.ingested_at
 
             if quote.ingested_at > observed:
                 diagnostics.append(
                     SourceQuoteStoreDiagnostic(
-                        code=SourceQuoteStoreDiagnosticCode.FUTURE_INGESTION,
-                        key=key,
-                        detail="quote was ingested after the live-store observation time",
+                        SourceQuoteStoreDiagnosticCode.FUTURE_INGESTION,
+                        key,
+                        "quote was ingested after the live-store observation time",
                     )
                 )
                 rejected_count += 1
@@ -268,12 +260,9 @@ class MultiSourceQuoteStore:
             if future_delta > self._policy.clock_skew_tolerance:
                 diagnostics.append(
                     SourceQuoteStoreDiagnostic(
-                        code=SourceQuoteStoreDiagnosticCode.CLOCK_SKEW_EXCEEDED,
-                        key=key,
-                        detail=(
-                            "quote effective timestamp exceeds observation time by more than "
-                            "the configured clock-skew tolerance"
-                        ),
+                        SourceQuoteStoreDiagnosticCode.CLOCK_SKEW_EXCEEDED,
+                        key,
+                        "effective timestamp exceeds the configured clock-skew tolerance",
                     )
                 )
                 rejected_count += 1
@@ -281,76 +270,62 @@ class MultiSourceQuoteStore:
             if future_delta > timedelta(0):
                 diagnostics.append(
                     SourceQuoteStoreDiagnostic(
-                        code=SourceQuoteStoreDiagnosticCode.CLOCK_SKEW_DETECTED,
-                        key=key,
-                        detail=(
-                            "quote effective timestamp is slightly ahead of the local clock; "
-                            "stored but not eligible until local time catches up"
-                        ),
+                        SourceQuoteStoreDiagnosticCode.CLOCK_SKEW_DETECTED,
+                        key,
+                        "future source timestamp retained but not yet eligible",
                     )
                 )
 
             current = self._current.get(key)
             if current is not None:
-                current_effective = current.effective_timestamp
-                backward_delta = current_effective - effective
+                backward_delta = current.effective_timestamp - effective
                 if backward_delta > self._policy.clock_skew_tolerance:
                     diagnostics.append(
                         SourceQuoteStoreDiagnostic(
-                            code=SourceQuoteStoreDiagnosticCode.OUT_OF_ORDER,
-                            key=key,
-                            detail=(
-                                "incoming quote effective timestamp is older than the current "
-                                "source observation beyond the clock-skew tolerance"
-                            ),
+                            SourceQuoteStoreDiagnosticCode.OUT_OF_ORDER,
+                            key,
+                            "incoming source observation is older beyond skew tolerance",
                         )
                     )
                     rejected_count += 1
                     continue
-
                 if self._fingerprint(current.quote) == self._fingerprint(quote):
                     diagnostics.append(
                         SourceQuoteStoreDiagnostic(
-                            code=SourceQuoteStoreDiagnosticCode.DUPLICATE,
-                            key=key,
-                            detail="incoming observation does not change source quote state",
+                            SourceQuoteStoreDiagnosticCode.DUPLICATE,
+                            key,
+                            "incoming observation does not change source quote state",
                         )
                     )
                     duplicate_count += 1
                     continue
-
-                if effective < current_effective and quote.ingested_at <= current.quote.ingested_at:
+                if (
+                    effective < current.effective_timestamp
+                    and quote.ingested_at <= current.quote.ingested_at
+                ):
                     diagnostics.append(
                         SourceQuoteStoreDiagnostic(
-                            code=SourceQuoteStoreDiagnosticCode.OUT_OF_ORDER,
-                            key=key,
-                            detail=(
-                                "minor backward source-clock movement was not accompanied by a "
-                                "newer ingestion timestamp"
-                            ),
+                            SourceQuoteStoreDiagnosticCode.OUT_OF_ORDER,
+                            key,
+                            "backward source-clock movement lacks newer ingestion evidence",
                         )
                     )
                     rejected_count += 1
                     continue
-
                 revision = current.revision + 1
                 updated_count += 1
             else:
                 revision = 1
                 added_count += 1
 
-            version = SourceQuoteVersion(
-                key=key,
-                revision=revision,
-                quote=quote,
-                observed_at=observed,
-            )
+            version = SourceQuoteVersion(key, revision, quote, observed)
             self._current[key] = version
             accepted.append(version)
 
+        diagnostics.sort(key=lambda item: (*self._source_key_sort(item.key), item.code.value))
         return SourceQuoteStoreApplyResult(
             accepted=tuple(accepted),
-            diagnostics=tuple(sorted(diagnostics, key=self._diagnostic_sort_key)),
+            diagnostics=tuple(diagnostics),
             added_count=added_count,
             updated_count=updated_count,
             duplicate_count=duplicate_count,
@@ -359,29 +334,16 @@ class MultiSourceQuoteStore:
 
     def fresh_versions(self, *, as_of: datetime) -> tuple[SourceQuoteVersion, ...]:
         moment = _aware_utc(as_of, field_name="as_of")
-        values: list[SourceQuoteVersion] = []
-        for version in self._current.values():
-            quote = version.quote
-            effective = version.effective_timestamp
-            if quote.status is not QuoteStatus.ACTIVE:
-                continue
-            if quote.ingested_at > moment or effective > moment:
-                continue
-            if moment - effective > self._policy.freshness_window:
-                continue
-            values.append(version)
-        return tuple(
-            sorted(
-                values,
-                key=lambda item: (
-                    item.key.event_id.value,
-                    item.key.market_id.value,
-                    item.key.selection_id.value,
-                    item.key.provider_id.value,
-                    item.key.transport_provider_id.value,
-                ),
-            )
-        )
+        values = [
+            version
+            for version in self._current.values()
+            if version.quote.status is QuoteStatus.ACTIVE
+            and version.quote.ingested_at <= moment
+            and version.effective_timestamp <= moment
+            and moment - version.effective_timestamp <= self._policy.freshness_window
+        ]
+        values.sort(key=lambda item: self._source_key_sort(item.key))
+        return tuple(values)
 
     def consolidate_fresh(
         self,
@@ -393,13 +355,12 @@ class MultiSourceQuoteStore:
         excluded = frozenset(excluded_keys)
         grouped: dict[PriceSlotKey, list[SourceQuoteVersion]] = defaultdict(list)
         for version in self.fresh_versions(as_of=as_of):
-            if version.key in excluded:
-                continue
-            grouped[PriceSlotKey.from_quote(version.quote)].append(version)
+            if version.key not in excluded:
+                grouped[PriceSlotKey.from_quote(version.quote)].append(version)
 
         selected: list[SourceQuoteVersion] = []
         diagnostics: list[QuoteConsolidationDiagnostic] = []
-        for slot in sorted(grouped, key=self._slot_sort_key):
+        for slot in sorted(grouped, key=self._slot_sort):
             versions = grouped[slot]
             newest_timestamp = max(version.effective_timestamp for version in versions)
             newest = [
@@ -408,24 +369,21 @@ class MultiSourceQuoteStore:
             newest.sort(
                 key=lambda item: (item.key.transport_provider_id.value, item.quote.id.value)
             )
-
-            semantics = {(item.quote.decimal_price, item.quote.status) for item in newest}
             transports = tuple(
                 sorted(
                     {item.key.transport_provider_id for item in newest},
                     key=lambda item: item.value,
                 )
             )
+            semantics = {(item.quote.decimal_price, item.quote.status) for item in newest}
+
             if len(semantics) > 1:
                 diagnostics.append(
                     QuoteConsolidationDiagnostic(
-                        code=QuoteConsolidationDiagnosticCode.CONFLICTING_SOURCE_OBSERVATIONS,
-                        slot=slot,
-                        transport_provider_ids=transports,
-                        detail=(
-                            "equal-time source observations conflict for the same executable "
-                            "price-provider slot; slot excluded fail-closed"
-                        ),
+                        QuoteConsolidationDiagnosticCode.CONFLICTING_SOURCE_OBSERVATIONS,
+                        slot,
+                        transports,
+                        "equal-time observations conflict; executable slot excluded fail-closed",
                     )
                 )
                 continue
@@ -434,28 +392,15 @@ class MultiSourceQuoteStore:
             if len(newest) > 1:
                 diagnostics.append(
                     QuoteConsolidationDiagnostic(
-                        code=QuoteConsolidationDiagnosticCode.EQUIVALENT_SOURCE_OBSERVATIONS,
-                        slot=slot,
-                        transport_provider_ids=transports,
-                        detail=(
-                            "equivalent equal-time observations consolidated deterministically "
-                            "while retaining every source observation in live state"
-                        ),
+                        QuoteConsolidationDiagnosticCode.EQUIVALENT_SOURCE_OBSERVATIONS,
+                        slot,
+                        transports,
+                        "equivalent equal-time observations consolidated deterministically",
                     )
                 )
 
-        selected.sort(
-            key=lambda item: (
-                item.key.event_id.value,
-                item.key.market_id.value,
-                item.key.selection_id.value,
-                item.key.provider_id.value,
-                item.key.transport_provider_id.value,
-            )
-        )
-        diagnostics.sort(
-            key=lambda item: (*self._slot_sort_key(item.slot), item.code.value)
-        )
+        selected.sort(key=lambda item: self._source_key_sort(item.key))
+        diagnostics.sort(key=lambda item: (*self._slot_sort(item.slot), item.code.value))
         return QuoteConsolidationResult(
             quotes=tuple(item.quote for item in selected),
             selected_versions=tuple(selected),
@@ -469,22 +414,6 @@ class MultiSourceQuoteStore:
         excluded_keys: Iterable[SourceQuoteKey] = (),
     ) -> tuple[OddsQuote, ...]:
         return self.consolidate_fresh(as_of=as_of, excluded_keys=excluded_keys).quotes
-
-    def stale_count(self, *, as_of: datetime) -> int:
-        moment = _aware_utc(as_of, field_name="as_of")
-        return sum(
-            1
-            for version in self._current.values()
-            if version.effective_timestamp <= moment
-            and moment - version.effective_timestamp > self._policy.freshness_window
-        )
-
-    def maximum_quote_age(self, *, as_of: datetime) -> timedelta | None:
-        moment = _aware_utc(as_of, field_name="as_of")
-        fresh = self.consolidate_fresh(as_of=moment).selected_versions
-        if not fresh:
-            return None
-        return max(moment - version.effective_timestamp for version in fresh)
 
     def evict_stale(self, *, as_of: datetime) -> SourceQuoteStoreEvictionResult:
         moment = _aware_utc(as_of, field_name="as_of")
@@ -504,19 +433,8 @@ class MultiSourceQuoteStore:
                 continue
             del self._current[key]
             evicted.append(version)
-            diagnostics.append(SourceQuoteStoreDiagnostic(code=code, key=key, detail=detail))
+            diagnostics.append(SourceQuoteStoreDiagnostic(code, key, detail))
 
-        evicted.sort(
-            key=lambda item: (
-                item.key.event_id.value,
-                item.key.market_id.value,
-                item.key.selection_id.value,
-                item.key.provider_id.value,
-                item.key.transport_provider_id.value,
-            )
-        )
-        diagnostics.sort(key=self._diagnostic_sort_key)
-        return SourceQuoteStoreEvictionResult(
-            evicted=tuple(evicted),
-            diagnostics=tuple(diagnostics),
-        )
+        evicted.sort(key=lambda item: self._source_key_sort(item.key))
+        diagnostics.sort(key=lambda item: (*self._source_key_sort(item.key), item.code.value))
+        return SourceQuoteStoreEvictionResult(tuple(evicted), tuple(diagnostics))
