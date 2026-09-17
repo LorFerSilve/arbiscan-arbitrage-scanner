@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from decimal import Decimal
 
-from arbiscan.domain import MarketId, ProviderId, SelectionId, Sport
+from arbiscan.domain import MarketId, OddsQuote, ProviderId, SelectionId, Sport
 from arbiscan.ingestion.collector import IngestedSnapshot
 from arbiscan.ingestion.multisource import ConsolidationDiagnostic, SourceObservationKey
 from arbiscan.ingestion.multisource_state import MultiSourceLiveQuoteStore
@@ -19,7 +19,6 @@ from arbiscan.ingestion.realtime import (
 )
 from arbiscan.marketbook import ProviderBookPolicy
 from arbiscan.matching.catalog import CanonicalRegistry
-from arbiscan.observability import StructuredLogRecord
 from arbiscan.providers.contract import ProviderAdapter
 from arbiscan.services.observable_realtime_scanner import (
     RealtimeScanner as ObservableRealtimeScanner,
@@ -68,7 +67,7 @@ class RealtimeScanner(ObservableRealtimeScanner):
         resolved_policy = policy
         if resolved_policy is None:
             resolved_policy = runtime.policy if runtime is not None else RealtimeIngestionPolicy()
-        resolved_store = store or MultiSourceLiveQuoteStore(resolved_policy)
+        resolved_store = store if store is not None else MultiSourceLiveQuoteStore(resolved_policy)
         super().__init__(
             adapters=adapters,
             registry=registry,
@@ -107,7 +106,7 @@ class RealtimeScanner(ObservableRealtimeScanner):
         )
 
     def _explicit_inactive_quote_keys(self, ingested: IngestedSnapshot) -> set[QuoteKey]:
-        """Invalidate only the transport observation that reported inactive source data."""
+        """Invalidate the reporting transport while preserving Phase-10 cycle compatibility."""
         store = self._phase16_store
         if store is None:
             return super()._explicit_inactive_quote_keys(ingested)
@@ -170,7 +169,24 @@ class RealtimeScanner(ObservableRealtimeScanner):
                 )
 
         store.invalidate_observations(invalidated)
-        return set()
+        return {
+            QuoteKey(
+                provider_id=key.provider_id,
+                event_id=key.event_id,
+                market_id=key.market_id,
+                selection_id=key.selection_id,
+            )
+            for key in invalidated
+        }
+
+    def _update_source_invalidations(
+        self,
+        normalized_quotes: tuple[OddsQuote, ...],
+        explicit_invalidations: set[QuoteKey],
+    ) -> None:
+        """Keep transport invalidations in the multi-source store, not bookmaker-global state."""
+        if self._phase16_store is None:
+            super()._update_source_invalidations(normalized_quotes, explicit_invalidations)
 
     @staticmethod
     def _observation_key(
@@ -193,6 +209,37 @@ class RealtimeScanner(ObservableRealtimeScanner):
             selection_id=selection_id,
         )
 
+    def _cycle_log_fields(
+        self,
+        cycle: RealtimeScanCycle,
+    ) -> dict[str, str | int | float | bool | None]:
+        fields = super()._cycle_log_fields(cycle)
+        store = self._phase16_store
+        if store is None:
+            return fields
+
+        consolidation = store.last_consolidation_result
+        diagnostic_codes = ",".join(
+            diagnostic.code.value for diagnostic in consolidation.diagnostics
+        )
+        transport_provider_ids = ";".join(
+            ",".join(provider_id.value for provider_id in diagnostic.transport_provider_ids)
+            for diagnostic in consolidation.diagnostics
+        )
+        fields.update(
+            {
+                "fresh_observation_count": len(
+                    store.fresh_observations(as_of=cycle.metrics.detected_at)
+                ),
+                "executable_quote_count": len(consolidation.quotes),
+                "equivalent_overlap_count": consolidation.equivalent_overlap_count,
+                "material_conflict_count": consolidation.conflict_count,
+                "diagnostic_codes": diagnostic_codes,
+                "transport_provider_ids": transport_provider_ids,
+            }
+        )
+        return fields
+
     async def run_cycle(self) -> RealtimeScanCycle:
         cycle = await super().run_cycle()
         store = self._phase16_store
@@ -206,29 +253,4 @@ class RealtimeScanner(ObservableRealtimeScanner):
         self._phase16_last_equivalent_overlap_count = consolidation.equivalent_overlap_count
         self._phase16_last_material_conflict_count = consolidation.conflict_count
         self._phase16_last_diagnostics = consolidation.diagnostics
-
-        diagnostic_codes = ",".join(
-            diagnostic.code.value for diagnostic in consolidation.diagnostics
-        )
-        transport_provider_ids = ";".join(
-            ",".join(provider_id.value for provider_id in diagnostic.transport_provider_ids)
-            for diagnostic in consolidation.diagnostics
-        )
-        self.log_sink.emit(
-            StructuredLogRecord(
-                observed_at=cycle.metrics.detected_at,
-                event="scanner.multisource.consolidation",
-                correlation_id=cycle.metrics.started_at.isoformat(),
-                fields={
-                    "fresh_observation_count": len(
-                        store.fresh_observations(as_of=cycle.metrics.detected_at)
-                    ),
-                    "executable_quote_count": len(consolidation.quotes),
-                    "equivalent_overlap_count": consolidation.equivalent_overlap_count,
-                    "material_conflict_count": consolidation.conflict_count,
-                    "diagnostic_codes": diagnostic_codes,
-                    "transport_provider_ids": transport_provider_ids,
-                },
-            )
-        )
         return cycle
