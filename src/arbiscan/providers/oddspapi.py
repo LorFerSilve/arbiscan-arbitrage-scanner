@@ -474,9 +474,7 @@ def _source_markets(
                     path=f"market.{market_id}.outcome.{outcome_id}.price",
                 )
                 if price <= Decimal(1):
-                    raise _SchemaError(
-                        f"market.{market_id}.outcome.{outcome_id}.price must be > 1"
-                    )
+                    raise _SchemaError(f"market.{market_id}.outcome.{outcome_id}.price must be > 1")
                 source_timestamp = _selection_timestamp(
                     quote,
                     path=f"market.{market_id}.outcome.{outcome_id}",
