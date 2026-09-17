@@ -1,0 +1,70 @@
+name: Phase 16.2 review fix
+
+on:
+  push:
+    branches: [codex/phase-16-2-provenance-hardening]
+    paths:
+      - .github/workflows/phase16-review-fix.yml
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: codex/phase-16-2-provenance-hardening
+
+      - name: Install pinned uv and Python
+        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        with:
+          version: "0.12.12"
+          python-version: "3.13.15"
+          enable-cache: true
+
+      - name: Apply strict transport provenance fix
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          models = Path("src/arbiscan/domain/models.py")
+          text = models.read_text()
+          old = "        transport_provider_id = self.transport_provider_id or self.provider_id\n"
+          new = (
+              "        transport_provider_id = (\n"
+              "            self.transport_provider_id\n"
+              "            if self.transport_provider_id is not None\n"
+              "            else self.provider_id\n"
+              "        )\n"
+          )
+          if old not in text:
+              raise SystemExit("expected transport fallback line not found")
+          models.write_text(text.replace(old, new, 1))
+
+          tests = Path("tests/unit/domain/test_quote_provenance.py")
+          text = tests.read_text()
+          if "from typing import cast\n" not in text:
+              text = text.replace("from decimal import Decimal\n", "from decimal import Decimal\nfrom typing import cast\n", 1)
+          marker = "def test_quote_rejects_explicit_falsy_non_provider_transport_identity()"
+          if marker not in text:
+              text += '''\n\ndef test_quote_rejects_explicit_falsy_non_provider_transport_identity() -> None:\n    try:\n        OddsQuote(\n            id=QuoteId("quote:invalid-transport"),\n            provider_id=ProviderId("provider:a"),\n            event_id=EventId("event:1"),\n            market_id=MarketId("market:1"),\n            selection_id=SelectionId("selection:1"),\n            decimal_price=Decimal("2.10"),\n            source_event_id="event-1",\n            source_market_id="market-1",\n            source_selection_id="selection-1",\n            ingested_at=datetime(2026, 9, 13, 0, 0, tzinfo=UTC),\n            status=QuoteStatus.ACTIVE,\n            trace_id="trace-123",\n            transport_provider_id=cast(ProviderId, ""),\n        )\n    except DomainValidationError:\n        pass\n    else:\n        raise AssertionError("explicit invalid transport provenance must be rejected")\n'''
+          tests.write_text(text)
+          PY
+
+          uvx --from ruff==0.16.7 ruff format src/arbiscan/domain/models.py tests/unit/domain/test_quote_provenance.py
+          uvx --from ruff==0.16.7 ruff check src/arbiscan/domain/models.py tests/unit/domain/test_quote_provenance.py
+          uv run --with pytest==9.1.1 pytest tests/unit/domain/test_quote_provenance.py
+
+      - name: Commit fix
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/arbiscan/domain/models.py tests/unit/domain/test_quote_provenance.py
+          git diff --cached --quiet && exit 0
+          git commit -m "fix: reject invalid transport provenance"
+          git push origin HEAD:codex/phase-16-2-provenance-hardening
