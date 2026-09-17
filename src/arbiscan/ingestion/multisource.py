@@ -140,20 +140,13 @@ def consolidate_quotes(quotes: Iterable[OddsQuote]) -> ConsolidationResult:
     for slot in sorted(grouped):
         observations = grouped[slot]
         newest_timestamp = max(effective_timestamp(quote) for quote in observations)
-        newest = [
-            quote
-            for quote in observations
-            if effective_timestamp(quote) == newest_timestamp
-        ]
+        newest = [quote for quote in observations if effective_timestamp(quote) == newest_timestamp]
         newest.sort(key=_observation_sort_key)
 
         semantic_states = {(quote.decimal_price, quote.status) for quote in newest}
         transports = tuple(
             sorted(
-                {
-                    quote.transport_provider_id or quote.provider_id
-                    for quote in newest
-                },
+                {quote.transport_provider_id or quote.provider_id for quote in newest},
                 key=lambda provider_id: provider_id.value,
             )
         )

@@ -5,13 +5,13 @@ from datetime import UTC, datetime
 from decimal import Decimal
 
 from arbiscan.domain import (
+    SCHEMA_VERSION,
     EventId,
     MarketId,
     OddsQuote,
     ProviderId,
     QuoteId,
     QuoteStatus,
-    SCHEMA_VERSION,
     SelectionId,
     dumps,
     loads,
