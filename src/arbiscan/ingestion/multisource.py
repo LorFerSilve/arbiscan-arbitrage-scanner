@@ -25,7 +25,7 @@ def _transport_provider_id(quote: OddsQuote) -> ProviderId:
     return provider_id
 
 
-@dataclass(frozen=True, slots=True, order=True)
+@dataclass(frozen=True, slots=True)
 class SourceQuoteKey:
     """Identity of one live observation from one transport source."""
 
@@ -46,7 +46,7 @@ class SourceQuoteKey:
         )
 
 
-@dataclass(frozen=True, slots=True, order=True)
+@dataclass(frozen=True, slots=True)
 class PriceSlotKey:
     """Executable bookmaker/selection slot shared by overlapping transports."""
 
@@ -222,6 +222,15 @@ class MultiSourceQuoteStore:
             diagnostic.code.value,
         )
 
+    @staticmethod
+    def _slot_sort_key(slot: PriceSlotKey) -> tuple[str, str, str, str]:
+        return (
+            slot.event_id.value,
+            slot.market_id.value,
+            slot.selection_id.value,
+            slot.provider_id.value,
+        )
+
     def apply(
         self,
         quotes: Iterable[OddsQuote],
@@ -390,7 +399,7 @@ class MultiSourceQuoteStore:
 
         selected: list[SourceQuoteVersion] = []
         diagnostics: list[QuoteConsolidationDiagnostic] = []
-        for slot in sorted(grouped):
+        for slot in sorted(grouped, key=self._slot_sort_key):
             versions = grouped[slot]
             newest_timestamp = max(version.effective_timestamp for version in versions)
             newest = [
@@ -401,7 +410,12 @@ class MultiSourceQuoteStore:
             )
 
             semantics = {(item.quote.decimal_price, item.quote.status) for item in newest}
-            transports = tuple(sorted({item.key.transport_provider_id for item in newest}))
+            transports = tuple(
+                sorted(
+                    {item.key.transport_provider_id for item in newest},
+                    key=lambda item: item.value,
+                )
+            )
             if len(semantics) > 1:
                 diagnostics.append(
                     QuoteConsolidationDiagnostic(
@@ -440,13 +454,7 @@ class MultiSourceQuoteStore:
             )
         )
         diagnostics.sort(
-            key=lambda item: (
-                item.slot.event_id.value,
-                item.slot.market_id.value,
-                item.slot.selection_id.value,
-                item.slot.provider_id.value,
-                item.code.value,
-            )
+            key=lambda item: (*self._slot_sort_key(item.slot), item.code.value)
         )
         return QuoteConsolidationResult(
             quotes=tuple(item.quote for item in selected),
