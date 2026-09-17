@@ -53,7 +53,8 @@ from arbiscan.domain.models import (
     StakePlan,
 )
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
+_SUPPORTED_SCHEMA_VERSIONS = frozenset({1, SCHEMA_VERSION})
 
 _MODEL_TYPES: dict[str, Callable[..., object]] = {
     type_.__name__: type_
@@ -143,6 +144,27 @@ def _require_exact_keys(
     if unexpected:
         details.append(f"unexpected fields: {', '.join(unexpected)}")
     raise DomainValidationError(f"{context} has invalid fields ({'; '.join(details)})")
+
+
+def _migrate_v1_payload(value: object) -> object:
+    """Upgrade schema-v1 values without weakening strict schema validation.
+
+    Phase 16.2 introduced explicit transport-provider provenance on ``OddsQuote``.
+    Historical schema-v1 quotes predate that distinction, so their transport source
+    is deterministically interpreted as their existing price-provider identity.
+    """
+    if isinstance(value, list):
+        return [_migrate_v1_payload(item) for item in value]
+    if not isinstance(value, dict):
+        return value
+
+    mapping = {str(key): _migrate_v1_payload(item) for key, item in value.items()}
+    if mapping.get("$type") == "OddsQuote" and "transport_provider_id" not in mapping:
+        provider_id = mapping.get("provider_id")
+        if provider_id is None:
+            raise DomainValidationError("schema-v1 OddsQuote is missing provider_id")
+        mapping["transport_provider_id"] = provider_id
+    return mapping
 
 
 def _decode(value: object) -> object:
@@ -241,10 +263,15 @@ def loads[T](data: str, expected_type: type[T]) -> T:
         context="canonical JSON envelope",
     )
 
-    if envelope["schema_version"] != SCHEMA_VERSION:
+    schema_version = envelope["schema_version"]
+    if schema_version not in _SUPPORTED_SCHEMA_VERSIONS:
         raise DomainValidationError("unsupported canonical schema version")
 
-    result = _decode(envelope["payload"])
+    payload = envelope["payload"]
+    if schema_version == 1:
+        payload = _migrate_v1_payload(payload)
+
+    result = _decode(payload)
     if not isinstance(result, expected_type):
         raise DomainValidationError(
             f"expected {expected_type.__name__}, got {type(result).__name__}"
