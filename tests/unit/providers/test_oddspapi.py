@@ -390,20 +390,20 @@ def test_rate_limit_error_is_retryable_but_arbitrary_client_error_is_not() -> No
 
     try:
         asyncio.run(limited.supported_sports())
-    except ProviderError as error:
-        assert error.kind is ProviderErrorKind.RATE_LIMITED
-        assert error.retryable
-        assert error.retry_after == timedelta(seconds=7)
-        assert FIXTURE_KEY not in str(error)
+    except ProviderError as limited_error:
+        assert limited_error.kind is ProviderErrorKind.RATE_LIMITED
+        assert limited_error.retryable
+        assert limited_error.retry_after == timedelta(seconds=7)
+        assert FIXTURE_KEY not in str(limited_error)
     else:
         raise AssertionError("expected rate-limit ProviderError")
 
     try:
         asyncio.run(rejected.supported_sports())
-    except ProviderError as error:
-        assert error.kind is ProviderErrorKind.INVALID_REQUEST
-        assert not error.retryable
-        assert FIXTURE_KEY not in str(error)
+    except ProviderError as rejected_error:
+        assert rejected_error.kind is ProviderErrorKind.INVALID_REQUEST
+        assert not rejected_error.retryable
+        assert FIXTURE_KEY not in str(rejected_error)
     else:
         raise AssertionError("expected invalid-request ProviderError")
 
