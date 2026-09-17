@@ -48,8 +48,7 @@ ODDSPAPI_BASE_URL = "https://api.oddspapi.io/v4"
 # Phase 6 originally embedded the first transport name in bookmaker IDs. Those IDs
 # are already part of the canonical quote surface, so Phase 16.3 deliberately reuses
 # that existing namespace for exact slug overlaps instead of creating duplicate price
-# providers. A future explicit data migration may rename the namespace, but a second
-# transport must not create a second Pinnacle identity merely for cosmetic purity.
+# providers. A future explicit data migration may rename the namespace.
 _LEGACY_SHARED_BOOKMAKER_PREFIX = "bookmaker:the-odds-api:"
 
 Clock = Callable[[], datetime]
@@ -87,8 +86,11 @@ class OddsPapiConfig:
         if not isinstance(self.language, str) or not self.language.strip():
             raise ProviderContractError("OddsPapi language must be non-empty text")
         language = self.language.strip().casefold()
-        if len(language) != 2 or not language.isalpha():
-            raise ProviderContractError("OddsPapi language must be a two-letter code")
+        # Phase 16.3 resolves MVP market semantics using the provider's English
+        # catalogue names. Accepting another locale would make the same market data
+        # silently disappear, so fail fast until locale-independent IDs are proven.
+        if language != "en":
+            raise ProviderContractError("OddsPapi Phase 16.3 requires language='en'")
         object.__setattr__(self, "language", language)
 
 
@@ -113,10 +115,7 @@ class _MarketRecord:
 
 
 _SLUG_TO_SPORT: Mapping[str, Sport] = MappingProxyType(
-    {
-        "soccer": Sport.FOOTBALL,
-        "tennis": Sport.TENNIS,
-    }
+    {"soccer": Sport.FOOTBALL, "tennis": Sport.TENNIS}
 )
 _KNOWN_FIXTURE_STATUS_IDS = frozenset({0, 1, 2, 3})
 
@@ -213,9 +212,7 @@ def _retry_after(headers: Mapping[str, str]) -> timedelta | None:
         seconds = int(raw)
     except ValueError:
         return None
-    if seconds < 0:
-        return None
-    return timedelta(seconds=seconds)
+    return None if seconds < 0 else timedelta(seconds=seconds)
 
 
 def _sport_records(payload: object) -> tuple[_SportRecord, ...]:
@@ -238,8 +235,7 @@ def _fixture_status(item: Mapping[str, object], *, path: str) -> tuple[int, str]
     status_id = _integer(item.get("statusId"), path=f"{path}.statusId")
     if status_id not in _KNOWN_FIXTURE_STATUS_IDS:
         raise _SchemaError(f"{path}.statusId is not a documented fixture status")
-    status_name = _text(item.get("statusName"), path=f"{path}.statusName")
-    return status_id, status_name
+    return status_id, _text(item.get("statusName"), path=f"{path}.statusName")
 
 
 def _source_event(
@@ -257,6 +253,7 @@ def _source_event(
         raise _SchemaError("fixture.tournamentId does not match the requested tournament")
     if sport_id != expected_sport_id:
         raise _SchemaError("fixture.sportId does not match the discovered tournament sport")
+
     participant1_id = _integer(item.get("participant1Id"), path="fixture.participant1Id")
     participant2_id = _integer(item.get("participant2Id"), path="fixture.participant2Id")
     if participant1_id == participant2_id:
@@ -266,6 +263,7 @@ def _source_event(
     if participant1_name.casefold() == participant2_name.casefold():
         raise _SchemaError("fixture participant names must differ")
     _status_id, status_name = _fixture_status(item, path="fixture")
+
     return SourceEvent(
         external_id=fixture_id,
         sport=expected_sport,
@@ -295,16 +293,15 @@ def _market_records(payload: object) -> Mapping[str, _MarketRecord]:
         market_id = str(_integer(item.get("marketId"), path=f"markets[{index}].marketId"))
         sport_id = _integer(item.get("sportId"), path=f"markets[{index}].sportId")
         name = _text(item.get("marketName"), path=f"markets[{index}].marketName")
-        # The catalogue is global and contains many market families outside ArbiScan's
-        # Phase-16 MVP. Do not let an unrelated future schema addition break the adapter:
-        # unsupported markets fail closed by never entering the eligible catalogue.
         if name.casefold() not in target_names:
             continue
         if market_id in records:
             raise _SchemaError("markets contains duplicate target marketId values")
-        raw_outcomes = _sequence(item.get("outcomes"), path=f"markets[{index}].outcomes")
+
         outcomes: dict[str, str] = {}
-        for outcome_index, raw_outcome in enumerate(raw_outcomes):
+        for outcome_index, raw_outcome in enumerate(
+            _sequence(item.get("outcomes"), path=f"markets[{index}].outcomes")
+        ):
             outcome = _mapping(
                 raw_outcome,
                 path=f"markets[{index}].outcomes[{outcome_index}]",
@@ -323,6 +320,7 @@ def _market_records(payload: object) -> Mapping[str, _MarketRecord]:
             )
         if not outcomes:
             raise _SchemaError("target market.outcomes must not be empty")
+
         records[market_id] = _MarketRecord(
             external_id=market_id,
             sport_id=sport_id,
@@ -411,6 +409,7 @@ def _source_markets(
             bookmaker.get("markets"),
             path=f"odds.bookmakerOdds.{bookmaker_slug}.markets",
         )
+
         for market_id in sorted(raw_markets, key=lambda value: (len(value), value)):
             record = catalog.get(market_id)
             if record is None or record.sport_id != sport_id or not _is_mvp_market(record, sport):
@@ -421,11 +420,11 @@ def _source_markets(
             )
             market_active = _boolean(
                 raw_market.get("marketActive"),
-                path=(f"odds.bookmakerOdds.{bookmaker_slug}.markets.{market_id}.marketActive"),
+                path=f"odds.bookmakerOdds.{bookmaker_slug}.markets.{market_id}.marketActive",
             )
             _text(
                 raw_market.get("bookmakerMarketId"),
-                path=(f"odds.bookmakerOdds.{bookmaker_slug}.markets.{market_id}.bookmakerMarketId"),
+                path=f"odds.bookmakerOdds.{bookmaker_slug}.markets.{market_id}.bookmakerMarketId",
             )
             raw_outcomes = _mapping(
                 raw_market.get("outcomes"),
@@ -435,6 +434,7 @@ def _source_markets(
                 raise _SchemaError(
                     f"supported market {market_id} outcomes do not match the market catalog"
                 )
+
             for outcome_id in sorted(record.outcomes, key=lambda value: (len(value), value)):
                 raw_outcome = _mapping(
                     raw_outcomes[outcome_id],
@@ -474,7 +474,9 @@ def _source_markets(
                     path=f"market.{market_id}.outcome.{outcome_id}.price",
                 )
                 if price <= Decimal(1):
-                    raise _SchemaError(f"market.{market_id}.outcome.{outcome_id}.price must be > 1")
+                    raise _SchemaError(
+                        f"market.{market_id}.outcome.{outcome_id}.price must be > 1"
+                    )
                 source_timestamp = _selection_timestamp(
                     quote,
                     path=f"market.{market_id}.outcome.{outcome_id}",
@@ -484,17 +486,14 @@ def _source_markets(
                     if bookmaker_active and not suspended and market_active and quote_active
                     else "suspended"
                 )
-                # One provider-neutral SourceMarket per quote preserves OddsPapi's
-                # selection-level freshness timestamp without weakening the shared
-                # SourceMarket contract, whose timestamp is market-scoped.
                 markets.append(
                     SourceMarket(
                         external_event_id=event_id,
-                        external_market_id=(f"{bookmaker_slug}:{market_id}:{outcome_id}:0"),
+                        external_market_id=f"{bookmaker_slug}:{market_id}:{outcome_id}:0",
                         label=f"{bookmaker_slug} {record.name}",
                         selections=(
                             SourceSelectionQuote(
-                                external_selection_id=(f"{outcome_id}:0:{bookmaker_outcome_id}"),
+                                external_selection_id=f"{outcome_id}:0:{bookmaker_outcome_id}",
                                 label=record.outcomes[outcome_id],
                                 price=str(price),
                                 odds_format=SourceOddsFormat.DECIMAL,
@@ -539,6 +538,7 @@ def _account_rate_limit(
             selected = subscription
     if selected is None:
         return None
+
     request_limit = _integer(
         selected.get("request_limit"),
         path="account.subscription.request_limit",
@@ -547,12 +547,11 @@ def _account_rate_limit(
         selected.get("request_count"),
         path="account.subscription.request_count",
     )
-    remaining = max(request_limit - request_count, 0)
     return RateLimitSnapshot(
         provider_id=provider_id,
         observed_at=observed_at,
         limit=request_limit,
-        remaining=remaining,
+        remaining=max(request_limit - request_count, 0),
     )
 
 
@@ -592,7 +591,10 @@ class OddsPapiProvider(ProviderAdapter):
             capabilities.add(ProviderCapability.CANONICAL_ID_HINTS)
         self._capabilities = ProviderCapabilities(frozenset(capabilities))
         self._competition_sports: dict[str, tuple[Sport, int]] = {}
-        self._event_context: dict[str, tuple[str, Sport, int]] = {}
+        # Keep the complete discovered event identity. Odds snapshots must agree with
+        # it before prices are emitted; otherwise a corrected/rescheduled fixture can
+        # be attached to stale canonical identity.
+        self._event_context: dict[str, tuple[SourceEvent, int]] = {}
         self._market_catalog: Mapping[str, _MarketRecord] | None = None
         self._last_rate_limit: RateLimitSnapshot | None = None
 
@@ -609,8 +611,9 @@ class OddsPapiProvider(ProviderAdapter):
         return self._canonical_id_hooks
 
     async def supported_sports(self) -> tuple[Sport, ...]:
+        operation = ProviderOperation.SUPPORTED_SPORTS
         payload, response = await self._request_json(
-            ProviderOperation.SUPPORTED_SPORTS,
+            operation,
             "/sports",
             {"language": self._config.language},
         )
@@ -623,13 +626,9 @@ class OddsPapiProvider(ProviderAdapter):
                 )
             )
         except (_SchemaError, ProviderContractError) as exc:
-            raise self._validated_payload_error(
-                ProviderOperation.SUPPORTED_SPORTS,
-                response,
-                exc,
-            ) from exc
+            raise self._validated_payload_error(operation, response, exc) from exc
         self._emit(
-            ProviderOperation.SUPPORTED_SPORTS,
+            operation,
             outcome=ProviderTelemetryOutcome.SUCCESS,
             response=response,
             item_count=len(sports),
@@ -648,10 +647,7 @@ class OddsPapiProvider(ProviderAdapter):
         payload, response = await self._request_json(
             operation,
             "/tournaments",
-            {
-                "sportId": str(sport_record.external_id),
-                "language": self._config.language,
-            },
+            {"sportId": str(sport_record.external_id), "language": self._config.language},
         )
         try:
             competitions: list[SourceCompetition] = []
@@ -663,23 +659,21 @@ class OddsPapiProvider(ProviderAdapter):
                         path=f"tournaments[{index}].tournamentId",
                     )
                 )
-                competition = SourceCompetition(
-                    external_id=tournament_id,
-                    sport=sport,
-                    name=_text(
-                        item.get("tournamentName"),
-                        path=f"tournaments[{index}].tournamentName",
-                    ),
-                    region=_text(
-                        item.get("categoryName"),
-                        path=f"tournaments[{index}].categoryName",
-                    ),
+                competitions.append(
+                    SourceCompetition(
+                        external_id=tournament_id,
+                        sport=sport,
+                        name=_text(
+                            item.get("tournamentName"),
+                            path=f"tournaments[{index}].tournamentName",
+                        ),
+                        region=_text(
+                            item.get("categoryName"),
+                            path=f"tournaments[{index}].categoryName",
+                        ),
+                    )
                 )
-                competitions.append(competition)
-                self._competition_sports[tournament_id] = (
-                    sport,
-                    sport_record.external_id,
-                )
+                self._competition_sports[tournament_id] = (sport, sport_record.external_id)
             ordered = tuple(
                 sorted(competitions, key=lambda value: (value.name.casefold(), value.external_id))
             )
@@ -722,10 +716,8 @@ class OddsPapiProvider(ProviderAdapter):
                 ProviderErrorKind.INVALID_REQUEST,
                 "starts_after cannot be later than starts_before",
             )
-        query = {
-            "tournamentId": competition_id,
-            "language": self._config.language,
-        }
+
+        query = {"tournamentId": competition_id, "language": self._config.language}
         if after is not None:
             query["from"] = _iso_query(after)
         if before is not None:
@@ -746,8 +738,9 @@ class OddsPapiProvider(ProviderAdapter):
             )
         except (_SchemaError, ProviderContractError) as exc:
             raise self._validated_payload_error(operation, response, exc) from exc
+
         for event in ordered:
-            self._event_context[event.external_id] = (competition_id, sport, sport_id)
+            self._event_context[event.external_id] = (event, sport_id)
         self._emit(
             operation,
             outcome=ProviderTelemetryOutcome.SUCCESS,
@@ -770,7 +763,9 @@ class OddsPapiProvider(ProviderAdapter):
                 ProviderErrorKind.INVALID_REQUEST,
                 "event must be discovered before fetching event odds",
             )
-        competition_id, sport, sport_id = context
+        discovered_event, sport_id = context
+        competition_id = discovered_event.competition_external_id
+        sport = discovered_event.sport
         catalog = await self._load_market_catalog(operation)
         payload, response = await self._request_json(
             operation,
@@ -784,15 +779,19 @@ class OddsPapiProvider(ProviderAdapter):
         )
         try:
             item = _mapping(payload, path="odds")
-            returned_id = _text(item.get("fixtureId"), path="odds.fixtureId")
-            returned_tournament = str(_integer(item.get("tournamentId"), path="odds.tournamentId"))
-            returned_sport_id = _integer(item.get("sportId"), path="odds.sportId")
-            if returned_id != event_id:
+            returned_event = _source_event(
+                item,
+                expected_tournament_id=competition_id,
+                expected_sport=sport,
+                expected_sport_id=sport_id,
+            )
+            if returned_event.external_id != event_id:
                 raise _SchemaError("odds.fixtureId does not match the requested event")
-            if returned_tournament != competition_id:
-                raise _SchemaError("odds.tournamentId does not match the discovered competition")
-            if returned_sport_id != sport_id:
-                raise _SchemaError("odds.sportId does not match the discovered event sport")
+            if returned_event.participants != discovered_event.participants:
+                raise _SchemaError("odds participants do not match the discovered fixture")
+            if returned_event.scheduled_start != discovered_event.scheduled_start:
+                raise _SchemaError("odds.startTime does not match the discovered fixture")
+
             status_id, _status_name = _fixture_status(item, path="odds")
             has_odds = _boolean(item.get("hasOdds"), path="odds.hasOdds")
             ingested_at = _utc(self._clock(), field_name="clock")
@@ -806,45 +805,19 @@ class OddsPapiProvider(ProviderAdapter):
                     sport_id=sport_id,
                     catalog=catalog,
                 )
-                # This adapter is intentionally pre-match only for the Phase-16 MVP.
-                # A known non-zero status is valid source data, but none of its prices
-                # may become eligible until in-play semantics are deliberately added.
                 if status_id != 0:
-                    markets = tuple(
-                        SourceMarket(
-                            external_event_id=market.external_event_id,
-                            external_market_id=market.external_market_id,
-                            label=market.label,
-                            selections=tuple(
-                                SourceSelectionQuote(
-                                    external_selection_id=selection.external_selection_id,
-                                    label=selection.label,
-                                    price=selection.price,
-                                    odds_format=selection.odds_format,
-                                    source_status="suspended",
-                                )
-                                for selection in market.selections
-                            ),
-                            source_status="suspended",
-                            price_provider=market.price_provider,
-                            source_timestamp=market.source_timestamp,
-                        )
-                        for market in markets
-                    )
-                source_timestamp = _timestamp(
-                    item.get("updatedAt"),
-                    path="odds.updatedAt",
-                )
+                    markets = tuple(self._suspend_market(market) for market in markets)
                 snapshot = OddsSnapshot(
                     provider_id=self.provider.id,
                     external_event_id=event_id,
                     markets=markets,
                     ingested_at=ingested_at,
-                    source_timestamp=source_timestamp,
+                    source_timestamp=_timestamp(item.get("updatedAt"), path="odds.updatedAt"),
                     trace_id=f"oddspapi:{event_id}:{ingested_at.isoformat()}",
                 )
         except (_SchemaError, ProviderContractError) as exc:
             raise self._validated_payload_error(operation, response, exc) from exc
+
         self._emit(
             operation,
             outcome=ProviderTelemetryOutcome.SUCCESS,
@@ -852,6 +825,27 @@ class OddsPapiProvider(ProviderAdapter):
             item_count=0 if snapshot is None else len(snapshot.markets),
         )
         return snapshot
+
+    @staticmethod
+    def _suspend_market(market: SourceMarket) -> SourceMarket:
+        return SourceMarket(
+            external_event_id=market.external_event_id,
+            external_market_id=market.external_market_id,
+            label=market.label,
+            selections=tuple(
+                SourceSelectionQuote(
+                    external_selection_id=selection.external_selection_id,
+                    label=selection.label,
+                    price=selection.price,
+                    odds_format=selection.odds_format,
+                    source_status="suspended",
+                )
+                for selection in market.selections
+            ),
+            source_status="suspended",
+            price_provider=market.price_provider,
+            source_timestamp=market.source_timestamp,
+        )
 
     def stream_odds(self, external_event_ids: tuple[str, ...]) -> AsyncIterator[OddsSnapshot]:
         _ = external_event_ids
@@ -888,11 +882,7 @@ class OddsPapiProvider(ProviderAdapter):
                 checked_at=_utc(self._clock(), field_name="clock"),
                 detail=f"{error.kind.value}: {error}",
             )
-        self._emit(
-            operation,
-            outcome=ProviderTelemetryOutcome.SUCCESS,
-            response=response,
-        )
+        self._emit(operation, outcome=ProviderTelemetryOutcome.SUCCESS, response=response)
         return ProviderHealth(
             provider_id=self.provider.id,
             state=ProviderHealthState.HEALTHY,
@@ -911,11 +901,7 @@ class OddsPapiProvider(ProviderAdapter):
         except (_SchemaError, ProviderContractError) as exc:
             raise self._validated_payload_error(operation, response, exc) from exc
         self._last_rate_limit = snapshot
-        self._emit(
-            operation,
-            outcome=ProviderTelemetryOutcome.SUCCESS,
-            response=response,
-        )
+        self._emit(operation, outcome=ProviderTelemetryOutcome.SUCCESS, response=response)
         return snapshot
 
     async def _resolve_sport_record(
