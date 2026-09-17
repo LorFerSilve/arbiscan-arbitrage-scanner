@@ -10,6 +10,7 @@ from pathlib import Path
 
 from arbiscan.arbitrage import build_opportunity, evaluate_market
 from arbiscan.domain import (
+    MarketId,
     OddsQuote,
     OpportunityId,
     ParticipantKind,
@@ -25,7 +26,7 @@ from arbiscan.ingestion import (
     RealtimeIngestionRuntime,
     consolidate_quotes,
 )
-from arbiscan.marketbook import ProviderBookPolicy, build_market_books
+from arbiscan.marketbook import CanonicalMarketBook, ProviderBookPolicy, build_market_books
 from arbiscan.matching import (
     CanonicalRegistry,
     EventMatchDecision,
@@ -133,7 +134,7 @@ def _hooks_for_observation(
     assert decision.status is EventMatchStatus.MATCHED
     assert decision.matched_event_id == phase16_5.EVENT_ID
 
-    market_ids = {}
+    market_ids: dict[str, MarketId] = {}
     selection_ids: dict[tuple[str, str], SelectionId] = {}
     for source_market in observation.snapshot.markets:
         if observation.adapter.provider.id == THE_ODDS_API_PROVIDER_ID:
@@ -239,7 +240,7 @@ def _book(
     quotes: tuple[OddsQuote, ...],
     *,
     provider_policy: ProviderBookPolicy | None = None,
-):
+) -> CanonicalMarketBook:
     batch = build_market_books(
         quotes,
         registry=registry,
