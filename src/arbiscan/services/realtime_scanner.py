@@ -55,9 +55,10 @@ def _source_status_is_active(value: str) -> bool:
     return value.strip().casefold() == "active"
 
 
-def _quote_key_sort(key: QuoteKey) -> tuple[str, str, str, str]:
+def _quote_key_sort(key: QuoteKey) -> tuple[str, str, str, str, str]:
     return (
         key.provider_id.value,
+        (key.source_provider_id or key.provider_id).value,
         key.event_id.value,
         key.market_id.value,
         key.selection_id.value,
@@ -222,6 +223,7 @@ class RealtimeScanner:
                                 event_id=event_id,
                                 market_id=market_id,
                                 selection_id=selection.id,
+                                source_provider_id=ingested.provider.id,
                             )
                         )
                 continue
@@ -245,6 +247,7 @@ class RealtimeScanner:
                         event_id=event_id,
                         market_id=market_id,
                         selection_id=selection_id,
+                        source_provider_id=ingested.provider.id,
                     )
                 )
         return keys
