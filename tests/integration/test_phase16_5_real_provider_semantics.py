@@ -16,6 +16,7 @@ from arbiscan.domain import (
     MarketId,
     MarketKind,
     MarketPeriod,
+    OddsQuote,
     Participant,
     ParticipantId,
     ParticipantKind,
@@ -356,7 +357,7 @@ def _validated_hooks(
 def test_two_real_source_schemas_match_and_normalize_to_the_same_mvp_event() -> None:
     registry = _registry()
     observations = _load_observations()
-    normalized_by_provider = {}
+    normalized_by_provider: dict[ProviderId, tuple[OddsQuote, ...]] = {}
 
     for observation in observations:
         hooks, decision = _validated_hooks(observation, registry)
@@ -527,6 +528,4 @@ def test_real_source_freshness_timestamp_controls_quote_eligibility() -> None:
     )
 
     assert stale.quotes == ()
-    assert tuple(issue.code for issue in stale.issues) == (
-        NormalizationIssueCode.STALE_SNAPSHOT,
-    )
+    assert tuple(issue.code for issue in stale.issues) == (NormalizationIssueCode.STALE_SNAPSHOT,)
