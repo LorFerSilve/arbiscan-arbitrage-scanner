@@ -53,7 +53,8 @@ from arbiscan.domain.models import (
     StakePlan,
 )
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
+_SUPPORTED_SCHEMA_VERSIONS = frozenset({1, SCHEMA_VERSION})
 
 _MODEL_TYPES: dict[str, Callable[..., object]] = {
     type_.__name__: type_
@@ -143,6 +144,33 @@ def _require_exact_keys(
     if unexpected:
         details.append(f"unexpected fields: {', '.join(unexpected)}")
     raise DomainValidationError(f"{context} has invalid fields ({'; '.join(details)})")
+
+
+def _migrate_v1_payload(value: object) -> object:
+    """Upgrade schema-v1 quote payloads without weakening strict field validation.
+
+    Schema v1 had no explicit transport-provider field. For those historical
+    payloads the only provider identity necessarily represented both transport and
+    price origin, so it is the only safe migration value. Other model payloads are
+    not modified: missing defaulted fields must continue to fail closed.
+    """
+    if isinstance(value, list):
+        return [_migrate_v1_payload(item) for item in value]
+    if not isinstance(value, dict):
+        return value
+    if not all(isinstance(key, str) for key in value):
+        return value
+
+    mapping = cast(dict[str, object], value)
+    migrated = {key: _migrate_v1_payload(item) for key, item in mapping.items()}
+    if migrated.get("$type") == "OddsQuote" and "transport_provider_id" not in migrated:
+        provider_id = migrated.get("provider_id")
+        if provider_id is None:
+            raise DomainValidationError(
+                "schema-v1 OddsQuote cannot be migrated without provider_id"
+            )
+        migrated["transport_provider_id"] = provider_id
+    return migrated
 
 
 def _decode(value: object) -> object:
@@ -241,10 +269,15 @@ def loads[T](data: str, expected_type: type[T]) -> T:
         context="canonical JSON envelope",
     )
 
-    if envelope["schema_version"] != SCHEMA_VERSION:
+    schema_version = envelope["schema_version"]
+    if type(schema_version) is not int or schema_version not in _SUPPORTED_SCHEMA_VERSIONS:
         raise DomainValidationError("unsupported canonical schema version")
 
-    result = _decode(envelope["payload"])
+    payload = envelope["payload"]
+    if schema_version == 1:
+        payload = _migrate_v1_payload(payload)
+
+    result = _decode(payload)
     if not isinstance(result, expected_type):
         raise DomainValidationError(
             f"expected {expected_type.__name__}, got {type(result).__name__}"
