@@ -1,0 +1,66 @@
+[
+  {
+    "marketId": 101,
+    "marketLength": 3,
+    "marketName": "Full Time Result",
+    "playerProp": false,
+    "sportId": 10,
+    "handicap": 0,
+    "period": "fulltime",
+    "marketType": "1x2",
+    "outcomes": [
+      {
+        "outcomeId": 101,
+        "outcomeName": "1"
+      },
+      {
+        "outcomeId": 102,
+        "outcomeName": "X"
+      },
+      {
+        "outcomeId": 103,
+        "outcomeName": "2"
+      }
+    ]
+  },
+  {
+    "marketId": 104,
+    "marketLength": 2,
+    "marketName": "Both Teams To Score",
+    "playerProp": false,
+    "sportId": 10,
+    "handicap": 0,
+    "period": "fulltime",
+    "marketType": "yes_no",
+    "outcomes": [
+      {
+        "outcomeId": 104,
+        "outcomeName": "Yes"
+      },
+      {
+        "outcomeId": 105,
+        "outcomeName": "No"
+      }
+    ]
+  },
+  {
+    "marketId": 121,
+    "marketLength": 2,
+    "marketName": "Match Winner",
+    "playerProp": false,
+    "sportId": 12,
+    "handicap": 0,
+    "period": "match",
+    "marketType": "winner",
+    "outcomes": [
+      {
+        "outcomeId": 121,
+        "outcomeName": "1"
+      },
+      {
+        "outcomeId": 122,
+        "outcomeName": "2"
+      }
+    ]
+  }
+]

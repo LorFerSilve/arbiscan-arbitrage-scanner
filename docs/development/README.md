@@ -26,7 +26,13 @@ This directory contains the reproducible engineering setup plus formal completio
 - [`phase-14-completion.md`](phase-14-completion.md) — Phase 14 observability and operational resilience.
 - [`phase-15-completion.md`](phase-15-completion.md) — Phase 15 dashboard and alert boundary.
 - [`phase-16.2-completion.md`](phase-16.2-completion.md) — Phase 16.2 multi-source provenance hardening.
+- [`phase-16.3-completion.md`](phase-16.3-completion.md) — Phase 16.3 OddsPapi second provider adapter.
+- [`phase-16.4-completion.md`](phase-16.4-completion.md) — Phase 16.4 reusable fixtures and provider conformance.
 
 ## Current hand-off
 
-Phases 0 through 15, the Phase 16.1 provider-selection gate, and Phase 16.2 multi-source provenance hardening are the completed baseline. The next roadmap dependency is **Phase 16.3 — second provider adapter**. Before implementation, read [`../providers/phase-16-readiness.md`](../providers/phase-16-readiness.md), the Phase 16.1 decision record, and ADR-0012.
+Phases 0 through 15 and Phase 16.1 through Phase 16.4 are the completed baseline. The
+next roadmap dependency is **Phase 16.5 — normalization and event-matching
+validation**. Before implementation, read
+[`../providers/phase-16-readiness.md`](../providers/phase-16-readiness.md), ADR-0012,
+the Phase 16.3 adapter completion record, and the Phase 16.4 conformance evidence.
