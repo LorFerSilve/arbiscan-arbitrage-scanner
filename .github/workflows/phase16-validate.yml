@@ -1,0 +1,93 @@
+name: Phase 16.2 one-shot validation
+
+on:
+  push:
+    branches: [codex/phase-16-2-provenance-hardening]
+
+permissions:
+  contents: write
+
+jobs:
+  validate:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: codex/phase-16-2-provenance-hardening
+
+      - name: Install pinned uv and Python
+        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        with:
+          version: "0.12.12"
+          python-version: "3.13.15"
+
+      - name: Install project
+        run: uv sync --locked
+
+      - name: Apply narrow Phase 16.2 fixes
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          strict = Path('src/arbiscan/normalization/strict.py')
+          text = strict.read_text()
+          text = text.replace(
+              'quote.transport_provider_id.value,',
+              '(quote.transport_provider_id or quote.provider_id).value,',
+          )
+          strict.write_text(text)
+
+          multi = Path('src/arbiscan/ingestion/multisource.py')
+          text = multi.read_text()
+          text = text.replace(
+              '    for slot in sorted(grouped):\n',
+              '    for slot in sorted(\n'
+              '        grouped,\n'
+              '        key=lambda item: (\n'
+              '            item.event_id.value,\n'
+              '            item.market_id.value,\n'
+              '            item.selection_id.value,\n'
+              '            item.provider_id.value,\n'
+              '        ),\n'
+              '    ):\n',
+          )
+          multi.write_text(text)
+          PY
+          uvx --from ruff==0.16.7 ruff format src/arbiscan/normalization/strict.py src/arbiscan/ingestion/multisource.py
+          uvx --from ruff==0.16.7 ruff check --fix src/arbiscan/normalization/strict.py src/arbiscan/ingestion/multisource.py
+
+      - name: Run mypy and pytest with captured diagnostics
+        id: validate
+        shell: bash
+        run: |
+          set +e
+          uv run --with mypy==2.3.1 mypy src tests scripts > /tmp/mypy.log 2>&1
+          mypy_status=$?
+          uv run --with pytest==9.1.1 pytest > /tmp/pytest.log 2>&1
+          pytest_status=$?
+          {
+            echo '=== mypy ==='
+            cat /tmp/mypy.log
+            echo
+            echo '=== pytest ==='
+            cat /tmp/pytest.log
+          } > phase16-diagnostics.txt
+          echo "mypy_status=$mypy_status" >> "$GITHUB_OUTPUT"
+          echo "pytest_status=$pytest_status" >> "$GITHUB_OUTPUT"
+
+      - name: Commit fixes and diagnostics on failure
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if [ "${{ steps.validate.outputs.mypy_status }}" = "0" ] && [ "${{ steps.validate.outputs.pytest_status }}" = "0" ]; then
+            rm phase16-diagnostics.txt
+          fi
+          if git status --short | grep -q .; then
+            git add src/arbiscan/normalization/strict.py src/arbiscan/ingestion/multisource.py
+            if [ -f phase16-diagnostics.txt ]; then git add phase16-diagnostics.txt; fi
+            git commit -m "fix: satisfy Phase 16.2 validation"
+            git push origin HEAD:codex/phase-16-2-provenance-hardening
+          fi
