@@ -43,9 +43,7 @@ def _quote(*, transport: str, price: str, seconds_old: int, suffix: str) -> Odds
 
 
 def _store() -> MultiSourceLiveQuoteStore:
-    return MultiSourceLiveQuoteStore(
-        RealtimeIngestionPolicy(freshness_window=timedelta(minutes=2))
-    )
+    return MultiSourceLiveQuoteStore(RealtimeIngestionPolicy(freshness_window=timedelta(minutes=2)))
 
 
 def test_independent_transports_remain_distinct_until_consolidation() -> None:

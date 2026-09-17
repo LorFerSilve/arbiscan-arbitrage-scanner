@@ -160,8 +160,7 @@ class MultiSourceLiveQuoteStore(LiveQuoteStore):
             version
             for store in self._transport_stores.values()
             for version in store.fresh_versions(as_of=as_of)
-            if SourceObservationKey.from_quote(version.quote)
-            not in self._invalidated_observations
+            if SourceObservationKey.from_quote(version.quote) not in self._invalidated_observations
         )
         return tuple(sorted(versions, key=self._version_sort_key))
 

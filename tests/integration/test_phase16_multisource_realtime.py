@@ -69,12 +69,8 @@ def _scanner() -> tuple[SyntheticScenario, RealtimeScanner, MultiSourceLiveQuote
 
 def test_realtime_scanner_consolidates_same_bookmaker_across_transports() -> None:
     scenario, scanner, store = _scanner()
-    alpha = _quote(
-        scenario=scenario, transport="alpha", price="2.20", seconds_old=0, suffix="a"
-    )
-    beta = _quote(
-        scenario=scenario, transport="beta", price="2.20", seconds_old=0, suffix="b"
-    )
+    alpha = _quote(scenario=scenario, transport="alpha", price="2.20", seconds_old=0, suffix="a")
+    beta = _quote(scenario=scenario, transport="beta", price="2.20", seconds_old=0, suffix="b")
     store.apply((alpha, beta), observed_at=scenario.as_of)
 
     cycle = asyncio.run(scanner.run_cycle())
@@ -89,12 +85,8 @@ def test_realtime_scanner_consolidates_same_bookmaker_across_transports() -> Non
 
 def test_realtime_scanner_suppresses_equal_time_material_conflict() -> None:
     scenario, scanner, store = _scanner()
-    alpha = _quote(
-        scenario=scenario, transport="alpha", price="2.20", seconds_old=0, suffix="a"
-    )
-    beta = _quote(
-        scenario=scenario, transport="beta", price="2.30", seconds_old=0, suffix="b"
-    )
+    alpha = _quote(scenario=scenario, transport="alpha", price="2.20", seconds_old=0, suffix="a")
+    beta = _quote(scenario=scenario, transport="beta", price="2.30", seconds_old=0, suffix="b")
     store.apply((alpha, beta), observed_at=scenario.as_of)
 
     cycle = asyncio.run(scanner.run_cycle())
@@ -110,12 +102,8 @@ def test_realtime_scanner_suppresses_equal_time_material_conflict() -> None:
 
 def test_realtime_scanner_prefers_newer_transport_observation() -> None:
     scenario, scanner, store = _scanner()
-    older = _quote(
-        scenario=scenario, transport="alpha", price="2.10", seconds_old=10, suffix="old"
-    )
-    newer = _quote(
-        scenario=scenario, transport="beta", price="2.25", seconds_old=0, suffix="new"
-    )
+    older = _quote(scenario=scenario, transport="alpha", price="2.10", seconds_old=10, suffix="old")
+    newer = _quote(scenario=scenario, transport="beta", price="2.25", seconds_old=0, suffix="new")
     store.apply((older, newer), observed_at=scenario.as_of)
 
     cycle = asyncio.run(scanner.run_cycle())
