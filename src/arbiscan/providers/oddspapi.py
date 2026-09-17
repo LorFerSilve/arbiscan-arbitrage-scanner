@@ -298,7 +298,7 @@ def _market_records(payload: object) -> Mapping[str, _MarketRecord]:
         # The catalogue is global and contains many market families outside ArbiScan's
         # Phase-16 MVP. Do not let an unrelated future schema addition break the adapter:
         # unsupported markets fail closed by never entering the eligible catalogue.
-        if sport_id not in {10, 12} or name.casefold() not in target_names:
+        if name.casefold() not in target_names:
             continue
         if market_id in records:
             raise _SchemaError("markets contains duplicate target marketId values")
@@ -421,16 +421,11 @@ def _source_markets(
             )
             market_active = _boolean(
                 raw_market.get("marketActive"),
-                path=(
-                    f"odds.bookmakerOdds.{bookmaker_slug}.markets.{market_id}.marketActive"
-                ),
+                path=(f"odds.bookmakerOdds.{bookmaker_slug}.markets.{market_id}.marketActive"),
             )
             _text(
                 raw_market.get("bookmakerMarketId"),
-                path=(
-                    f"odds.bookmakerOdds.{bookmaker_slug}.markets.{market_id}."
-                    "bookmakerMarketId"
-                ),
+                path=(f"odds.bookmakerOdds.{bookmaker_slug}.markets.{market_id}.bookmakerMarketId"),
             )
             raw_outcomes = _mapping(
                 raw_market.get("outcomes"),
@@ -479,9 +474,7 @@ def _source_markets(
                     path=f"market.{market_id}.outcome.{outcome_id}.price",
                 )
                 if price <= Decimal(1):
-                    raise _SchemaError(
-                        f"market.{market_id}.outcome.{outcome_id}.price must be > 1"
-                    )
+                    raise _SchemaError(f"market.{market_id}.outcome.{outcome_id}.price must be > 1")
                 source_timestamp = _selection_timestamp(
                     quote,
                     path=f"market.{market_id}.outcome.{outcome_id}",
@@ -497,15 +490,11 @@ def _source_markets(
                 markets.append(
                     SourceMarket(
                         external_event_id=event_id,
-                        external_market_id=(
-                            f"{bookmaker_slug}:{market_id}:{outcome_id}:0"
-                        ),
+                        external_market_id=(f"{bookmaker_slug}:{market_id}:{outcome_id}:0"),
                         label=f"{bookmaker_slug} {record.name}",
                         selections=(
                             SourceSelectionQuote(
-                                external_selection_id=(
-                                    f"{outcome_id}:0:{bookmaker_outcome_id}"
-                                ),
+                                external_selection_id=(f"{outcome_id}:0:{bookmaker_outcome_id}"),
                                 label=record.outcomes[outcome_id],
                                 price=str(price),
                                 odds_format=SourceOddsFormat.DECIMAL,
@@ -796,9 +785,7 @@ class OddsPapiProvider(ProviderAdapter):
         try:
             item = _mapping(payload, path="odds")
             returned_id = _text(item.get("fixtureId"), path="odds.fixtureId")
-            returned_tournament = str(
-                _integer(item.get("tournamentId"), path="odds.tournamentId")
-            )
+            returned_tournament = str(_integer(item.get("tournamentId"), path="odds.tournamentId"))
             returned_sport_id = _integer(item.get("sportId"), path="odds.sportId")
             if returned_id != event_id:
                 raise _SchemaError("odds.fixtureId does not match the requested event")
@@ -1045,12 +1032,12 @@ class OddsPapiProvider(ProviderAdapter):
     ) -> None:
         quota_remaining = None if self._last_rate_limit is None else self._last_rate_limit.remaining
         quota_used = None
-        if self._last_rate_limit is not None:
-            if (
-                self._last_rate_limit.limit is not None
-                and self._last_rate_limit.remaining is not None
-            ):
-                quota_used = self._last_rate_limit.limit - self._last_rate_limit.remaining
+        if (
+            self._last_rate_limit is not None
+            and self._last_rate_limit.limit is not None
+            and self._last_rate_limit.remaining is not None
+        ):
+            quota_used = self._last_rate_limit.limit - self._last_rate_limit.remaining
         self._telemetry.emit(
             ProviderTelemetryEvent(
                 provider_id=self.provider.id,
