@@ -1,0 +1,11 @@
+{
+  "current_subscription_id": "sub-1",
+  "subscriptions": [
+    {
+      "subscription_id": "sub-1",
+      "is_active": true,
+      "request_limit": 500,
+      "request_count": 500
+    }
+  ]
+}
