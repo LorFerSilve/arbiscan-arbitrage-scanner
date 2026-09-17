@@ -6,6 +6,15 @@ from arbiscan.ingestion.collector import (
     IngestionIssue,
     collect_snapshots,
 )
+from arbiscan.ingestion.multisource import (
+    ConsolidationDiagnostic,
+    ConsolidationDiagnosticCode,
+    ConsolidationResult,
+    PriceSlotKey,
+    SourceObservationKey,
+    consolidate_quotes,
+)
+from arbiscan.ingestion.multisource_state import MultiSourceLiveQuoteStore
 from arbiscan.ingestion.realtime import (
     LiveQuoteStore,
     ProviderIngestionHealth,
@@ -23,10 +32,15 @@ from arbiscan.ingestion.realtime import (
 )
 
 __all__ = [
+    "ConsolidationDiagnostic",
+    "ConsolidationDiagnosticCode",
+    "ConsolidationResult",
     "IngestedSnapshot",
     "IngestionBatch",
     "IngestionIssue",
     "LiveQuoteStore",
+    "MultiSourceLiveQuoteStore",
+    "PriceSlotKey",
     "ProviderIngestionHealth",
     "ProviderPollMetrics",
     "ProviderRateGate",
@@ -39,5 +53,7 @@ __all__ = [
     "RealtimeIngestionBatch",
     "RealtimeIngestionPolicy",
     "RealtimeIngestionRuntime",
+    "SourceObservationKey",
     "collect_snapshots",
+    "consolidate_quotes",
 ]
