@@ -1,0 +1,199 @@
+"""Temporary deterministic patch driver for closing Phase 16.2."""
+
+from pathlib import Path
+
+
+def replace_once(path: str, old: str, new: str) -> None:
+    target = Path(path)
+    text = target.read_text()
+    count = text.count(old)
+    if count != 1:
+        raise RuntimeError(f"{path}: expected one match, found {count}: {old[:80]!r}")
+    target.write_text(text.replace(old, new, 1))
+
+
+def replace_count(path: str, old: str, new: str, expected: int) -> None:
+    target = Path(path)
+    text = target.read_text()
+    count = text.count(old)
+    if count != expected:
+        raise RuntimeError(f"{path}: expected {expected} matches, found {count}: {old[:80]!r}")
+    target.write_text(text.replace(old, new))
+
+
+def patch_realtime_store() -> None:
+    path = "src/arbiscan/ingestion/realtime.py"
+    replace_once(
+        path,
+        '''@dataclass(frozen=True, slots=True, order=True)\nclass QuoteKey:\n    """Stable live identity for one provider/canonical outcome quote."""\n\n    provider_id: ProviderId\n    event_id: EventId\n    market_id: MarketId\n    selection_id: SelectionId\n\n    @classmethod\n    def from_quote(cls, quote: OddsQuote) -> QuoteKey:\n        return cls(\n            provider_id=quote.provider_id,\n            event_id=quote.event_id,\n            market_id=quote.market_id,\n            selection_id=quote.selection_id,\n        )\n''',
+        '''@dataclass(frozen=True, slots=True)\nclass QuoteKey:\n    """Stable live identity for one transport-specific price observation."""\n\n    provider_id: ProviderId\n    event_id: EventId\n    market_id: MarketId\n    selection_id: SelectionId\n    transport_provider_id: ProviderId | None = None\n\n    def __post_init__(self) -> None:\n        transport_provider_id = self.transport_provider_id or self.provider_id\n        if not isinstance(transport_provider_id, ProviderId):\n            raise ValueError("quote key transport_provider_id must be ProviderId")\n        object.__setattr__(self, "transport_provider_id", transport_provider_id)\n\n    @property\n    def transport_id(self) -> ProviderId:\n        return self.transport_provider_id or self.provider_id\n\n    @classmethod\n    def from_quote(cls, quote: OddsQuote) -> QuoteKey:\n        return cls(\n            provider_id=quote.provider_id,\n            event_id=quote.event_id,\n            market_id=quote.market_id,\n            selection_id=quote.selection_id,\n            transport_provider_id=quote.transport_provider_id or quote.provider_id,\n        )\n''',
+    )
+    replace_once(
+        path,
+        '''    @staticmethod\n    def _fingerprint(quote: OddsQuote) -> tuple[object, ...]:\n        effective_timestamp = quote.source_timestamp or quote.ingested_at\n        return (\n            quote.provider_id,\n            quote.event_id,\n            quote.market_id,\n            quote.selection_id,\n            quote.decimal_price,\n            quote.status,\n            quote.source_event_id,\n            quote.source_market_id,\n            quote.source_selection_id,\n            effective_timestamp,\n        )\n\n    @staticmethod\n    def _sort_key(quote: OddsQuote) -> tuple[str, str, str, str, datetime, datetime, str]:\n        effective = quote.source_timestamp or quote.ingested_at\n        return (\n            quote.provider_id.value,\n            quote.event_id.value,\n            quote.market_id.value,\n            quote.selection_id.value,\n            effective,\n            quote.ingested_at,\n            quote.id.value,\n        )\n''',
+        '''    @staticmethod\n    def _fingerprint(quote: OddsQuote) -> tuple[object, ...]:\n        effective_timestamp = quote.source_timestamp or quote.ingested_at\n        return (\n            quote.transport_provider_id or quote.provider_id,\n            quote.provider_id,\n            quote.event_id,\n            quote.market_id,\n            quote.selection_id,\n            quote.decimal_price,\n            quote.status,\n            quote.source_event_id,\n            quote.source_market_id,\n            quote.source_selection_id,\n            effective_timestamp,\n        )\n\n    @staticmethod\n    def _sort_key(\n        quote: OddsQuote,\n    ) -> tuple[str, str, str, str, str, datetime, datetime, str]:\n        effective = quote.source_timestamp or quote.ingested_at\n        transport = quote.transport_provider_id or quote.provider_id\n        return (\n            quote.provider_id.value,\n            transport.value,\n            quote.event_id.value,\n            quote.market_id.value,\n            quote.selection_id.value,\n            effective,\n            quote.ingested_at,\n            quote.id.value,\n        )\n''',
+    )
+    replace_count(
+        path,
+        '''                        item.key.provider_id.value,\n                        item.key.event_id.value,\n                        item.key.market_id.value,\n                        item.key.selection_id.value,\n''',
+        '''                        item.key.provider_id.value,\n                        item.key.transport_id.value,\n                        item.key.event_id.value,\n                        item.key.market_id.value,\n                        item.key.selection_id.value,\n''',
+        2,
+    )
+    replace_count(
+        path,
+        '''                    item.key.event_id.value,\n                    item.key.market_id.value,\n                    item.key.selection_id.value,\n                    item.key.provider_id.value,\n''',
+        '''                    item.key.event_id.value,\n                    item.key.market_id.value,\n                    item.key.selection_id.value,\n                    item.key.provider_id.value,\n                    item.key.transport_id.value,\n''',
+        2,
+    )
+
+
+def patch_ingestion_exports() -> None:
+    path = "src/arbiscan/ingestion/__init__.py"
+    replace_once(
+        path,
+        "from arbiscan.ingestion.realtime import (\n",
+        '''from arbiscan.ingestion.multisource import (\n    ConsolidationDiagnostic,\n    ConsolidationDiagnosticCode,\n    ConsolidationResult,\n    PriceSlotKey,\n    SourceObservationKey,\n    consolidate_quotes,\n)\nfrom arbiscan.ingestion.realtime import (\n''',
+    )
+    replace_once(
+        path,
+        '''__all__ = [\n    "IngestedSnapshot",\n''',
+        '''__all__ = [\n    "ConsolidationDiagnostic",\n    "ConsolidationDiagnosticCode",\n    "ConsolidationResult",\n    "IngestedSnapshot",\n''',
+    )
+    replace_once(
+        path,
+        '''    "ProviderIngestionHealth",\n    "ProviderPollMetrics",\n''',
+        '''    "PriceSlotKey",\n    "ProviderIngestionHealth",\n    "ProviderPollMetrics",\n''',
+    )
+    replace_once(
+        path,
+        '''    "RealtimeIngestionRuntime",\n    "collect_snapshots",\n''',
+        '''    "RealtimeIngestionRuntime",\n    "SourceObservationKey",\n    "collect_snapshots",\n    "consolidate_quotes",\n''',
+    )
+
+
+def patch_scanner() -> None:
+    path = "src/arbiscan/services/realtime_scanner.py"
+    replace_once(
+        path,
+        '''from arbiscan.ingestion.collector import IngestedSnapshot\nfrom arbiscan.ingestion.realtime import (\n''',
+        '''from arbiscan.ingestion.collector import IngestedSnapshot\nfrom arbiscan.ingestion.multisource import ConsolidationDiagnostic, consolidate_quotes\nfrom arbiscan.ingestion.realtime import (\n''',
+    )
+    replace_once(
+        path,
+        '''def _quote_key_sort(key: QuoteKey) -> tuple[str, str, str, str]:\n    return (\n        key.provider_id.value,\n        key.event_id.value,\n        key.market_id.value,\n        key.selection_id.value,\n    )\n''',
+        '''def _quote_key_sort(key: QuoteKey) -> tuple[str, str, str, str, str]:\n    return (\n        key.provider_id.value,\n        key.transport_id.value,\n        key.event_id.value,\n        key.market_id.value,\n        key.selection_id.value,\n    )\n''',
+    )
+    replace_once(
+        path,
+        '''    source_invalidated_quote_count: int\n    current_fresh_quote_count: int\n    stale_quote_count: int\n''',
+        '''    source_invalidated_quote_count: int\n    current_fresh_observation_count: int\n    current_fresh_quote_count: int\n    multi_source_equivalent_overlap_count: int\n    multi_source_conflict_count: int\n    stale_quote_count: int\n''',
+    )
+    replace_once(
+        path,
+        '''    source_invalidated_quote_keys: tuple[QuoteKey, ...]\n    fresh_quotes: tuple[OddsQuote, ...]\n''',
+        '''    source_invalidated_quote_keys: tuple[QuoteKey, ...]\n    fresh_observations: tuple[OddsQuote, ...]\n    fresh_quotes: tuple[OddsQuote, ...]\n    consolidation_diagnostics: tuple[ConsolidationDiagnostic, ...]\n''',
+    )
+    replace_once(
+        path,
+        '''                            QuoteKey(\n                                provider_id=quote_provider.id,\n                                event_id=event_id,\n''',
+        '''                            QuoteKey(\n                                provider_id=quote_provider.id,\n                                event_id=event_id,\n                                transport_provider_id=ingested.provider.id,\n''',
+    )
+    replace_once(
+        path,
+        '''                    QuoteKey(\n                        provider_id=quote_provider.id,\n                        event_id=event_id,\n''',
+        '''                    QuoteKey(\n                        provider_id=quote_provider.id,\n                        event_id=event_id,\n                        transport_provider_id=ingested.provider.id,\n''',
+    )
+    replace_once(
+        path,
+        '''        fresh_quotes = tuple(\n            quote\n            for quote in self.store.fresh_quotes(as_of=detected_at)\n            if QuoteKey.from_quote(quote) not in self._source_invalidated_quote_keys\n        )\n\n        market_batch = build_market_books(\n            fresh_quotes,\n''',
+        '''        fresh_observations = tuple(\n            quote\n            for quote in self.store.fresh_quotes(as_of=detected_at)\n            if QuoteKey.from_quote(quote) not in self._source_invalidated_quote_keys\n        )\n        consolidation = consolidate_quotes(fresh_observations)\n        fresh_quotes = consolidation.quotes\n\n        market_batch = build_market_books(\n            fresh_quotes,\n''',
+    )
+    replace_once(
+        path,
+        '''            source_invalidated_quote_count=len(explicit_invalidations),\n            current_fresh_quote_count=len(fresh_quotes),\n            stale_quote_count=stale_evicted,\n''',
+        '''            source_invalidated_quote_count=len(explicit_invalidations),\n            current_fresh_observation_count=len(fresh_observations),\n            current_fresh_quote_count=len(fresh_quotes),\n            multi_source_equivalent_overlap_count=consolidation.equivalent_overlap_count,\n            multi_source_conflict_count=consolidation.conflict_count,\n            stale_quote_count=stale_evicted,\n''',
+    )
+    replace_once(
+        path,
+        '''            fresh_quotes=fresh_quotes,\n            market_books=market_batch.books,\n''',
+        '''            fresh_observations=fresh_observations,\n            fresh_quotes=fresh_quotes,\n            consolidation_diagnostics=consolidation.diagnostics,\n            market_books=market_batch.books,\n''',
+    )
+
+
+def patch_observability() -> None:
+    path = "src/arbiscan/observability/runtime.py"
+    replace_once(
+        path,
+        '''    opportunities_detected: int = 0\n    opportunities_invalidated: int = 0\n    detection_latency_seconds: tuple[float, ...] = ()\n''',
+        '''    opportunities_detected: int = 0\n    opportunities_invalidated: int = 0\n    multi_source_equivalent_overlaps: int = 0\n    multi_source_conflicts: int = 0\n    detection_latency_seconds: tuple[float, ...] = ()\n''',
+    )
+    replace_once(
+        path,
+        '''            "opportunities_detected",\n            "opportunities_invalidated",\n''',
+        '''            "opportunities_detected",\n            "opportunities_invalidated",\n            "multi_source_equivalent_overlaps",\n            "multi_source_conflicts",\n''',
+    )
+    replace_once(
+        path,
+        '''            opportunities_detected=self._counters.get("opportunities_detected", 0),\n            opportunities_invalidated=self._counters.get("opportunities_invalidated", 0),\n            detection_latency_seconds=tuple(self._latencies),\n''',
+        '''            opportunities_detected=self._counters.get("opportunities_detected", 0),\n            opportunities_invalidated=self._counters.get("opportunities_invalidated", 0),\n            multi_source_equivalent_overlaps=self._counters.get(\n                "multi_source_equivalent_overlaps", 0\n            ),\n            multi_source_conflicts=self._counters.get("multi_source_conflicts", 0),\n            detection_latency_seconds=tuple(self._latencies),\n''',
+    )
+
+    path = "src/arbiscan/services/observable_realtime_scanner.py"
+    replace_once(
+        path,
+        '''        registry.increment("opportunities_detected", cycle.metrics.opportunity_count)\n        registry.quote_counts(\n''',
+        '''        registry.increment("opportunities_detected", cycle.metrics.opportunity_count)\n        registry.increment(\n            "multi_source_equivalent_overlaps",\n            cycle.metrics.multi_source_equivalent_overlap_count,\n        )\n        registry.increment("multi_source_conflicts", cycle.metrics.multi_source_conflict_count)\n        registry.quote_counts(\n''',
+    )
+    replace_once(
+        path,
+        '''                    "fresh_quote_count": cycle.metrics.current_fresh_quote_count,\n                    "stale_quote_count": cycle.metrics.stale_quote_count,\n''',
+        '''                    "fresh_observation_count": cycle.metrics.current_fresh_observation_count,\n                    "fresh_quote_count": cycle.metrics.current_fresh_quote_count,\n                    "multi_source_equivalent_overlap_count": (\n                        cycle.metrics.multi_source_equivalent_overlap_count\n                    ),\n                    "multi_source_conflict_count": cycle.metrics.multi_source_conflict_count,\n                    "stale_quote_count": cycle.metrics.stale_quote_count,\n''',
+    )
+
+
+def write_tests() -> None:
+    Path("tests/integration/test_phase16_multisource_realtime.py").write_text(
+        '''"""Phase-16.2 realtime overlap, conflict, and provenance regressions."""\n\nimport asyncio\nfrom datetime import datetime, timedelta\nfrom decimal import Decimal\n\nfrom arbiscan.domain import OddsQuote, ProviderId, QuoteId, QuoteStatus\nfrom arbiscan.ingestion import (\n    ConsolidationDiagnosticCode,\n    LiveQuoteStore,\n    RealtimeIngestionPolicy,\n)\nfrom arbiscan.providers.synthetic import SyntheticScenario, build_phase5_synthetic_scenario\nfrom arbiscan.services import RealtimeScanner\n\n\nclass FixedClock:\n    def __init__(self, value: datetime) -> None:\n        self.value = value\n\n    def __call__(self) -> datetime:\n        return self.value\n\n\ndef _observation(\n    *,\n    scenario: SyntheticScenario,\n    transport: str,\n    price: str,\n    source_age_seconds: int,\n    suffix: str,\n) -> OddsQuote:\n    market = scenario.registry.markets[0]\n    selection = next(\n        selection for selection in scenario.registry.selections if selection.market_id == market.id\n    )\n    timestamp = scenario.as_of - timedelta(seconds=source_age_seconds)\n    return OddsQuote(\n        id=QuoteId(f"quote:{transport}:{suffix}"),\n        provider_id=ProviderId("bookmaker:shared"),\n        transport_provider_id=ProviderId(f"transport:{transport}"),\n        event_id=market.event_id,\n        market_id=market.id,\n        selection_id=selection.id,\n        decimal_price=Decimal(price),\n        source_event_id=f"{transport}:event",\n        source_market_id=f"{transport}:market",\n        source_selection_id=f"{transport}:selection",\n        source_timestamp=timestamp,\n        ingested_at=timestamp,\n        status=QuoteStatus.ACTIVE,\n        trace_id=f"trace:{transport}:{suffix}",\n    )\n\n\ndef _scanner_with_store(\n    *quotes: OddsQuote,\n) -> tuple[SyntheticScenario, LiveQuoteStore, RealtimeScanner]:\n    scenario = build_phase5_synthetic_scenario()\n    policy = RealtimeIngestionPolicy(\n        freshness_window=scenario.freshness_window,\n        clock_skew_tolerance=timedelta(seconds=5),\n    )\n    store = LiveQuoteStore(policy)\n    store.apply(quotes, observed_at=scenario.as_of)\n    scanner = RealtimeScanner(\n        adapters=(),\n        registry=scenario.registry,\n        sport=scenario.registry.events[0].sport,\n        policy=policy,\n        store=store,\n        clock=FixedClock(scenario.as_of),\n    )\n    return scenario, store, scanner\n\n\ndef test_equivalent_overlap_remains_distinct_in_store_then_consolidates() -> None:\n    scenario = build_phase5_synthetic_scenario()\n    alpha = _observation(\n        scenario=scenario, transport="alpha", price="2.20", source_age_seconds=0, suffix="a"\n    )\n    beta = _observation(\n        scenario=scenario, transport="beta", price="2.20", source_age_seconds=0, suffix="b"\n    )\n    _, store, scanner = _scanner_with_store(alpha, beta)\n\n    assert len(store) == 2\n    cycle = asyncio.run(scanner.run_cycle())\n\n    assert len(cycle.fresh_observations) == 2\n    assert cycle.fresh_quotes == (alpha,)\n    assert cycle.metrics.multi_source_equivalent_overlap_count == 1\n    assert cycle.metrics.multi_source_conflict_count == 0\n    assert {item.code for item in cycle.consolidation_diagnostics} == {\n        ConsolidationDiagnosticCode.EQUIVALENT_OVERLAP\n    }\n\n\ndef test_equal_time_material_conflict_fails_closed_and_is_observable() -> None:\n    scenario = build_phase5_synthetic_scenario()\n    alpha = _observation(\n        scenario=scenario, transport="alpha", price="2.20", source_age_seconds=0, suffix="a"\n    )\n    beta = _observation(\n        scenario=scenario, transport="beta", price="2.30", source_age_seconds=0, suffix="b"\n    )\n    _, store, scanner = _scanner_with_store(alpha, beta)\n\n    assert len(store) == 2\n    cycle = asyncio.run(scanner.run_cycle())\n\n    assert len(cycle.fresh_observations) == 2\n    assert cycle.fresh_quotes == ()\n    assert cycle.metrics.multi_source_conflict_count == 1\n    assert {item.code for item in cycle.consolidation_diagnostics} == {\n        ConsolidationDiagnosticCode.MATERIAL_CONFLICT\n    }\n    metrics = scanner.metrics_registry.snapshot()\n    assert metrics.multi_source_conflicts == 1\n    assert scanner.log_sink.records[-1].fields["multi_source_conflict_count"] == 1\n\n\ndef test_newer_transport_observation_wins_without_double_counting() -> None:\n    scenario = build_phase5_synthetic_scenario()\n    older = _observation(\n        scenario=scenario, transport="alpha", price="2.10", source_age_seconds=10, suffix="old"\n    )\n    newer = _observation(\n        scenario=scenario, transport="beta", price="2.25", source_age_seconds=0, suffix="new"\n    )\n    _, _, scanner = _scanner_with_store(older, newer)\n\n    cycle = asyncio.run(scanner.run_cycle())\n\n    assert len(cycle.fresh_observations) == 2\n    assert cycle.fresh_quotes == (newer,)\n    assert cycle.metrics.multi_source_equivalent_overlap_count == 0\n    assert cycle.metrics.multi_source_conflict_count == 0\n'''
+    )
+
+    Path("tests/unit/test_phase16_persistence_provenance.py").write_text(
+        '''"""Phase-16.2 persistence regressions for selected transport provenance."""\n\nfrom datetime import UTC, datetime\nfrom decimal import Decimal\nfrom pathlib import Path\n\nfrom arbiscan.domain import (\n    EventId,\n    MarketId,\n    OddsQuote,\n    Opportunity,\n    OpportunityId,\n    ProviderId,\n    QuoteId,\n    QuoteStatus,\n    SelectionId,\n)\nfrom arbiscan.persistence import SqliteAuditStore\n\n\ndef _quote(\n    *,\n    quote_id: str,\n    price_provider: str,\n    transport_provider: str,\n    selection: str,\n    at: datetime,\n) -> OddsQuote:\n    return OddsQuote(\n        id=QuoteId(quote_id),\n        provider_id=ProviderId(price_provider),\n        transport_provider_id=ProviderId(transport_provider),\n        event_id=EventId("event:phase16"),\n        market_id=MarketId("market:phase16"),\n        selection_id=SelectionId(selection),\n        decimal_price=Decimal("2.10"),\n        source_event_id=f"{transport_provider}:event",\n        source_market_id=f"{transport_provider}:market",\n        source_selection_id=f"{transport_provider}:{selection}",\n        source_timestamp=at,\n        ingested_at=at,\n        status=QuoteStatus.ACTIVE,\n        trace_id=f"trace:{quote_id}",\n    )\n\n\ndef test_reconstructed_opportunity_preserves_price_and_transport_providers(\n    tmp_path: Path,\n) -> None:\n    at = datetime(2026, 9, 17, 2, 0, tzinfo=UTC)\n    quotes = (\n        _quote(\n            quote_id="quote:home",\n            price_provider="bookmaker:alpha",\n            transport_provider="transport:one",\n            selection="selection:home",\n            at=at,\n        ),\n        _quote(\n            quote_id="quote:away",\n            price_provider="bookmaker:beta",\n            transport_provider="transport:two",\n            selection="selection:away",\n            at=at,\n        ),\n    )\n    opportunity = Opportunity(\n        id=OpportunityId("opportunity:phase16"),\n        event_id=EventId("event:phase16"),\n        market_id=MarketId("market:phase16"),\n        quote_ids=tuple(quote.id for quote in quotes),\n        implied_probability_sum=Decimal("0.95"),\n        theoretical_profit_margin=Decimal("0.05"),\n        detected_at=at,\n    )\n    store = SqliteAuditStore(tmp_path / "phase16.db")\n    store.migrate()\n    store.persist_opportunity(opportunity, quotes)\n\n    restored = store.reconstruct_opportunity(opportunity.id.value)\n\n    assert tuple(quote.provider_id for quote in restored.quotes) == tuple(\n        quote.provider_id for quote in quotes\n    )\n    assert tuple(quote.transport_provider_id for quote in restored.quotes) == tuple(\n        quote.transport_provider_id for quote in quotes\n    )\n'''
+    )
+
+
+def write_docs() -> None:
+    path = "docs/providers/phase-16-readiness.md"
+    replace_once(
+        path,
+        '''### 16.2 — Multi-source provenance hardening\n\nImplement ADR-0012 before enabling overlapping coverage:\n''',
+        '''### 16.2 — Multi-source provenance hardening\n\n**Status: complete (2026-09-17).** See `../development/phase-16.2-completion.md` for the implementation and validation record.\n\nImplement ADR-0012 before enabling overlapping coverage:\n''',
+    )
+
+    path = "docs/development/README.md"
+    replace_once(
+        path,
+        '''- [`phase-15-completion.md`](phase-15-completion.md) — Phase 15 dashboard and alert boundary.\n''',
+        '''- [`phase-15-completion.md`](phase-15-completion.md) — Phase 15 dashboard and alert boundary.\n- [`phase-16.2-completion.md`](phase-16.2-completion.md) — Phase 16.2 multi-source provenance hardening.\n''',
+    )
+    replace_once(
+        path,
+        '''Phases 0 through 15 are the completed baseline. The next roadmap dependency is Phase 16 multi-provider expansion. Before implementation, read [`../providers/phase-16-readiness.md`](../providers/phase-16-readiness.md) and ADR-0012, which define the source-independence, overlap-provenance, and coexistence gates for adding another real odds source.\n''',
+        '''Phases 0 through 15, Phase 16.1 provider selection, and Phase 16.2 multi-source provenance hardening are complete. The next roadmap dependency is Phase 16.3, the second provider adapter. Read [`../providers/phase-16-readiness.md`](../providers/phase-16-readiness.md), the Phase 16.1 decision record, and ADR-0012 before extending the provider surface.\n''',
+    )
+
+    Path("docs/development/phase-16.2-completion.md").write_text(
+        '''# Phase 16.2 completion — multi-source provenance hardening\n\nDate: 2026-09-17\n\n## Scope\n\nPhase 16.2 closes the architectural gap that existed when two independent transport feeds could report the same bookmaker price origin. The implementation keeps these identities separate throughout the live path:\n\n- **transport provider**: the API/feed through which an observation arrived;\n- **price provider**: the bookmaker/exchange whose executable price is represented.\n\n`OddsQuote.provider_id` remains the price-provider identity used by market-book construction, arbitrage mathematics, and staking. `OddsQuote.transport_provider_id` records the independent transport source.\n\n## Completed implementation\n\n1. Canonical `OddsQuote` evidence carries explicit transport provenance while preserving direct/single-source compatibility.\n2. Canonical serialization is schema version 2. Schema-version-1 quotes migrate deterministically by treating their existing provider identity as the legacy transport identity.\n3. Normalized quote observation IDs include transport source and price provider, preventing independent feeds from colliding at identical bookmaker/event/market/selection timestamps.\n4. `LiveQuoteStore` versions transport-specific observation streams independently. One feed can no longer overwrite another feed's observation before consolidation.\n5. The realtime scanner filters freshness/status per observation and then consolidates by executable price-provider slot. Newest eligible observations win; equivalent equal-time overlap is deterministic; equal-time material price/status disagreement fails closed and suppresses that executable slot.\n6. Source invalidation is transport-specific, so a suspension reported by one feed cannot invalidate an independent feed's still-valid observation of the same bookmaker.\n7. Realtime cycle metrics expose fresh observation count, equivalent-overlap count, and material-conflict count. Phase-14 observability records cumulative counters and structured cycle fields for those signals.\n8. Persistence retains the selected quote's transport provenance in canonical serialized evidence while the existing indexed `provider_id` column continues to mean price origin. Reconstructed opportunities therefore preserve both identities without changing staking/market-book semantics.\n\n## Safety invariants\n\n- A bookmaker is never counted twice merely because two feeds observe it.\n- Transport identity never replaces bookmaker identity in executable market books or stake allocations.\n- Equal-time materially conflicting observations fail closed instead of selecting an arbitrary source.\n- Older observations cannot displace a newer eligible observation.\n- Legacy direct-provider fixtures remain valid through deterministic default transport provenance.\n- Provider-specific failures and invalidations remain isolated at the transport observation boundary.\n\n## Validation\n\nThe Phase 16.2 regression matrix covers distinct live observation keys, newest-observation selection, deterministic equivalent overlap, fail-closed equal-time conflict handling, transport-specific invalidation behavior, schema-v1 migration, and persistence reconstruction of transport provenance. The repository quality gate remains the release authority for formatting, linting, strict typing, tests, and dependency auditing.\n\n## Handoff\n\nPhase 16.2 is complete. The next roadmap dependency is **Phase 16.3 — second provider adapter**. That work must remain behind `ProviderAdapter` and must not weaken the provenance/consolidation invariants established here.\n'''
+    )
+
+
+def main() -> None:
+    patch_realtime_store()
+    patch_ingestion_exports()
+    patch_scanner()
+    patch_observability()
+    write_tests()
+    write_docs()
+
+
+if __name__ == "__main__":
+    main()
