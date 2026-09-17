@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from enum import StrEnum
+from hashlib import sha256
 
 from arbiscan.domain import (
     EventId,
@@ -104,23 +105,32 @@ def _issue(
 
 
 def _quote_id(
-    provider_id: ProviderId,
+    *,
+    source_provider_id: ProviderId,
+    price_provider_id: ProviderId,
     event_id: EventId,
     market_id: MarketId,
     selection_id: SelectionId,
+    source_event_id: str,
+    source_market_id: str,
+    source_selection_id: str,
     effective_timestamp: datetime,
 ) -> QuoteId:
-    return QuoteId(
-        "|".join(
-            (
-                provider_id.value,
-                event_id.value,
-                market_id.value,
-                selection_id.value,
-                effective_timestamp.isoformat(),
-            )
+    """Build a bounded collision-resistant ID for one transport observation."""
+    identity = "\x1f".join(
+        (
+            source_provider_id.value,
+            price_provider_id.value,
+            event_id.value,
+            market_id.value,
+            selection_id.value,
+            source_event_id,
+            source_market_id,
+            source_selection_id,
+            effective_timestamp.isoformat(),
         )
     )
+    return QuoteId(f"quote:{sha256(identity.encode('utf-8')).hexdigest()}")
 
 
 def _market_timestamp(
@@ -146,9 +156,9 @@ def normalize_source_snapshot(
     This bridge deliberately performs no fuzzy event/market/selection identity matching.
     Source odds are converted through the Phase 7 exact odds normalizer before an
     ``OddsQuote`` is created. Aggregators may identify the underlying bookmaker on
-    each ``SourceMarket``; when present, that bookmaker becomes the canonical quote
-    provider while ``provider`` remains the source/transport provider used for
-    diagnostics and raw provenance.
+    each ``SourceMarket``; when present, that bookmaker remains the canonical price
+    provider while ``provider`` is preserved separately as the source/transport
+    provider on every quote observation.
 
     Static/legacy identity hooks still require an exact source/canonical scheduled
     start. A ``MatchedCanonicalIdHooks`` wrapper may carry a Phase-8 ``MATCHED``
@@ -158,6 +168,8 @@ def normalize_source_snapshot(
     now = _utc(as_of, field_name="as_of")
     if not isinstance(freshness_window, timedelta) or freshness_window <= timedelta(0):
         raise ValueError("freshness_window must be a positive timedelta")
+    if snapshot.provider_id != provider.id:
+        raise ValueError("snapshot provider_id must match the transport provider")
 
     issues: list[NormalizationIssue] = []
     quotes: list[OddsQuote] = []
@@ -342,13 +354,18 @@ def normalize_source_snapshot(
             quotes.append(
                 OddsQuote(
                     id=_quote_id(
-                        quote_provider.id,
-                        event_id,
-                        market_id,
-                        selection_id,
-                        effective_timestamp,
+                        source_provider_id=provider.id,
+                        price_provider_id=quote_provider.id,
+                        event_id=event_id,
+                        market_id=market_id,
+                        selection_id=selection_id,
+                        source_event_id=event.external_id,
+                        source_market_id=market.external_market_id,
+                        source_selection_id=selection.external_selection_id,
+                        effective_timestamp=effective_timestamp,
                     ),
                     provider_id=quote_provider.id,
+                    source_provider_id=provider.id,
                     event_id=event_id,
                     market_id=market_id,
                     selection_id=selection_id,
@@ -376,6 +393,7 @@ def normalize_source_snapshot(
                     quote.market_id.value,
                     quote.selection_id.value,
                     quote.provider_id.value,
+                    quote.source_provider_id.value,
                 ),
             )
         ),
