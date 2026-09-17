@@ -54,6 +54,17 @@ _MIGRATIONS: tuple[tuple[int, str], ...] = (
             ON audit_events(entity_type, entity_id, recorded_at);
         """,
     ),
+    (
+        2,
+        """
+        ALTER TABLE canonical_snapshots ADD COLUMN transport_provider_id TEXT;
+        UPDATE canonical_snapshots
+            SET transport_provider_id = provider_id
+            WHERE entity_type = 'odds_quote' AND transport_provider_id IS NULL;
+        CREATE INDEX idx_snapshots_transport_provider_time
+            ON canonical_snapshots(transport_provider_id, occurred_at);
+        """,
+    ),
 )
 
 
@@ -68,6 +79,28 @@ def _id(value: object) -> str:
     if not isinstance(identifier, str) or not identifier:
         raise PersistenceError("canonical identifier must expose a non-empty string value")
     return identifier
+
+
+def _quote_transport_id(quote: OddsQuote) -> str:
+    provider_id = quote.transport_provider_id
+    if provider_id is None:
+        raise PersistenceError("validated odds quote must expose transport_provider_id")
+    return _id(provider_id)
+
+
+def _payloads_equivalent(entity_type: str, left: str, right: str) -> bool:
+    """Compare persisted payloads semantically across supported schema revisions."""
+    model_type: type[OddsQuote] | type[Opportunity] | type[StakePlan] | None = {
+        "odds_quote": OddsQuote,
+        "opportunity": Opportunity,
+        "stake_plan": StakePlan,
+    }.get(entity_type)
+    if model_type is None:
+        return False
+    try:
+        return loads(left, model_type) == loads(right, model_type)
+    except DomainValidationError:
+        return False
 
 
 class SqliteAuditStore:
@@ -111,6 +144,7 @@ class SqliteAuditStore:
             _id(quote.id),
             _id(quote.event_id),
             _id(quote.provider_id),
+            _quote_transport_id(quote),
             quote.ingested_at,
             dumps(quote),
         )
@@ -143,6 +177,7 @@ class SqliteAuditStore:
                         quote_id,
                         _id(quote.event_id),
                         _id(quote.provider_id),
+                        _quote_transport_id(quote),
                         quote.ingested_at,
                         dumps(quote),
                     )
@@ -151,6 +186,7 @@ class SqliteAuditStore:
                     "opportunity",
                     opportunity_id,
                     _id(opportunity.event_id),
+                    None,
                     None,
                     opportunity.detected_at,
                     dumps(opportunity),
@@ -177,6 +213,7 @@ class SqliteAuditStore:
                         "stake_plan",
                         plan_id,
                         _id(opportunity.event_id),
+                        None,
                         None,
                         stake_plan.created_at,
                         dumps(stake_plan),
@@ -238,13 +275,21 @@ class SqliteAuditStore:
         entity_id: str,
         event_id: str | None,
         provider_id: str | None,
+        transport_provider_id: str | None,
         occurred_at: datetime,
         payload: str,
     ) -> None:
         try:
             with self._connect() as connection:
                 self._upsert(
-                    connection, entity_type, entity_id, event_id, provider_id, occurred_at, payload
+                    connection,
+                    entity_type,
+                    entity_id,
+                    event_id,
+                    provider_id,
+                    transport_provider_id,
+                    occurred_at,
+                    payload,
                 )
         except sqlite3.Error as exc:
             raise PersistenceError("failed to persist canonical snapshot") from exc
@@ -256,6 +301,7 @@ class SqliteAuditStore:
         entity_id: str,
         event_id: str | None,
         provider_id: str | None,
+        transport_provider_id: str | None,
         occurred_at: datetime,
         payload: str,
     ) -> None:
@@ -264,14 +310,27 @@ class SqliteAuditStore:
             (entity_type, entity_id),
         ).fetchone()
         if existing is not None:
-            if existing[0] != payload:
+            existing_payload = existing[0]
+            if not isinstance(existing_payload, str):
+                raise PersistenceError("persisted canonical payload is not text")
+            if existing_payload != payload and not _payloads_equivalent(
+                entity_type, existing_payload, payload
+            ):
                 raise PersistenceError("canonical ID collision with different persisted content")
             return
         connection.execute(
             "INSERT INTO canonical_snapshots"
-            "(entity_type, entity_id, event_id, provider_id, occurred_at, payload) "
-            "VALUES (?, ?, ?, ?, ?, ?)",
-            (entity_type, entity_id, event_id, provider_id, _utc_text(occurred_at), payload),
+            "(entity_type, entity_id, event_id, provider_id, transport_provider_id, "
+            "occurred_at, payload) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (
+                entity_type,
+                entity_id,
+                event_id,
+                provider_id,
+                transport_provider_id,
+                _utc_text(occurred_at),
+                payload,
+            ),
         )
         connection.execute(
             "INSERT INTO audit_events"
