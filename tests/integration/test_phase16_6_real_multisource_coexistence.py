@@ -312,6 +312,7 @@ def test_real_provider_outage_is_isolated_from_the_other_source() -> None:
     assert metrics[THE_ODDS_API_PROVIDER_ID].snapshot_count == 0
     assert metrics[THE_ODDS_API_PROVIDER_ID].issue_count > 0
     assert metrics[ODDSPAPI_PROVIDER_ID].snapshot_count > 0
+    assert metrics[ODDSPAPI_PROVIDER_ID].issue_count == 0
 
 
 def test_stale_real_source_cannot_override_fresher_eligible_observation() -> None:
