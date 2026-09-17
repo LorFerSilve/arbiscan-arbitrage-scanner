@@ -47,9 +47,7 @@ def test_reusable_fixtures_ignore_unsupported_market_family_fail_closed() -> Non
 
 def test_unknown_fixture_status_is_rejected_as_malformed_response() -> None:
     async def scenario() -> None:
-        transport = FixtureHttpTransport(
-            fixture_overrides={"/odds": "odds_unknown_status.json"}
-        )
+        transport = FixtureHttpTransport(fixture_overrides={"/odds": "odds_unknown_status.json"})
         provider = _provider(transport)
         await _discover_event(provider)
 
@@ -66,9 +64,7 @@ def test_unknown_fixture_status_is_rejected_as_malformed_response() -> None:
 
 def test_odds_identity_drift_is_rejected_before_quotes_are_emitted() -> None:
     async def scenario() -> None:
-        transport = FixtureHttpTransport(
-            fixture_overrides={"/odds": "odds_identity_mismatch.json"}
-        )
+        transport = FixtureHttpTransport(fixture_overrides={"/odds": "odds_identity_mismatch.json"})
         provider = _provider(transport)
         await _discover_event(provider)
 
