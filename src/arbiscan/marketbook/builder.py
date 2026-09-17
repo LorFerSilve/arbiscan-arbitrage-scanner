@@ -6,7 +6,7 @@ from collections import Counter, defaultdict
 from collections.abc import Iterable
 from datetime import datetime, timedelta
 
-from arbiscan.domain import MarketId, OddsQuote, QuoteId, QuoteStatus, SelectionId
+from arbiscan.domain import MarketId, OddsQuote, ProviderId, QuoteId, QuoteStatus, SelectionId
 from arbiscan.domain.validation import normalize_datetime
 from arbiscan.marketbook.models import (
     BestPriceOutcome,
@@ -27,6 +27,11 @@ def quote_effective_timestamp(quote: OddsQuote) -> datetime:
     return quote.source_timestamp or quote.ingested_at
 
 
+def _source_provider_id(quote: OddsQuote) -> ProviderId:
+    """Return the normalized transport identity carried by a quote observation."""
+    return quote.source_provider_id or quote.provider_id
+
+
 def _diagnostic(
     code: MarketBookDiagnosticCode,
     quote: OddsQuote,
@@ -39,6 +44,7 @@ def _diagnostic(
         market_id=quote.market_id,
         selection_id=quote.selection_id,
         provider_id=quote.provider_id,
+        source_provider_id=_source_provider_id(quote),
         quote_id=quote.id,
     )
 
@@ -56,7 +62,56 @@ def _best_quote(candidates: tuple[OddsQuote, ...]) -> OddsQuote:
     )
     return min(
         freshest_ties,
-        key=lambda quote: (quote.provider_id.value, quote.id.value),
+        key=lambda quote: (
+            quote.provider_id.value,
+            _source_provider_id(quote).value,
+            quote.id.value,
+        ),
+    )
+
+
+def _consolidate_price_provider_observations(
+    candidates: tuple[OddsQuote, ...],
+) -> tuple[tuple[OddsQuote, ...], tuple[OddsQuote, ...]]:
+    """Collapse multi-transport evidence to at most one quote per price provider.
+
+    Freshness is resolved before price competition. Equal-time equivalent observations
+    select deterministically by transport identity. Equal-time material disagreement
+    fails closed for that price-provider/selection slot and returns all conflicting
+    observations for diagnostics.
+    """
+    by_price_provider: dict[ProviderId, list[OddsQuote]] = defaultdict(list)
+    for quote in candidates:
+        by_price_provider[quote.provider_id].append(quote)
+
+    consolidated: list[OddsQuote] = []
+    conflicts: list[OddsQuote] = []
+    for provider_id in sorted(by_price_provider, key=lambda value: value.value):
+        observations = tuple(by_price_provider[provider_id])
+        newest_at = max(quote_effective_timestamp(quote) for quote in observations)
+        newest = tuple(
+            quote for quote in observations if quote_effective_timestamp(quote) == newest_at
+        )
+        semantic_states = {(quote.decimal_price, quote.status) for quote in newest}
+        if len(semantic_states) > 1:
+            conflicts.extend(
+                sorted(
+                    newest,
+                    key=lambda quote: (_source_provider_id(quote).value, quote.id.value),
+                )
+            )
+            continue
+
+        consolidated.append(
+            min(
+                newest,
+                key=lambda quote: (_source_provider_id(quote).value, quote.id.value),
+            )
+        )
+
+    return (
+        tuple(sorted(consolidated, key=lambda quote: quote.provider_id.value)),
+        tuple(conflicts),
     )
 
 
@@ -67,6 +122,7 @@ def _diagnostic_sort_key(item: MarketBookDiagnostic) -> tuple[str, ...]:
         item.code.value,
         "" if item.selection_id is None else item.selection_id.value,
         "" if item.provider_id is None else item.provider_id.value,
+        "" if item.source_provider_id is None else item.source_provider_id.value,
         "" if item.quote_id is None else item.quote_id.value,
         item.detail,
     )
@@ -84,8 +140,10 @@ def build_market_books(
     """Construct complete best-price books for canonical markets.
 
     Quotes must survive canonical identity checks, provider policy, active-status
-    checks and freshness checks before they can compete for best price. A market
-    is emitted only when every expected canonical selection has one eligible quote.
+    checks and freshness checks before they can compete for best price. Overlapping
+    transports are then consolidated per price provider and canonical selection.
+    A market is emitted only when every expected canonical selection has one eligible
+    consolidated quote.
     """
     if not isinstance(registry, CanonicalRegistry):
         raise ValueError("registry must be CanonicalRegistry")
@@ -269,7 +327,27 @@ def build_market_books(
             )
             continue
 
-        candidate_map = eligible_by_market_selection.get(market.id, {})
+        raw_candidate_map = eligible_by_market_selection.get(market.id, {})
+        candidate_map: dict[SelectionId, tuple[OddsQuote, ...]] = {}
+        for selection_id in expected:
+            raw_candidates = tuple(raw_candidate_map.get(selection_id, ()))
+            if not raw_candidates:
+                continue
+            consolidated, conflicts = _consolidate_price_provider_observations(raw_candidates)
+            for conflict in conflicts:
+                diagnostics.append(
+                    _diagnostic(
+                        MarketBookDiagnosticCode.CONFLICTING_SOURCE_OBSERVATIONS,
+                        conflict,
+                        (
+                            "equal-time source observations for one price provider disagree "
+                            "on price or status; provider/selection slot excluded"
+                        ),
+                    )
+                )
+            if consolidated:
+                candidate_map[selection_id] = consolidated
+
         missing = tuple(
             selection_id for selection_id in expected if not candidate_map.get(selection_id)
         )
@@ -280,7 +358,7 @@ def build_market_books(
                     event_id=event.id,
                     market_id=market.id,
                     detail=(
-                        "missing eligible canonical selections: "
+                        "missing eligible canonical selections after source consolidation: "
                         f"{[selection_id.value for selection_id in missing]}"
                     ),
                 )
@@ -292,7 +370,7 @@ def build_market_books(
             selection = registry.selection(selection_id)
             if selection is None:
                 raise AssertionError("registry selection IDs must resolve")
-            candidates = tuple(candidate_map[selection_id])
+            candidates = candidate_map[selection_id]
             outcomes.append(
                 BestPriceOutcome(
                     selection=selection,
