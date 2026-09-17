@@ -1,10 +1,10 @@
-"""Phase-10 live scanning orchestration over the realtime ingestion runtime."""
+"""Realtime scanning orchestration with Phase-16 multi-source quote consolidation."""
 
 from __future__ import annotations
 
 import asyncio
 from collections.abc import AsyncIterator, Awaitable, Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
@@ -16,13 +16,16 @@ from arbiscan.arbitrage import (
 )
 from arbiscan.domain import MarketId, OddsQuote, Opportunity, OpportunityId, Sport
 from arbiscan.ingestion.collector import IngestedSnapshot
+from arbiscan.ingestion.multisource import (
+    MultiSourceQuoteStore,
+    QuoteConsolidationDiagnostic,
+    SourceQuoteKey,
+    SourceQuoteStoreApplyResult,
+    SourceQuoteStoreDiagnosticCode,
+    SourceQuoteStoreEvictionResult,
+)
 from arbiscan.ingestion.realtime import (
-    LiveQuoteStore,
     ProviderPollMetrics,
-    QuoteKey,
-    QuoteStoreApplyResult,
-    QuoteStoreDiagnosticCode,
-    QuoteStoreEvictionResult,
     RealtimeIngestionBatch,
     RealtimeIngestionPolicy,
     RealtimeIngestionRuntime,
@@ -55,9 +58,10 @@ def _source_status_is_active(value: str) -> bool:
     return value.strip().casefold() == "active"
 
 
-def _quote_key_sort(key: QuoteKey) -> tuple[str, str, str, str]:
+def _quote_key_sort(key: SourceQuoteKey) -> tuple[str, str, str, str, str]:
     return (
         key.provider_id.value,
+        key.transport_provider_id.value,
         key.event_id.value,
         key.market_id.value,
         key.selection_id.value,
@@ -72,7 +76,7 @@ class RealtimeEvaluationIssue:
 
 @dataclass(frozen=True, slots=True)
 class RealtimeCycleMetrics:
-    """End-to-end measurable Phase-10 ingestion and detection metrics."""
+    """End-to-end measurable realtime ingestion and detection metrics."""
 
     started_at: datetime
     detected_at: datetime
@@ -91,6 +95,8 @@ class RealtimeCycleMetrics:
     market_book_count: int
     opportunity_count: int
     missed_poll_intervals_total: int
+    source_conflict_count: int = 0
+    equivalent_source_observation_count: int = 0
 
     def __post_init__(self) -> None:
         object.__setattr__(
@@ -122,9 +128,9 @@ class RealtimeCycleMetrics:
 class RealtimeScanCycle:
     ingestion: RealtimeIngestionBatch
     normalization_issues: tuple[NormalizationIssue, ...]
-    quote_updates: QuoteStoreApplyResult
-    evictions: QuoteStoreEvictionResult
-    source_invalidated_quote_keys: tuple[QuoteKey, ...]
+    quote_updates: SourceQuoteStoreApplyResult
+    evictions: SourceQuoteStoreEvictionResult
+    source_invalidated_quote_keys: tuple[SourceQuoteKey, ...]
     fresh_quotes: tuple[OddsQuote, ...]
     market_books: tuple[CanonicalMarketBook, ...]
     market_book_diagnostics: tuple[MarketBookDiagnostic, ...]
@@ -132,6 +138,9 @@ class RealtimeScanCycle:
     evaluation_issues: tuple[RealtimeEvaluationIssue, ...]
     opportunities: tuple[Opportunity, ...]
     metrics: RealtimeCycleMetrics
+    consolidation_diagnostics: tuple[QuoteConsolidationDiagnostic, ...] = field(
+        default_factory=tuple
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -142,7 +151,7 @@ class PollScheduleState:
 
 
 class RealtimeScanner:
-    """Persistent live scanner whose quote state survives individual provider polls."""
+    """Persistent live scanner whose source-aware quote state survives provider polls."""
 
     def __init__(
         self,
@@ -152,7 +161,7 @@ class RealtimeScanner:
         sport: Sport,
         policy: RealtimeIngestionPolicy | None = None,
         runtime: RealtimeIngestionRuntime | None = None,
-        store: LiveQuoteStore | None = None,
+        store: MultiSourceQuoteStore | None = None,
         book_provider_policy: ProviderBookPolicy | None = None,
         minimum_profit_margin: Decimal = Decimal("0"),
         clock: Clock = _utc_now,
@@ -169,7 +178,7 @@ class RealtimeScanner:
         self.runtime = runtime or RealtimeIngestionRuntime(policy=self.policy, clock=clock)
         if self.runtime.policy != self.policy:
             raise ValueError("runtime policy must equal scanner policy")
-        self.store = store or LiveQuoteStore(self.policy)
+        self.store = store or MultiSourceQuoteStore(self.policy)
         if self.store.policy != self.policy:
             raise ValueError("store policy must equal scanner policy")
         self.adapters = tuple(sorted(adapters, key=lambda item: item.provider.id.value))
@@ -179,7 +188,7 @@ class RealtimeScanner:
         self.minimum_profit_margin = minimum_profit_margin
         self._clock = clock
         self._missed_poll_intervals_total = 0
-        self._source_invalidated_quote_keys: set[QuoteKey] = set()
+        self._source_invalidated_quote_keys: set[SourceQuoteKey] = set()
 
     def _now(self) -> datetime:
         return _aware_utc(self._clock(), field_name="clock")
@@ -192,7 +201,7 @@ class RealtimeScanner:
             and event.sport is self.sport
         )
 
-    def _explicit_inactive_quote_keys(self, ingested: IngestedSnapshot) -> set[QuoteKey]:
+    def _explicit_inactive_quote_keys(self, ingested: IngestedSnapshot) -> set[SourceQuoteKey]:
         hooks = ingested.canonical_id_hooks
         if hooks is None:
             return set()
@@ -201,7 +210,7 @@ class RealtimeScanner:
         if event_id is None or canonical_event is None:
             return set()
 
-        keys: set[QuoteKey] = set()
+        keys: set[SourceQuoteKey] = set()
         for market in ingested.snapshot.markets:
             market_id = hooks.market_id(market)
             canonical_market = None if market_id is None else self.registry.market(market_id)
@@ -217,7 +226,8 @@ class RealtimeScanner:
                 for selection in self.registry.selections:
                     if selection.market_id == market_id:
                         keys.add(
-                            QuoteKey(
+                            SourceQuoteKey(
+                                transport_provider_id=ingested.provider.id,
                                 provider_id=quote_provider.id,
                                 event_id=event_id,
                                 market_id=market_id,
@@ -240,7 +250,8 @@ class RealtimeScanner:
                 ):
                     continue
                 keys.add(
-                    QuoteKey(
+                    SourceQuoteKey(
+                        transport_provider_id=ingested.provider.id,
                         provider_id=quote_provider.id,
                         event_id=event_id,
                         market_id=market_id,
@@ -250,7 +261,7 @@ class RealtimeScanner:
         return keys
 
     async def run_cycle(self) -> RealtimeScanCycle:
-        """Poll, normalize, version, evict, align, and evaluate one live cycle."""
+        """Poll, normalize, source-version, consolidate, align, and evaluate one cycle."""
         started_at = self._now()
         ingestion = await self.runtime.poll_once(self.adapters, self.sport)
         detected_at = self._now()
@@ -258,7 +269,7 @@ class RealtimeScanner:
 
         normalized_quotes: list[OddsQuote] = []
         normalization_issues: list[NormalizationIssue] = []
-        explicit_invalidations: set[QuoteKey] = set()
+        explicit_invalidations: set[SourceQuoteKey] = set()
         for ingested in ingestion.ingestion.snapshots:
             explicit_invalidations.update(self._explicit_inactive_quote_keys(ingested))
             normalized = normalize_source_snapshot(
@@ -274,7 +285,7 @@ class RealtimeScanner:
             normalization_issues.extend(normalized.issues)
 
         quote_updates = self.store.apply(normalized_quotes, observed_at=detected_at)
-        active_observed_keys = {QuoteKey.from_quote(quote) for quote in normalized_quotes}
+        active_observed_keys = {SourceQuoteKey.from_quote(quote) for quote in normalized_quotes}
         self._source_invalidated_quote_keys.difference_update(active_observed_keys)
         self._source_invalidated_quote_keys.update(explicit_invalidations)
 
@@ -284,13 +295,14 @@ class RealtimeScanner:
         stale_evicted = sum(
             1
             for diagnostic in evictions.diagnostics
-            if diagnostic.code is QuoteStoreDiagnosticCode.STALE_EVICTED
+            if diagnostic.code is SourceQuoteStoreDiagnosticCode.STALE_EVICTED
         )
-        fresh_quotes = tuple(
-            quote
-            for quote in self.store.fresh_quotes(as_of=detected_at)
-            if QuoteKey.from_quote(quote) not in self._source_invalidated_quote_keys
+
+        consolidation = self.store.consolidate_fresh(
+            as_of=detected_at,
+            excluded_keys=self._source_invalidated_quote_keys,
         )
+        fresh_quotes = consolidation.quotes
 
         market_batch = build_market_books(
             fresh_quotes,
@@ -350,6 +362,8 @@ class RealtimeScanner:
             market_book_count=len(market_batch.books),
             opportunity_count=len(opportunities),
             missed_poll_intervals_total=self._missed_poll_intervals_total,
+            source_conflict_count=consolidation.conflict_count,
+            equivalent_source_observation_count=consolidation.equivalent_overlap_count,
         )
 
         return RealtimeScanCycle(
@@ -384,6 +398,7 @@ class RealtimeScanner:
                 sorted(opportunities, key=lambda item: (item.event_id.value, item.market_id.value))
             ),
             metrics=metrics,
+            consolidation_diagnostics=consolidation.diagnostics,
         )
 
     @staticmethod
