@@ -207,6 +207,15 @@ class RealtimeScanner(ObservableRealtimeScanner):
         self._phase16_last_material_conflict_count = consolidation.conflict_count
         self._phase16_last_diagnostics = consolidation.diagnostics
 
+        diagnostic_codes = ",".join(
+            diagnostic.code.value for diagnostic in consolidation.diagnostics
+        )
+        transport_provider_ids = ";".join(
+            ",".join(
+                provider_id.value for provider_id in diagnostic.transport_provider_ids
+            )
+            for diagnostic in consolidation.diagnostics
+        )
         self.log_sink.emit(
             StructuredLogRecord(
                 observed_at=cycle.metrics.detected_at,
@@ -219,15 +228,8 @@ class RealtimeScanner(ObservableRealtimeScanner):
                     "executable_quote_count": len(consolidation.quotes),
                     "equivalent_overlap_count": consolidation.equivalent_overlap_count,
                     "material_conflict_count": consolidation.conflict_count,
-                    "diagnostic_codes": tuple(
-                        diagnostic.code.value for diagnostic in consolidation.diagnostics
-                    ),
-                    "transport_provider_ids": tuple(
-                        tuple(
-                            provider_id.value for provider_id in diagnostic.transport_provider_ids
-                        )
-                        for diagnostic in consolidation.diagnostics
-                    ),
+                    "diagnostic_codes": diagnostic_codes,
+                    "transport_provider_ids": transport_provider_ids,
                 },
             )
         )
