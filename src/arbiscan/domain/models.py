@@ -326,7 +326,11 @@ class OddsQuote:
     def __post_init__(self) -> None:
         require_instance(self.id, QuoteId, field="odds_quote.id")
         require_instance(self.provider_id, ProviderId, field="odds_quote.provider_id")
-        transport_provider_id = self.transport_provider_id or self.provider_id
+        transport_provider_id = (
+            self.transport_provider_id
+            if self.transport_provider_id is not None
+            else self.provider_id
+        )
         require_instance(
             transport_provider_id,
             ProviderId,
