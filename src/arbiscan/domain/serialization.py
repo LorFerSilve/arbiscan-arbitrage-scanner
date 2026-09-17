@@ -53,7 +53,8 @@ from arbiscan.domain.models import (
     StakePlan,
 )
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
+_LEGACY_SCHEMA_VERSION = 1
 
 _MODEL_TYPES: dict[str, Callable[..., object]] = {
     type_.__name__: type_
@@ -143,6 +144,37 @@ def _require_exact_keys(
     if unexpected:
         details.append(f"unexpected fields: {', '.join(unexpected)}")
     raise DomainValidationError(f"{context} has invalid fields ({'; '.join(details)})")
+
+
+def _legacy_source_provider_payload(mapping: dict[str, object]) -> object:
+    """Recover v1 transport identity where the canonical raw-source URI retained it."""
+    raw_reference = mapping.get("raw_source_reference")
+    if isinstance(raw_reference, str) and raw_reference.startswith("source://"):
+        remainder = raw_reference.removeprefix("source://")
+        source_provider_value, separator, _ = remainder.partition("/")
+        if separator and source_provider_value:
+            return {"$type": "ProviderId", "value": source_provider_value}
+
+    provider_payload = mapping.get("provider_id")
+    if provider_payload is None:
+        raise DomainValidationError("legacy OddsQuote is missing provider_id")
+    return provider_payload
+
+
+def _migrate_v1(value: object) -> object:
+    """Upgrade schema-v1 encoded values without weakening exact-field validation."""
+    if isinstance(value, list):
+        return [_migrate_v1(item) for item in value]
+    if not isinstance(value, dict):
+        return value
+    if not all(isinstance(key, str) for key in value):
+        return value
+
+    mapping = cast(dict[str, object], value)
+    migrated = {key: _migrate_v1(item) for key, item in mapping.items()}
+    if migrated.get("$type") == "OddsQuote" and "source_provider_id" not in migrated:
+        migrated["source_provider_id"] = _legacy_source_provider_payload(mapping)
+    return migrated
 
 
 def _decode(value: object) -> object:
@@ -241,10 +273,15 @@ def loads[T](data: str, expected_type: type[T]) -> T:
         context="canonical JSON envelope",
     )
 
-    if envelope["schema_version"] != SCHEMA_VERSION:
+    schema_version = envelope["schema_version"]
+    if schema_version not in {_LEGACY_SCHEMA_VERSION, SCHEMA_VERSION}:
         raise DomainValidationError("unsupported canonical schema version")
 
-    result = _decode(envelope["payload"])
+    payload = envelope["payload"]
+    if schema_version == _LEGACY_SCHEMA_VERSION:
+        payload = _migrate_v1(payload)
+
+    result = _decode(payload)
     if not isinstance(result, expected_type):
         raise DomainValidationError(
             f"expected {expected_type.__name__}, got {type(result).__name__}"
