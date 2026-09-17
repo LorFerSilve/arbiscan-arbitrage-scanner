@@ -299,7 +299,13 @@ class Selection:
 
 @dataclass(frozen=True, slots=True)
 class OddsQuote:
-    """One provider price with complete canonical identity and source provenance."""
+    """One executable price plus the transport source that observed it.
+
+    ``provider_id`` remains the bookmaker/exchange price origin. ``source_provider_id``
+    identifies the independent API/feed that delivered this observation. Legacy
+    single-source constructors that omit ``source_provider_id`` retain direct-provider
+    semantics by defaulting the source to ``provider_id``.
+    """
 
     id: QuoteId
     provider_id: ProviderId
@@ -315,10 +321,18 @@ class OddsQuote:
     source_timestamp: datetime | None = None
     trace_id: str | None = None
     raw_source_reference: str | None = None
+    source_provider_id: ProviderId | None = None
 
     def __post_init__(self) -> None:
         require_instance(self.id, QuoteId, field="odds_quote.id")
         require_instance(self.provider_id, ProviderId, field="odds_quote.provider_id")
+        source_provider_id = self.provider_id if self.source_provider_id is None else self.source_provider_id
+        require_instance(
+            source_provider_id,
+            ProviderId,
+            field="odds_quote.source_provider_id",
+        )
+        object.__setattr__(self, "source_provider_id", source_provider_id)
         require_instance(self.event_id, EventId, field="odds_quote.event_id")
         require_instance(self.market_id, MarketId, field="odds_quote.market_id")
         require_instance(self.selection_id, SelectionId, field="odds_quote.selection_id")
@@ -371,6 +385,11 @@ class OddsQuote:
             raise DomainValidationError(
                 "odds quote requires trace_id or raw_source_reference for auditability"
             )
+
+    @property
+    def price_provider_id(self) -> ProviderId:
+        """Return the bookmaker/exchange identity that offers the executable price."""
+        return self.provider_id
 
 
 @dataclass(frozen=True, slots=True)
