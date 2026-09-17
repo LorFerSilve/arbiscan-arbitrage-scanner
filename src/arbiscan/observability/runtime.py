@@ -14,6 +14,17 @@ from arbiscan.domain import ProviderId
 
 _LATENCY_WINDOW_SIZE = 256
 _RESERVED_LOG_FIELDS = frozenset({"observed_at", "event", "correlation_id", "provider_id"})
+_METRIC_COUNTER_NAMES = frozenset(
+    {
+        "canonicalization_failures",
+        "unmatched_events",
+        "ambiguous_events",
+        "opportunities_detected",
+        "opportunities_invalidated",
+        "source_observation_conflicts",
+        "equivalent_source_observations",
+    }
+)
 
 
 def _utc(value: datetime, *, name: str) -> datetime:
@@ -90,6 +101,8 @@ class MetricsSnapshot:
     stale_quotes: int = 0
     opportunities_detected: int = 0
     opportunities_invalidated: int = 0
+    source_observation_conflicts: int = 0
+    equivalent_source_observations: int = 0
     detection_latency_seconds: tuple[float, ...] = ()
 
 
@@ -118,14 +131,7 @@ class MetricsRegistry:
         self._rate_limit_events[provider_id] = self._rate_limit_events.get(provider_id, 0) + 1
 
     def increment(self, name: str, amount: int = 1) -> None:
-        allowed = {
-            "canonicalization_failures",
-            "unmatched_events",
-            "ambiguous_events",
-            "opportunities_detected",
-            "opportunities_invalidated",
-        }
-        if name not in allowed or type(amount) is not int or amount < 0:
+        if name not in _METRIC_COUNTER_NAMES or type(amount) is not int or amount < 0:
             raise ValueError("invalid metric counter update")
         self._counters[name] = self._counters.get(name, 0) + amount
 
@@ -157,6 +163,10 @@ class MetricsRegistry:
             stale_quotes=self._stale_quotes,
             opportunities_detected=self._counters.get("opportunities_detected", 0),
             opportunities_invalidated=self._counters.get("opportunities_invalidated", 0),
+            source_observation_conflicts=self._counters.get("source_observation_conflicts", 0),
+            equivalent_source_observations=self._counters.get(
+                "equivalent_source_observations", 0
+            ),
             detection_latency_seconds=tuple(self._latencies),
         )
 

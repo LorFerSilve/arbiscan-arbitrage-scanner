@@ -128,3 +128,20 @@ def test_metrics_cover_phase_14_minimum_surface() -> None:
     assert snapshot.opportunities_detected == 3
     assert snapshot.opportunities_invalidated == 1
     assert snapshot.detection_latency_seconds == (0.125,)
+
+
+def test_metrics_cover_phase_16_multi_source_overlap_surface() -> None:
+    metrics = MetricsRegistry()
+
+    metrics.increment("source_observation_conflicts", 2)
+    metrics.increment("equivalent_source_observations", 3)
+
+    snapshot = metrics.snapshot()
+    assert snapshot.source_observation_conflicts == 2
+    assert snapshot.equivalent_source_observations == 3
+
+
+def test_metrics_reject_unknown_counter_names() -> None:
+    metrics = MetricsRegistry()
+
+    _assert_value_error(lambda: metrics.increment("unknown_counter"), "invalid metric counter")

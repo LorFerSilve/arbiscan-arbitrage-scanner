@@ -299,7 +299,13 @@ class Selection:
 
 @dataclass(frozen=True, slots=True)
 class OddsQuote:
-    """One provider price with complete canonical identity and source provenance."""
+    """One executable price observation with canonical and transport provenance.
+
+    ``provider_id`` identifies the bookmaker/exchange offering the price. The
+    independent API/feed that delivered the observation is stored separately as
+    ``transport_provider_id``. Direct-source quotes default the transport identity
+    to the price provider for backwards-compatible single-source construction.
+    """
 
     id: QuoteId
     provider_id: ProviderId
@@ -312,6 +318,7 @@ class OddsQuote:
     source_selection_id: str
     ingested_at: datetime
     status: QuoteStatus
+    transport_provider_id: ProviderId | None = None
     source_timestamp: datetime | None = None
     trace_id: str | None = None
     raw_source_reference: str | None = None
@@ -323,6 +330,16 @@ class OddsQuote:
         require_instance(self.market_id, MarketId, field="odds_quote.market_id")
         require_instance(self.selection_id, SelectionId, field="odds_quote.selection_id")
         require_instance(self.status, QuoteStatus, field="odds_quote.status")
+
+        transport_provider_id = self.transport_provider_id
+        if transport_provider_id is None:
+            transport_provider_id = self.provider_id
+        require_instance(
+            transport_provider_id,
+            ProviderId,
+            field="odds_quote.transport_provider_id",
+        )
+        object.__setattr__(self, "transport_provider_id", transport_provider_id)
 
         price = require_decimal(self.decimal_price, field="odds_quote.decimal_price")
         if price <= Decimal("1"):

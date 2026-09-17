@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import hashlib
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 from enum import StrEnum
 
 from arbiscan.domain import (
@@ -104,23 +106,34 @@ def _issue(
 
 
 def _quote_id(
+    transport_provider_id: ProviderId,
     provider_id: ProviderId,
     event_id: EventId,
     market_id: MarketId,
     selection_id: SelectionId,
+    source_event_id: str,
+    source_market_id: str,
+    source_selection_id: str,
     effective_timestamp: datetime,
+    decimal_price: Decimal,
 ) -> QuoteId:
-    return QuoteId(
-        "|".join(
-            (
-                provider_id.value,
-                event_id.value,
-                market_id.value,
-                selection_id.value,
-                effective_timestamp.isoformat(),
-            )
+    """Build a collision-safe identifier for one transport-level price observation."""
+    material = "\x1f".join(
+        (
+            transport_provider_id.value,
+            provider_id.value,
+            event_id.value,
+            market_id.value,
+            selection_id.value,
+            source_event_id,
+            source_market_id,
+            source_selection_id,
+            effective_timestamp.isoformat(),
+            str(decimal_price),
         )
     )
+    digest = hashlib.sha256(material.encode("utf-8")).hexdigest()
+    return QuoteId(f"quote:{digest}")
 
 
 def _market_timestamp(
@@ -148,7 +161,7 @@ def normalize_source_snapshot(
     ``OddsQuote`` is created. Aggregators may identify the underlying bookmaker on
     each ``SourceMarket``; when present, that bookmaker becomes the canonical quote
     provider while ``provider`` remains the source/transport provider used for
-    diagnostics and raw provenance.
+    diagnostics, canonical provenance, and source-observation identity.
 
     Static/legacy identity hooks still require an exact source/canonical scheduled
     start. A ``MatchedCanonicalIdHooks`` wrapper may carry a Phase-8 ``MATCHED``
@@ -342,13 +355,19 @@ def normalize_source_snapshot(
             quotes.append(
                 OddsQuote(
                     id=_quote_id(
+                        provider.id,
                         quote_provider.id,
                         event_id,
                         market_id,
                         selection_id,
+                        event.external_id,
+                        market.external_market_id,
+                        selection.external_selection_id,
                         effective_timestamp,
+                        price,
                     ),
                     provider_id=quote_provider.id,
+                    transport_provider_id=provider.id,
                     event_id=event_id,
                     market_id=market_id,
                     selection_id=selection_id,
@@ -376,6 +395,7 @@ def normalize_source_snapshot(
                     quote.market_id.value,
                     quote.selection_id.value,
                     quote.provider_id.value,
+                    (quote.transport_provider_id or quote.provider_id).value,
                 ),
             )
         ),

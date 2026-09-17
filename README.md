@@ -4,13 +4,15 @@ ArbiScan is a multi-bookmaker sports-odds aggregation and arbitrage-detection en
 
 ## Current status
 
-Phases 0 through 15 of [`roadmap.md`](roadmap.md) are implemented. **Phase 16.1 — provider candidate review and selection — is complete.** OddsPapi is the selected development target for the second real transport source, while production enablement remains blocked pending explicit data-rights clarification and the remaining Phase 16 correctness gates.
+Phases 0 through 15 of [`roadmap.md`](roadmap.md) are implemented. **Phase 16.1 — provider candidate review and selection — and Phase 16.2 — multi-source provenance hardening — are complete.** OddsPapi is the selected development target for the second real transport source, while production enablement remains blocked pending explicit data-rights clarification and the remaining Phase 16 correctness gates.
 
-The next implementation dependency is **Phase 16.2 — multi-source provenance hardening**: source observations from different transport providers must remain auditable and must not cause the same bookmaker to be counted twice.
+The next implementation dependency is **Phase 16.3 — second provider adapter**. The adapter must use the Phase-16.2 source-aware quote model and explicitly map overlapping bookmaker identities into the canonical price-provider namespace before mixed-source market books can be enabled.
 
 The implemented core now includes:
 
 - provider-neutral canonical event/market/selection/quote models;
+- separate transport-source and bookmaker/exchange price-provider provenance;
+- deterministic multi-source overlap consolidation with fail-closed conflict handling;
 - deterministic Decimal-based arbitrage mathematics and stake allocation;
 - a strict async provider-adapter contract plus synthetic providers;
 - one real odds-data integration through The Odds API;
@@ -25,7 +27,7 @@ The implemented core now includes:
 
 The project is still versioned as development software and is **not** being productized into a packaged local launcher yet. That is deliberate: provider coverage and correctness work take priority over packaging/deployment.
 
-See [`docs/providers/phase-16-readiness.md`](docs/providers/phase-16-readiness.md) for the Phase 16 implementation sequence and [`docs/providers/phase-16.1-provider-selection.md`](docs/providers/phase-16.1-provider-selection.md) for the completed provider decision.
+See [`docs/providers/phase-16-readiness.md`](docs/providers/phase-16-readiness.md) for the Phase 16 implementation sequence, [`docs/providers/phase-16.1-provider-selection.md`](docs/providers/phase-16.1-provider-selection.md) for the provider decision, and [`docs/development/phase-16.2-completion.md`](docs/development/phase-16.2-completion.md) for the multi-source provenance architecture and validation evidence.
 
 ## Current market scope
 
@@ -58,6 +60,7 @@ CI uses deterministic fixtures and does not require live provider credentials.
 - The Odds API integration: [`docs/providers/the-odds-api.md`](docs/providers/the-odds-api.md)
 - Phase 16 readiness: [`docs/providers/phase-16-readiness.md`](docs/providers/phase-16-readiness.md)
 - Phase 16.1 provider selection: [`docs/providers/phase-16.1-provider-selection.md`](docs/providers/phase-16.1-provider-selection.md)
+- Phase 16.2 completion: [`docs/development/phase-16.2-completion.md`](docs/development/phase-16.2-completion.md)
 - OddsPapi onboarding record: [`docs/providers/oddspapi.md`](docs/providers/oddspapi.md)
 - Dashboard/alert boundary: [`docs/product/dashboard-and-alerts.md`](docs/product/dashboard-and-alerts.md)
 - Architecture decisions: [`docs/adr/`](docs/adr/)

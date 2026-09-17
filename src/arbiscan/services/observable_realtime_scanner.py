@@ -1,7 +1,7 @@
 """Observable application-facing realtime scanner.
 
 This adapter keeps Phase-14 telemetry at the application boundary while the
-Phase-10 scanner remains responsible for ingestion and arbitrage semantics.
+realtime scanner remains responsible for ingestion, consolidation, and arbitrage semantics.
 """
 
 from __future__ import annotations
@@ -14,7 +14,7 @@ from arbiscan.services.realtime_scanner import (
 
 
 class RealtimeScanner(CoreRealtimeScanner):
-    """Realtime scanner whose real cycles feed the Phase-14 observability surface."""
+    """Realtime scanner whose real cycles feed the observability surface."""
 
     _phase14_metrics_registry: MetricsRegistry | None = None
     _phase14_log_sink: InMemoryLogSink | None = None
@@ -53,6 +53,11 @@ class RealtimeScanner(CoreRealtimeScanner):
 
         registry.increment("canonicalization_failures", cycle.metrics.normalization_issue_count)
         registry.increment("opportunities_detected", cycle.metrics.opportunity_count)
+        registry.increment("source_observation_conflicts", cycle.metrics.source_conflict_count)
+        registry.increment(
+            "equivalent_source_observations",
+            cycle.metrics.equivalent_source_observation_count,
+        )
         registry.quote_counts(
             active=cycle.metrics.current_fresh_quote_count,
             stale=cycle.metrics.stale_quote_count,
@@ -73,6 +78,10 @@ class RealtimeScanner(CoreRealtimeScanner):
                     "stale_quote_count": cycle.metrics.stale_quote_count,
                     "opportunity_count": cycle.metrics.opportunity_count,
                     "throttling_events": cycle.metrics.throttling_events,
+                    "source_conflict_count": cycle.metrics.source_conflict_count,
+                    "equivalent_source_observation_count": (
+                        cycle.metrics.equivalent_source_observation_count
+                    ),
                 },
             )
         )
