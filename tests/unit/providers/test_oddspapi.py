@@ -327,9 +327,7 @@ def test_odds_preserve_price_origin_and_selection_level_freshness() -> None:
     assert snapshot.provider_id == ODDSPAPI_PROVIDER_ID
     assert len(snapshot.markets) == 3
     assert {
-        market.price_provider.id
-        for market in snapshot.markets
-        if market.price_provider is not None
+        market.price_provider.id for market in snapshot.markets if market.price_provider is not None
     } == {ProviderId("bookmaker:the-odds-api:pinnacle")}
     assert {market.selections[0].label for market in snapshot.markets} == {"1", "X", "2"}
     assert {market.source_timestamp for market in snapshot.markets} == {
