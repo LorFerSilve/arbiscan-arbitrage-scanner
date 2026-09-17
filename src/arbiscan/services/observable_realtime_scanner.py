@@ -35,6 +35,20 @@ class RealtimeScanner(CoreRealtimeScanner):
             self._phase14_log_sink = sink
         return sink
 
+    def _cycle_log_fields(
+        self,
+        cycle: RealtimeScanCycle,
+    ) -> dict[str, str | int | float | bool | None]:
+        """Return extensible fields for the stable cycle-completed log record."""
+        return {
+            "provider_issue_count": cycle.metrics.provider_issue_count,
+            "normalization_issue_count": cycle.metrics.normalization_issue_count,
+            "fresh_quote_count": cycle.metrics.current_fresh_quote_count,
+            "stale_quote_count": cycle.metrics.stale_quote_count,
+            "opportunity_count": cycle.metrics.opportunity_count,
+            "throttling_events": cycle.metrics.throttling_events,
+        }
+
     async def run_cycle(self) -> RealtimeScanCycle:
         cycle = await super().run_cycle()
         registry = self.metrics_registry
@@ -66,14 +80,7 @@ class RealtimeScanner(CoreRealtimeScanner):
                 observed_at=cycle.metrics.detected_at,
                 event="scanner.cycle.completed",
                 correlation_id=cycle.metrics.started_at.isoformat(),
-                fields={
-                    "provider_issue_count": cycle.metrics.provider_issue_count,
-                    "normalization_issue_count": cycle.metrics.normalization_issue_count,
-                    "fresh_quote_count": cycle.metrics.current_fresh_quote_count,
-                    "stale_quote_count": cycle.metrics.stale_quote_count,
-                    "opportunity_count": cycle.metrics.opportunity_count,
-                    "throttling_events": cycle.metrics.throttling_events,
-                },
+                fields=self._cycle_log_fields(cycle),
             )
         )
         return cycle

@@ -104,16 +104,19 @@ def _issue(
 
 
 def _quote_id(
-    provider_id: ProviderId,
+    transport_provider_id: ProviderId,
+    price_provider_id: ProviderId,
     event_id: EventId,
     market_id: MarketId,
     selection_id: SelectionId,
     effective_timestamp: datetime,
 ) -> QuoteId:
+    """Build an observation ID that cannot collide across independent transports."""
     return QuoteId(
         "|".join(
             (
-                provider_id.value,
+                transport_provider_id.value,
+                price_provider_id.value,
                 event_id.value,
                 market_id.value,
                 selection_id.value,
@@ -342,6 +345,7 @@ def normalize_source_snapshot(
             quotes.append(
                 OddsQuote(
                     id=_quote_id(
+                        provider.id,
                         quote_provider.id,
                         event_id,
                         market_id,
@@ -349,6 +353,7 @@ def normalize_source_snapshot(
                         effective_timestamp,
                     ),
                     provider_id=quote_provider.id,
+                    transport_provider_id=provider.id,
                     event_id=event_id,
                     market_id=market_id,
                     selection_id=selection_id,
@@ -376,6 +381,7 @@ def normalize_source_snapshot(
                     quote.market_id.value,
                     quote.selection_id.value,
                     quote.provider_id.value,
+                    (quote.transport_provider_id or quote.provider_id).value,
                 ),
             )
         ),

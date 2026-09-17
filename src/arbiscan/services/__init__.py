@@ -1,6 +1,9 @@
 """Application orchestration services."""
 
-from arbiscan.services.observable_realtime_scanner import RealtimeScanner
+from arbiscan.services.multisource_realtime_scanner import (
+    MultiSourceTelemetrySnapshot,
+    RealtimeScanner,
+)
 from arbiscan.services.realtime_scanner import (
     PollScheduleState,
     RealtimeCycleMetrics,
@@ -17,6 +20,7 @@ from arbiscan.services.vertical_slice import (
 __all__ = [
     "BookIssue",
     "BookIssueCode",
+    "MultiSourceTelemetrySnapshot",
     "PollScheduleState",
     "RealtimeCycleMetrics",
     "RealtimeEvaluationIssue",
