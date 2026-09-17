@@ -174,7 +174,7 @@ def test_newest_source_observation_wins_before_price_competition() -> None:
     )
     assert selected.decimal_price == Decimal("2.10")
     assert selected.provider_id == SHARED_BOOKMAKER
-    assert selected.source_provider_id == ODSPAPI
+    assert selected.source_provider_id == ODDSPAPI
 
 
 def test_equivalent_equal_time_overlap_is_deterministic_and_counted_once() -> None:
@@ -223,7 +223,7 @@ def test_equivalent_equal_time_overlap_is_deterministic_and_counted_once() -> No
     )
     assert forward_quote.id == reverse_quote.id
     assert forward_quote.provider_id == SHARED_BOOKMAKER
-    assert forward_quote.source_provider_id == ODSPAPI
+    assert forward_quote.source_provider_id == ODDSPAPI
     assert len(forward.books[0].quotes) == 2
 
 
@@ -266,7 +266,7 @@ def test_conflicting_equal_time_overlap_fails_closed_for_price_provider_slot() -
     assert len(conflicts) == 2
     assert {diagnostic.source_provider_id for diagnostic in conflicts} == {
         THE_ODDS_API,
-        ODSPAPI,
+        ODDSPAPI,
     }
     assert all(diagnostic.provider_id == SHARED_BOOKMAKER for diagnostic in conflicts)
     assert MarketBookDiagnosticCode.INCOMPLETE_MARKET in {
