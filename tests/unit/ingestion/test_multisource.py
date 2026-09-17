@@ -139,6 +139,4 @@ def test_same_transport_versions_independently_from_overlapping_source() -> None
     assert update.updated_count == 1
     assert update.accepted[0].revision == 2
     assert len(store) == 2
-    assert store.consolidate_fresh(as_of=AS_OF + timedelta(seconds=3)).quotes == (
-        source_a_update,
-    )
+    assert store.consolidate_fresh(as_of=AS_OF + timedelta(seconds=3)).quotes == (source_a_update,)
