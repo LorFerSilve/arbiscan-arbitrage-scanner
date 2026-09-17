@@ -1,0 +1,19 @@
+[
+  {
+    "fixtureId": "id1000001761301777",
+    "participant1Id": 501,
+    "participant2Id": 502,
+    "sportId": 12,
+    "tournamentId": 77,
+    "seasonId": 130299,
+    "statusId": 0,
+    "hasOdds": true,
+    "startTime": "2026-09-18T15:00:00.000Z",
+    "updatedAt": "2026-09-18T14:57:00.000Z",
+    "statusName": "Pre-Game",
+    "participant1Name": "Carlos Alcaraz",
+    "participant2Name": "Jannik Sinner",
+    "sportName": "Tennis",
+    "tournamentName": "US Open"
+  }
+]
