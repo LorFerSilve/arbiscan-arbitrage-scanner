@@ -32,55 +32,8 @@ jobs:
           python-version: "3.13.15"
           enable-cache: true
 
-      - name: Apply Phase 16.2 finalization
-        run: |
-          python scripts/phase16_finalize_patch.py
-          uvx --from ruff==0.16.7 ruff format \
-            scripts/phase16_finalize_patch.py \
-            src/arbiscan/ingestion/realtime.py \
-            src/arbiscan/ingestion/__init__.py \
-            src/arbiscan/services/realtime_scanner.py \
-            src/arbiscan/services/observable_realtime_scanner.py \
-            src/arbiscan/observability/runtime.py \
-            tests/integration/test_phase16_multisource_realtime.py \
-            tests/unit/test_phase16_persistence_provenance.py
-          uvx --from ruff==0.16.7 ruff check --fix \
-            scripts/phase16_finalize_patch.py \
-            src/arbiscan/ingestion/realtime.py \
-            src/arbiscan/ingestion/__init__.py \
-            src/arbiscan/services/realtime_scanner.py \
-            src/arbiscan/services/observable_realtime_scanner.py \
-            src/arbiscan/observability/runtime.py \
-            tests/integration/test_phase16_multisource_realtime.py \
-            tests/unit/test_phase16_persistence_provenance.py
-
       - name: Verify lock file and install project
         run: uv sync --locked
 
       - name: Run quality and security gates
         run: uv run python scripts/quality.py --all
-
-      - name: Package finalized Phase 16.2 files
-        if: always()
-        run: |
-          mkdir -p phase16-artifact
-          cp --parents \
-            src/arbiscan/ingestion/realtime.py \
-            src/arbiscan/ingestion/__init__.py \
-            src/arbiscan/services/realtime_scanner.py \
-            src/arbiscan/services/observable_realtime_scanner.py \
-            src/arbiscan/observability/runtime.py \
-            tests/integration/test_phase16_multisource_realtime.py \
-            tests/unit/test_phase16_persistence_provenance.py \
-            docs/providers/phase-16-readiness.md \
-            docs/development/README.md \
-            docs/development/phase-16.2-completion.md \
-            phase16-artifact/
-
-      - name: Upload finalized Phase 16.2 files
-        if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        with:
-          name: phase16-finalized-files
-          path: phase16-artifact
-          if-no-files-found: error
