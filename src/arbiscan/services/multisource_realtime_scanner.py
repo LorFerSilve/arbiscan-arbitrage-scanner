@@ -211,9 +211,7 @@ class RealtimeScanner(ObservableRealtimeScanner):
             diagnostic.code.value for diagnostic in consolidation.diagnostics
         )
         transport_provider_ids = ";".join(
-            ",".join(
-                provider_id.value for provider_id in diagnostic.transport_provider_ids
-            )
+            ",".join(provider_id.value for provider_id in diagnostic.transport_provider_ids)
             for diagnostic in consolidation.diagnostics
         )
         self.log_sink.emit(
