@@ -381,7 +381,7 @@ def normalize_source_snapshot(
                     quote.market_id.value,
                     quote.selection_id.value,
                     quote.provider_id.value,
-                    quote.transport_provider_id.value,
+                    (quote.transport_provider_id or quote.provider_id).value,
                 ),
             )
         ),

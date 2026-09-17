@@ -137,7 +137,15 @@ def consolidate_quotes(quotes: Iterable[OddsQuote]) -> ConsolidationResult:
     equivalent_overlap_count = 0
     conflict_count = 0
 
-    for slot in sorted(grouped):
+    for slot in sorted(
+        grouped,
+        key=lambda item: (
+            item.event_id.value,
+            item.market_id.value,
+            item.selection_id.value,
+            item.provider_id.value,
+        ),
+    ):
         observations = grouped[slot]
         newest_timestamp = max(effective_timestamp(quote) for quote in observations)
         newest = [quote for quote in observations if effective_timestamp(quote) == newest_timestamp]
