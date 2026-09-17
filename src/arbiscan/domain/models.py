@@ -299,7 +299,13 @@ class Selection:
 
 @dataclass(frozen=True, slots=True)
 class OddsQuote:
-    """One provider price with complete canonical identity and source provenance."""
+    """One executable price observation with canonical and transport provenance.
+
+    ``provider_id`` is the price origin (bookmaker/exchange). ``transport_provider_id``
+    is the independent feed/API through which ArbiScan observed that price. Legacy and
+    direct-source callers may omit the transport identity; it then defaults to the price
+    provider so Phase-15 persisted fixtures and direct-provider semantics remain valid.
+    """
 
     id: QuoteId
     provider_id: ProviderId
@@ -315,10 +321,18 @@ class OddsQuote:
     source_timestamp: datetime | None = None
     trace_id: str | None = None
     raw_source_reference: str | None = None
+    transport_provider_id: ProviderId | None = None
 
     def __post_init__(self) -> None:
         require_instance(self.id, QuoteId, field="odds_quote.id")
         require_instance(self.provider_id, ProviderId, field="odds_quote.provider_id")
+        transport_provider_id = self.transport_provider_id or self.provider_id
+        require_instance(
+            transport_provider_id,
+            ProviderId,
+            field="odds_quote.transport_provider_id",
+        )
+        object.__setattr__(self, "transport_provider_id", transport_provider_id)
         require_instance(self.event_id, EventId, field="odds_quote.event_id")
         require_instance(self.market_id, MarketId, field="odds_quote.market_id")
         require_instance(self.selection_id, SelectionId, field="odds_quote.selection_id")
