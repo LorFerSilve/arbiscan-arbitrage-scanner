@@ -7,7 +7,7 @@ on:
     branches: [main]
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -23,8 +23,7 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825a76410c181273ba90b1 # v7.0.1
         with:
-          ref: codex/phase-16-2-provenance-hardening
-          persist-credentials: true
+          persist-credentials: false
 
       - name: Install pinned uv and Python
         uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
@@ -34,7 +33,6 @@ jobs:
           enable-cache: true
 
       - name: Apply Phase 16.2 finalization
-        if: github.actor != 'github-actions[bot]'
         run: |
           python scripts/phase16_finalize_patch.py
           uvx --from ruff==0.16.7 ruff format \
@@ -62,19 +60,27 @@ jobs:
       - name: Run quality and security gates
         run: uv run python scripts/quality.py --all
 
-      - name: Commit Phase 16.2 completion
-        if: github.actor != 'github-actions[bot]'
+      - name: Package finalized Phase 16.2 files
+        if: always()
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add src/arbiscan/ingestion/realtime.py src/arbiscan/ingestion/__init__.py \
+          mkdir -p phase16-artifact
+          cp --parents \
+            src/arbiscan/ingestion/realtime.py \
+            src/arbiscan/ingestion/__init__.py \
             src/arbiscan/services/realtime_scanner.py \
             src/arbiscan/services/observable_realtime_scanner.py \
             src/arbiscan/observability/runtime.py \
             tests/integration/test_phase16_multisource_realtime.py \
             tests/unit/test_phase16_persistence_provenance.py \
-            docs/providers/phase-16-readiness.md docs/development/README.md \
+            docs/providers/phase-16-readiness.md \
+            docs/development/README.md \
             docs/development/phase-16.2-completion.md \
-            scripts/phase16_finalize_patch.py
-          git commit -m "feat: complete Phase 16.2 realtime provenance hardening"
-          git push origin HEAD:codex/phase-16-2-provenance-hardening
+            phase16-artifact/
+
+      - name: Upload finalized Phase 16.2 files
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: phase16-finalized-files
+          path: phase16-artifact
+          if-no-files-found: error
