@@ -25,7 +25,10 @@ This directory contains the reproducible engineering setup plus formal completio
 - [`phase-13-completion.md`](phase-13-completion.md) — Phase 13 service/API boundary.
 - [`phase-14-completion.md`](phase-14-completion.md) — Phase 14 observability and operational resilience.
 - [`phase-15-completion.md`](phase-15-completion.md) — Phase 15 dashboard and alert boundary.
+- [`phase-16.2-completion.md`](phase-16.2-completion.md) — Phase 16.2 multi-source provenance hardening and deterministic overlap consolidation.
 
 ## Current hand-off
 
-Phases 0 through 15 are the completed baseline. The next roadmap dependency is Phase 16 multi-provider expansion. Before implementation, read [`../providers/phase-16-readiness.md`](../providers/phase-16-readiness.md) and ADR-0012, which define the source-independence, overlap-provenance, and coexistence gates for adding another real odds source.
+Phases 0 through 15 remain the completed product/runtime baseline. Phase 16.1 selected OddsPapi as the next development source, and Phase 16.2 now implements the source-provenance architecture required by ADR-0012.
+
+The next implementation dependency is **Phase 16.3 — second provider adapter**. Before implementing it, read [`../providers/phase-16.1-provider-selection.md`](../providers/phase-16.1-provider-selection.md), [`../providers/oddspapi.md`](../providers/oddspapi.md), [`phase-16.2-completion.md`](phase-16.2-completion.md), and ADR-0012. The adapter must preserve transport identity separately from bookmaker identity and explicitly map overlapping bookmaker identities into the canonical price-provider namespace.
