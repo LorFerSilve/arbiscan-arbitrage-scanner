@@ -29,6 +29,11 @@ from arbiscan.providers.models import (
     SourceParticipant,
     SourceSelectionQuote,
 )
+from arbiscan.providers.oddspapi import (
+    ODDSPAPI_PROVIDER_ID,
+    OddsPapiConfig,
+    OddsPapiProvider,
+)
 from arbiscan.providers.resilience import ProviderCallPolicy, ProviderExecutor
 from arbiscan.providers.the_odds_api import (
     THE_ODDS_API_PROVIDER_ID,
@@ -37,6 +42,7 @@ from arbiscan.providers.the_odds_api import (
 )
 
 __all__ = [
+    "ODDSPAPI_PROVIDER_ID",
     "THE_ODDS_API_PROVIDER_ID",
     "AsyncHttpTransport",
     "CanonicalIdHooks",
@@ -44,6 +50,8 @@ __all__ = [
     "FakeProviderFixtures",
     "HttpResponse",
     "HttpTransportError",
+    "OddsPapiConfig",
+    "OddsPapiProvider",
     "OddsSnapshot",
     "ProviderAdapter",
     "ProviderCallPolicy",
