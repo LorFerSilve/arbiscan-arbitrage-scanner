@@ -266,17 +266,11 @@ def test_real_sources_contribute_distinct_best_prices_to_one_market_book() -> No
 
     assert selected[phase16_5.HOME_SELECTION_ID].provider_id == BET365_ID
     assert selected[phase16_5.HOME_SELECTION_ID].decimal_price == Decimal("2.70")
-    assert (
-        selected[phase16_5.HOME_SELECTION_ID].transport_provider_id
-        == THE_ODDS_API_PROVIDER_ID
-    )
+    assert selected[phase16_5.HOME_SELECTION_ID].transport_provider_id == THE_ODDS_API_PROVIDER_ID
 
     assert selected[phase16_5.DRAW_SELECTION_ID].provider_id == phase16_5.PINNACLE_ID
     assert selected[phase16_5.DRAW_SELECTION_ID].decimal_price == Decimal("3.25")
-    assert (
-        selected[phase16_5.DRAW_SELECTION_ID].transport_provider_id
-        == THE_ODDS_API_PROVIDER_ID
-    )
+    assert selected[phase16_5.DRAW_SELECTION_ID].transport_provider_id == THE_ODDS_API_PROVIDER_ID
 
     assert selected[phase16_5.AWAY_SELECTION_ID].provider_id == BETFAIR_ID
     assert selected[phase16_5.AWAY_SELECTION_ID].decimal_price == Decimal("3.4")
@@ -302,12 +296,10 @@ def test_real_provider_outage_is_isolated_from_the_other_source() -> None:
     batch = asyncio.run(runtime.poll_once((unavailable, healthy), Sport.FOOTBALL))
 
     assert batch.ingestion.snapshots
-    assert {
-        snapshot.provider.id for snapshot in batch.ingestion.snapshots
-    } == {ODDSPAPI_PROVIDER_ID}
-    assert any(
-        issue.provider_id == THE_ODDS_API_PROVIDER_ID for issue in batch.ingestion.issues
-    )
+    assert {snapshot.provider.id for snapshot in batch.ingestion.snapshots} == {
+        ODDSPAPI_PROVIDER_ID
+    }
+    assert any(issue.provider_id == THE_ODDS_API_PROVIDER_ID for issue in batch.ingestion.issues)
     metrics = {metric.provider_id: metric for metric in batch.provider_metrics}
     assert metrics[THE_ODDS_API_PROVIDER_ID].snapshot_count == 0
     assert metrics[THE_ODDS_API_PROVIDER_ID].issue_count > 0
@@ -481,9 +473,9 @@ def test_unmatched_real_source_cannot_enter_the_other_sources_market_book() -> N
 
     healthy_quotes = quotes[ODDSPAPI_PROVIDER_ID]
     book = _book(registry, healthy_quotes)
-    assert {
-        outcome.quote.transport_provider_id for outcome in book.outcomes
-    } == {ODDSPAPI_PROVIDER_ID}
+    assert {outcome.quote.transport_provider_id for outcome in book.outcomes} == {
+        ODDSPAPI_PROVIDER_ID
+    }
 
 
 def test_suspended_real_source_observation_is_invalidated_independently() -> None:
@@ -528,9 +520,7 @@ def test_provider_policy_targets_price_origins_not_transport_sources() -> None:
     excluding_transport_id = _book(
         registry,
         consolidated,
-        provider_policy=ProviderBookPolicy(
-            excluded_provider_ids=(THE_ODDS_API_PROVIDER_ID,)
-        ),
+        provider_policy=ProviderBookPolicy(excluded_provider_ids=(THE_ODDS_API_PROVIDER_ID,)),
     )
 
     unrestricted_by_selection = {
@@ -580,8 +570,6 @@ def test_persisted_real_opportunity_preserves_price_and_transport_provenance(
         THE_ODDS_API_PROVIDER_ID,
         ODDSPAPI_PROVIDER_ID,
     }
-    provenance = {
-        quote.provider_id: quote.transport_provider_id for quote in restored.quotes
-    }
+    provenance = {quote.provider_id: quote.transport_provider_id for quote in restored.quotes}
     assert provenance[BET365_ID] == THE_ODDS_API_PROVIDER_ID
     assert provenance[BETFAIR_ID] == ODDSPAPI_PROVIDER_ID
