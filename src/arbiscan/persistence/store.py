@@ -54,6 +54,14 @@ _MIGRATIONS: tuple[tuple[int, str], ...] = (
             ON audit_events(entity_type, entity_id, recorded_at);
         """,
     ),
+    (
+        2,
+        """
+        ALTER TABLE canonical_snapshots ADD COLUMN source_provider_id TEXT;
+        CREATE INDEX idx_snapshots_source_provider_time
+            ON canonical_snapshots(source_provider_id, occurred_at);
+        """,
+    ),
 )
 
 
@@ -106,11 +114,13 @@ class SqliteAuditStore:
             raise PersistenceError("failed to migrate persistence schema") from exc
 
     def persist_quote(self, quote: OddsQuote) -> None:
+        source_provider_id = quote.source_provider_id or quote.provider_id
         self._persist_snapshot(
             "odds_quote",
             _id(quote.id),
             _id(quote.event_id),
             _id(quote.provider_id),
+            _id(source_provider_id),
             quote.ingested_at,
             dumps(quote),
         )
@@ -137,12 +147,14 @@ class SqliteAuditStore:
                 opportunity_id = _id(opportunity.id)
                 for quote_id in expected:
                     quote = quote_by_id[quote_id]
+                    source_provider_id = quote.source_provider_id or quote.provider_id
                     self._upsert(
                         connection,
                         "odds_quote",
                         quote_id,
                         _id(quote.event_id),
                         _id(quote.provider_id),
+                        _id(source_provider_id),
                         quote.ingested_at,
                         dumps(quote),
                     )
@@ -151,6 +163,7 @@ class SqliteAuditStore:
                     "opportunity",
                     opportunity_id,
                     _id(opportunity.event_id),
+                    None,
                     None,
                     opportunity.detected_at,
                     dumps(opportunity),
@@ -177,6 +190,7 @@ class SqliteAuditStore:
                         "stake_plan",
                         plan_id,
                         _id(opportunity.event_id),
+                        None,
                         None,
                         stake_plan.created_at,
                         dumps(stake_plan),
@@ -238,13 +252,21 @@ class SqliteAuditStore:
         entity_id: str,
         event_id: str | None,
         provider_id: str | None,
+        source_provider_id: str | None,
         occurred_at: datetime,
         payload: str,
     ) -> None:
         try:
             with self._connect() as connection:
                 self._upsert(
-                    connection, entity_type, entity_id, event_id, provider_id, occurred_at, payload
+                    connection,
+                    entity_type,
+                    entity_id,
+                    event_id,
+                    provider_id,
+                    source_provider_id,
+                    occurred_at,
+                    payload,
                 )
         except sqlite3.Error as exc:
             raise PersistenceError("failed to persist canonical snapshot") from exc
@@ -256,6 +278,7 @@ class SqliteAuditStore:
         entity_id: str,
         event_id: str | None,
         provider_id: str | None,
+        source_provider_id: str | None,
         occurred_at: datetime,
         payload: str,
     ) -> None:
@@ -269,9 +292,17 @@ class SqliteAuditStore:
             return
         connection.execute(
             "INSERT INTO canonical_snapshots"
-            "(entity_type, entity_id, event_id, provider_id, occurred_at, payload) "
-            "VALUES (?, ?, ?, ?, ?, ?)",
-            (entity_type, entity_id, event_id, provider_id, _utc_text(occurred_at), payload),
+            "(entity_type, entity_id, event_id, provider_id, source_provider_id, occurred_at, payload) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (
+                entity_type,
+                entity_id,
+                event_id,
+                provider_id,
+                source_provider_id,
+                _utc_text(occurred_at),
+                payload,
+            ),
         )
         connection.execute(
             "INSERT INTO audit_events"
