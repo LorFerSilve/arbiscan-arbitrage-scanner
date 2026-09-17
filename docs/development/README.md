@@ -28,11 +28,14 @@ This directory contains the reproducible engineering setup plus formal completio
 - [`phase-16.2-completion.md`](phase-16.2-completion.md) — Phase 16.2 multi-source provenance hardening.
 - [`phase-16.3-completion.md`](phase-16.3-completion.md) — Phase 16.3 OddsPapi second provider adapter.
 - [`phase-16.4-completion.md`](phase-16.4-completion.md) — Phase 16.4 reusable fixtures and provider conformance.
+- [`phase-16.5-completion.md`](phase-16.5-completion.md) — Phase 16.5 normalization and event-matching validation across both real adapter schemas.
 
 ## Current hand-off
 
-Phases 0 through 15 and Phase 16.1 through Phase 16.4 are the completed baseline. The
-next roadmap dependency is **Phase 16.5 — normalization and event-matching
-validation**. Before implementation, read
+Phases 0 through 15 and Phase 16.1 through Phase 16.5 are the completed baseline. The
+next roadmap dependency is **Phase 16.6 — real multi-source coexistence regressions**.
+Before implementation, read
 [`../providers/phase-16-readiness.md`](../providers/phase-16-readiness.md), ADR-0012,
-the Phase 16.3 adapter completion record, and the Phase 16.4 conformance evidence.
+and the Phase 16.2 through Phase 16.5 completion records so the coexistence suite
+preserves the established provenance, matching, normalization, and fail-closed
+invariants.
