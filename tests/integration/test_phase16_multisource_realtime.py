@@ -80,7 +80,10 @@ def test_realtime_scanner_consolidates_same_bookmaker_across_transports() -> Non
     telemetry = scanner.multisource_telemetry
     assert telemetry.last_equivalent_overlap_count == 1
     assert telemetry.last_material_conflict_count == 0
-    assert scanner.log_sink.records[-1].event == "scanner.multisource.consolidation"
+    record = scanner.log_sink.records[-1]
+    assert record.event == "scanner.cycle.completed"
+    assert record.fields["equivalent_overlap_count"] == 1
+    assert record.fields["material_conflict_count"] == 0
 
 
 def test_realtime_scanner_suppresses_equal_time_material_conflict() -> None:
