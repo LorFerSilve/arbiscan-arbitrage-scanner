@@ -169,7 +169,7 @@ class RealtimeScanner:
         self.runtime = runtime or RealtimeIngestionRuntime(policy=self.policy, clock=clock)
         if self.runtime.policy != self.policy:
             raise ValueError("runtime policy must equal scanner policy")
-        self.store = store or LiveQuoteStore(self.policy)
+        self.store = store if store is not None else LiveQuoteStore(self.policy)
         if self.store.policy != self.policy:
             raise ValueError("store policy must equal scanner policy")
         self.adapters = tuple(sorted(adapters, key=lambda item: item.provider.id.value))
@@ -249,6 +249,16 @@ class RealtimeScanner:
                 )
         return keys
 
+    def _update_source_invalidations(
+        self,
+        normalized_quotes: tuple[OddsQuote, ...],
+        explicit_invalidations: set[QuoteKey],
+    ) -> None:
+        """Update price-provider invalidation state for the default single-source store."""
+        active_observed_keys = {QuoteKey.from_quote(quote) for quote in normalized_quotes}
+        self._source_invalidated_quote_keys.difference_update(active_observed_keys)
+        self._source_invalidated_quote_keys.update(explicit_invalidations)
+
     async def run_cycle(self) -> RealtimeScanCycle:
         """Poll, normalize, version, evict, align, and evaluate one live cycle."""
         started_at = self._now()
@@ -274,9 +284,7 @@ class RealtimeScanner:
             normalization_issues.extend(normalized.issues)
 
         quote_updates = self.store.apply(normalized_quotes, observed_at=detected_at)
-        active_observed_keys = {QuoteKey.from_quote(quote) for quote in normalized_quotes}
-        self._source_invalidated_quote_keys.difference_update(active_observed_keys)
-        self._source_invalidated_quote_keys.update(explicit_invalidations)
+        self._update_source_invalidations(tuple(normalized_quotes), explicit_invalidations)
 
         evictions = self.store.evict_stale(as_of=detected_at)
         for version in evictions.evicted:
