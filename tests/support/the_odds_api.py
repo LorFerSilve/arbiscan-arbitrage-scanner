@@ -64,9 +64,9 @@ class FixtureHttpTransport:
 
         if url.endswith("/sports"):
             fixture_name = self.fixture_overrides.get("sports", "sports.json")
-        elif url.endswith("/sports/soccer_epl/events"):
+        elif url.endswith("/events") and "/sports/" in url:
             fixture_name = self.fixture_overrides.get("events", "events_soccer_epl.json")
-        elif "/sports/soccer_epl/events/" in url and url.endswith("/odds"):
+        elif url.endswith("/odds") and "/sports/" in url and "/events/" in url:
             fixture_name = self.fixture_overrides.get("odds", "odds_event.json")
         else:
             raise AssertionError(f"unexpected fixture request route: {url}")
