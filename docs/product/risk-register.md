@@ -61,6 +61,8 @@ A risk with high correctness or security impact must not be dismissed merely bec
 | R-043 | Asian handicap direction is inverted across providers, or PUSH/split-settlement variants enter ordinary two-outcome guaranteed-return math | Medium | Critical | ADR-0015 participant-1 line anchor, exact mirrored selection handicaps, explicit settlement profiles, and half-goal-only generic-engine gate | Closed |
 | R-044 | Full-time BTTS is conflated with first-half/other YES-NO propositions or malformed incomplete outcomes | Medium | Critical | ADR-0016 exact provider market identity, regulation-only support gate, and canonical YES/NO completeness | Closed |
 | R-045 | Draw No Bet / Asian Handicap 0 reciprocal edge is surfaced as strictly positive guaranteed profit because the shared draw-refund state is omitted | Medium | Critical | ADR-0017 generic-path block, explicit settlement-aware normalization, and refundable two-way evaluation with worst-case return | Closed |
+| R-046 | Tennis Set 1 and Set 2 quotes are conflated because participant/outcome labels match | Medium | Critical | ADR-0018 structured `period_index`, exact provider market/period mapping, and strict parameter mismatch before quote construction | Closed |
+| R-047 | Tennis retirement, walkover, abandonment, or incomplete-set rules differ across bookmakers and invalidate a generic realized-profit guarantee | Medium | High | Keep Phase 17.6 output theoretical for normal completed-set settlement; require bookmaker settlement-rule modeling before actionable guarantee | Mitigating |
 
 ## Critical risk themes
 
@@ -80,6 +82,8 @@ Phase 17.3 applies the same principle to Asian handicap orientation and settleme
 Phase 17.4 treats BTTS period identity as equally strict. A YES/NO shape is not sufficient: only provider-specific full-match BTTS identity may resolve to canonical regulation-time BTTS, and the canonical graph must contain exactly one YES and one NO selection.
 
 Phase 17.5 separates a positive decisive-state Draw No Bet price edge from strict guaranteed profit. Football regulation handicap zero can enter only the explicit settlement-aware path; its shared draw PUSH returns stake, fixing worst-case profit at zero even when both decisive outcomes are profitable.
+
+Phase 17.6 makes tennis set number part of canonical market identity. Odds from different sets cannot share a market book even when their participant labels are identical. The normal completed-set payout shape can use ordinary two-way math, but bookmaker-specific retirement, walkover, and incomplete-set rules remain an execution-realism risk and are not treated as a universal settlement guarantee.
 
 ### 2. Temporal correctness
 
