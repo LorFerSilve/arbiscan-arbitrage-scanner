@@ -113,7 +113,7 @@ def _registry(*lines: Decimal) -> CanonicalRegistry:
 
 
 def _market_normalizer() -> MarketNormalizer:
-    aliases = []
+    aliases: list[MarketAlias] = []
     for provider_id, labels in (
         (
             THE_ODDS_API_PROVIDER_ID,
