@@ -248,6 +248,34 @@ asymmetry is allowed; semantic guessing is not.
 
 See [tennis indexed set winner](../markets/tennis-set-winner.md) and ADR-0018.
 
+## Phase 17.7 nested tennis game identity
+
+A tennis game introduces one more identity dimension than a set.
+
+For canonical `GAME_WINNER / GAME`:
+
+- `set_index` identifies the containing set;
+- `period_index` identifies the game number within that set;
+- both must be positive structured integers.
+
+The provider-neutral `SourceMarket` preserves the same nested identity. Strict
+normalization compares both values independently before market support:
+
+```text
+source.set_index == canonical.set_index
+source.period_index == canonical.period_index
+```
+
+A Set 1 / Game 3 source market therefore cannot become Set 2 / Game 3 or Set 1 /
+Game 4, even if all participant labels and prices otherwise match.
+
+Phase 17.7 deliberately keeps `GAME_WINNER` unsupported at the market-support gate.
+No provider label, score string, "current game" concept, or general game-derived
+market may create canonical game quotes until a transport demonstrates stable
+machine-readable set/game identity and relevant settlement semantics.
+
+See [tennis game-market identity](../markets/tennis-game-identity.md) and ADR-0019.
+
 ## Strict quote bridge integration
 
 `normalize_source_snapshot()` still requires explicit canonical ID hooks for event, market, and selection identity. Phase 7 changes its price behavior: all currently supported `SourceOddsFormat` values are passed through `normalize_odds()` before an `OddsQuote` is created.
