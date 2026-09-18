@@ -42,23 +42,21 @@ This directory contains the reproducible engineering setup plus formal completio
 - [`phase-17.8-completion.md`](phase-17.8-completion.md) — Phase 17.8 The Odds API + OddsPapi tennis Set 1/Set 2 cross-transport completion.
 - [`phase-17.9-completion.md`](phase-17.9-completion.md) — Phase 17.9 basketball full-event spreads/totals with overtime-period and push-free settlement gates.
 - [`phase-17.10-completion.md`](phase-17.10-completion.md) — Phase 17.10 motorsport/F1 canonical semantics and fail-closed provider/settlement feasibility gate.
+- [`phase-17.11-completion.md`](phase-17.11-completion.md) — Phase 17.11 broader outright candidate-set and settlement-safety gate.
 
 ## Current hand-off
 
-Phases 0 through 16 and **Phases 17.1–17.10** are the completed technical baseline.
-The next roadmap dependency is **Phase 17.11 — broader outright
-tournament/championship markets**.
+Phases 0 through 16 and **Phases 17.1–17.11** are the completed technical baseline.
+The next roadmap dependency is **Phase 17.12 — exchange-backed outcomes, back/lay
+identity and commission-aware arbitrage semantics**.
 
-Phase 17.10 defines race/qualifying/session/championship identity, full-grid race
-winner completeness, subject-specific podium identity, and exact two-driver H2H
-identity. No motorsport market is runtime-enabled because the two real transports do
-not yet provide a publicly verified equivalent F1 market contract plus explicit
-DNS/DNF/disqualification/dead-heat settlement semantics.
+Phase 17.11 generalizes outright-winner completeness to tournament/championship scope,
+requires one homogeneous candidate type and exact one-selection-per-candidate
+coverage, and rejects Field/Other or incomplete/dynamic fields from canonical runtime
+support. A provider-independent settlement profile now states exactly when the
+existing arbitrary-N reciprocal-odds engine would be mathematically sufficient.
 
-The Odds API motorsport path now fails before binary home/away parsing. OddsPapi
-continues to leave an unverified motorsport sport record unmapped rather than guessing
-a sport ID/slug or market IDs. The existing OddsPapi production/legal blocker remains
-unchanged.
-
-Phase 17.11 should generalize complete multi-participant outright candidate sets and
-settlement behavior before any broader tournament/championship outright is enabled.
+No broader outright is runtime-enabled yet. The Odds API preserves and honors
+`has_outrights` by stopping these competitions before the binary event parser;
+OddsPapi continues to ignore unverified tournament-winner catalogue families. The
+existing OddsPapi production/legal blocker remains unchanged.
