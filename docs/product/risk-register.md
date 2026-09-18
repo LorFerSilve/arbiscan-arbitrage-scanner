@@ -60,6 +60,7 @@ A risk with high correctness or security impact must not be dismissed merely bec
 | R-042 | Football totals with PUSH or split-settlement semantics enter the ordinary two-outcome guaranteed-return calculation | Medium | Critical | ADR-0014 canonical support gate: enable only regulation positive x.5 totals until push/half-win/half-loss payouts are modeled | Closed |
 | R-043 | Asian handicap direction is inverted across providers, or PUSH/split-settlement variants enter ordinary two-outcome guaranteed-return math | Medium | Critical | ADR-0015 participant-1 line anchor, exact mirrored selection handicaps, explicit settlement profiles, and half-goal-only generic-engine gate | Closed |
 | R-044 | Full-time BTTS is conflated with first-half/other YES-NO propositions or malformed incomplete outcomes | Medium | Critical | ADR-0016 exact provider market identity, regulation-only support gate, and canonical YES/NO completeness | Closed |
+| R-045 | Draw No Bet / Asian Handicap 0 reciprocal edge is surfaced as strictly positive guaranteed profit because the shared draw-refund state is omitted | Medium | Critical | ADR-0017 generic-path block, explicit settlement-aware normalization, and refundable two-way evaluation with worst-case return | Closed |
 
 ## Critical risk themes
 
@@ -77,6 +78,8 @@ Phase 17.2 also treats settlement shape as semantic correctness. Football totals
 Phase 17.3 applies the same principle to Asian handicap orientation and settlement geometry. The canonical market line is the signed handicap of ordered participant 1, participant 2 must carry its exact negation, and only half-goal lines may reach ordinary arbitrage/staking. Integer and quarter variants are explicitly settleable in the domain model but remain ineligible for generic guaranteed-return claims.
 
 Phase 17.4 treats BTTS period identity as equally strict. A YES/NO shape is not sufficient: only provider-specific full-match BTTS identity may resolve to canonical regulation-time BTTS, and the canonical graph must contain exactly one YES and one NO selection.
+
+Phase 17.5 separates a positive decisive-state Draw No Bet price edge from strict guaranteed profit. Football regulation handicap zero can enter only the explicit settlement-aware path; its shared draw PUSH returns stake, fixing worst-case profit at zero even when both decisive outcomes are profitable.
 
 ### 2. Temporal correctness
 
