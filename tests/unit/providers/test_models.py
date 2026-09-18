@@ -152,11 +152,21 @@ def test_source_records_preserve_exact_advanced_market_parameters() -> None:
         selections=(home,),
         period_index=2,
     )
+    nested_game = SourceMarket(
+        external_event_id="event:1",
+        external_market_id="market:set:2:game:3",
+        label="Game winner",
+        selections=(home,),
+        period_index=3,
+        set_index=2,
+    )
 
     assert totals.line == Decimal("2.5")
     assert over.handicap is None
     assert home.handicap == Decimal("-1.5")
     assert indexed.period_index == 2
+    assert nested_game.period_index == 3
+    assert nested_game.set_index == 2
 
 
 def test_source_advanced_market_parameters_reject_float_nonfinite_and_bad_index() -> None:
@@ -195,4 +205,35 @@ def test_source_advanced_market_parameters_reject_float_nonfinite_and_bad_index(
             period_index=0,
         ),
         contains="positive integer",
+    )
+
+
+def test_source_nested_game_identity_requires_positive_game_and_set_indexes() -> None:
+    selection = SourceSelectionQuote(
+        external_selection_id="selection:1",
+        label="Player 1",
+        price="2.00",
+        odds_format=SourceOddsFormat.DECIMAL,
+    )
+
+    expect_contract_error(
+        lambda: SourceMarket(
+            external_event_id="event:1",
+            external_market_id="market:game:no-game",
+            label="Game winner",
+            selections=(selection,),
+            set_index=1,
+        ),
+        contains="requires period_index",
+    )
+    expect_contract_error(
+        lambda: SourceMarket(
+            external_event_id="event:1",
+            external_market_id="market:game:bad-set",
+            label="Game winner",
+            selections=(selection,),
+            period_index=3,
+            set_index=0,
+        ),
+        contains="set_index must be a positive integer",
     )
