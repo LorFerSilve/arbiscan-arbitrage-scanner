@@ -416,3 +416,19 @@ Official references reviewed on 2026-09-18:
 
 See [tournament/championship outright semantics](../markets/outright-tournament-championship.md)
 and ADR-0022.
+
+
+## Phase 17.12 exchange boundary
+
+Phase 17.12 does not infer exchange semantics from a bookmaker name.
+
+The current The Odds API adapter emits bookmaker-origin decimal prices only. Even if a
+bookmaker key/title refers to an exchange brand, the adapter does not expose a
+machine-readable BACK/LAY side, available matched amount, account commission rate, or
+commission scope.
+
+Those observations therefore remain ordinary `ProviderKind.BOOKMAKER` price origins
+and cannot construct `ExchangePriceObservation`.
+
+A future exchange mapping requires an authorized transport that exposes the explicit
+order-side and liquidity contract defined by ADR-0023.
