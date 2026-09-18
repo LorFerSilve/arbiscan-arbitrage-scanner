@@ -1,0 +1,25 @@
+{
+  "id": "epl-liverpool-manchester-united-20260917",
+  "sport_key": "soccer_epl",
+  "sport_title": "EPL",
+  "commence_time": "2026-09-17T18:05:00Z",
+  "home_team": "Liverpool FC",
+  "away_team": "Manchester United",
+  "bookmakers": [
+    {
+      "key": "pinnacle",
+      "title": "Pinnacle",
+      "markets": [
+        {
+          "key": "draw_no_bet",
+          "sid": "phase17-5-bad-dnb-participants",
+          "last_update": "2026-09-17T10:20:04Z",
+          "outcomes": [
+            {"name": "Liverpool FC", "price": 1.96, "sid": "bad-dnb-home"},
+            {"name": "Draw", "price": 1.96, "sid": "bad-dnb-draw"}
+          ]
+        }
+      ]
+    }
+  ]
+}
