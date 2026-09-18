@@ -360,9 +360,9 @@ def test_regulation_period_cannot_be_unlocked_by_explicit_source_mapping() -> No
         competitions=base.competitions,
         participants=base.participants,
         events=base.events,
-        markets=base.markets + (regulation_total,),
-        selections=base.selections
-        + (
+        markets=(*base.markets, regulation_total),
+        selections=(
+            *base.selections,
             Selection(
                 id=SelectionId("selection:phase17-9:regulation-over"),
                 market_id=regulation_total.id,
