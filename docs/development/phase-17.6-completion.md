@@ -42,11 +42,17 @@ cannot be promoted to Set 2.
 
 ## The Odds API feasibility result
 
-No Phase 17.6 adapter mapping is added for The Odds API.
+No Phase 17.6 adapter mapping was added for The Odds API.
 
-Current official tennis documentation did not provide an exact machine-readable
-set-winner market key sufficient to establish an indexed set identity. Phase 17.6
-therefore fails closed instead of manufacturing equivalence from labels.
+At the time of the Phase 17.6 implementation, the provider material reviewed did not
+establish an exact machine-readable indexed set-winner key, so the phase correctly
+remained fail-closed rather than manufacturing equivalence from labels.
+
+**Post-completion note (Phase 17.7 revalidation):** the current official The Odds API
+market list now documents tennis `h2h_s1` and `h2h_s2` set moneylines. This does
+not change the Phase 17.6 code or evidence; it creates a new, explicit follow-up
+dependency. Phase 17.8 will implement and validate those keys against the existing
+OddsPapi canonical Set 1 / Set 2 semantics.
 
 ## End-to-end regression
 
