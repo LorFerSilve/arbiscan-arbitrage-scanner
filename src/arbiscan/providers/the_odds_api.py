@@ -353,6 +353,11 @@ def _source_markets(payload: Mapping[str, object], *, event_id: str) -> tuple[So
                 total_points = {point for point in points if point is not None}
                 if len(total_points) != 1:
                     raise _SchemaError("totals market outcomes must share one point")
+                total_labels = {selection.label.casefold() for selection in selections}
+                if len(selections) != 2 or total_labels != {"over", "under"}:
+                    raise _SchemaError(
+                        "totals market must contain exactly one Over and one Under outcome"
+                    )
                 market_line = next(iter(total_points))
             elif market_key == "spreads":
                 if any(point is None for point in points):
@@ -377,9 +382,9 @@ def _source_markets(payload: Mapping[str, object], *, event_id: str) -> tuple[So
 class TheOddsApiProvider(ProviderAdapter):
     """Strict adapter for The Odds API V4.
 
-    The adapter still requests decimal ``h2h`` data by default. Phase 17.1 also
-    preserves structured ``point`` parameters for configured totals/spreads
-    without enabling those market families in canonical arbitrage detection.
+    The adapter still requests decimal ``h2h`` data by default. Phase 17 preserves
+    structured ``point`` parameters for explicitly configured totals/spreads and
+    validates totals as an exact Over/Under pair before canonical normalization.
     """
 
     def __init__(
