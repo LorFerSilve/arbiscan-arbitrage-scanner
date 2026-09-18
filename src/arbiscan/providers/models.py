@@ -418,9 +418,7 @@ class SourceMarket:
         if self.period_index is not None and (
             type(self.period_index) is not int or self.period_index < 1
         ):
-            raise ProviderContractError(
-                "source market period_index must be a positive integer"
-            )
+            raise ProviderContractError("source market period_index must be a positive integer")
 
 
 @dataclass(frozen=True, slots=True)
