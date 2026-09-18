@@ -222,12 +222,8 @@ def test_unmatched_real_source_is_attributed_without_degrading_transport_health(
     assert the_odds.matching_failure_count == 1
     assert the_odds.health_state is ProviderHealthState.HEALTHY
     assert oddspapi.health_state is ProviderHealthState.HEALTHY
-    assert {issue.provider_id for issue in cycle.normalization_issues} == {
-        THE_ODDS_API_PROVIDER_ID
-    }
-    assert {quote.transport_provider_id for quote in cycle.fresh_quotes} == {
-        ODDSPAPI_PROVIDER_ID
-    }
+    assert {issue.provider_id for issue in cycle.normalization_issues} == {THE_ODDS_API_PROVIDER_ID}
+    assert {quote.transport_provider_id for quote in cycle.fresh_quotes} == {ODDSPAPI_PROVIDER_ID}
 
 
 def test_exhausted_oddspapi_quota_degrades_only_that_transport() -> None:
