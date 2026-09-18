@@ -241,17 +241,19 @@ class SqliteAuditStore:
             raise PersistenceError("provider_ids must contain ProviderId values")
         if len(set(providers)) != len(providers):
             raise PersistenceError("provider_ids must be unique")
-        if start_at is not None and end_at is not None and start_at > end_at:
+        start_text = None if start_at is None else _utc_text(start_at)
+        end_text = None if end_at is None else _utc_text(end_at)
+        if start_text is not None and end_text is not None and start_text > end_text:
             raise PersistenceError("start_at cannot be after end_at")
 
         clauses = ["entity_type = 'odds_quote'"]
         parameters: list[str] = []
-        if start_at is not None:
+        if start_text is not None:
             clauses.append("occurred_at >= ?")
-            parameters.append(_utc_text(start_at))
-        if end_at is not None:
+            parameters.append(start_text)
+        if end_text is not None:
             clauses.append("occurred_at <= ?")
-            parameters.append(_utc_text(end_at))
+            parameters.append(end_text)
         if providers:
             placeholders = ", ".join("?" for _ in providers)
             clauses.append(f"provider_id IN ({placeholders})")
