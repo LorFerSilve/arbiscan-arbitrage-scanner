@@ -135,9 +135,7 @@ def test_rollback_to_primary_only_removes_second_source_without_state_leakage() 
     }
     snapshot = rollback_scanner.operational_snapshot
     assert snapshot is not None
-    assert {source.provider_id for source in snapshot.sources} == {
-        THE_ODDS_API_PROVIDER_ID
-    }
+    assert {source.provider_id for source in snapshot.sources} == {THE_ODDS_API_PROVIDER_ID}
     assert rollback_scanner.multisource_telemetry.material_conflicts == 0
 
 
