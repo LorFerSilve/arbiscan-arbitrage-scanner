@@ -413,3 +413,89 @@ def test_phase17_5_draw_no_bet_rejects_unexpected_point_semantics() -> None:
         assert "must not carry point" in str(error)
     else:
         raise AssertionError("Draw No Bet point parameters must fail closed")
+
+
+def test_phase17_8_tennis_set_moneylines_preserve_structured_set_index() -> None:
+    transport = FixtureHttpTransport(
+        fixture_overrides={
+            "events": "events_tennis_atp_us_open_phase16_5.json",
+            "odds": "odds_event_phase17_8_tennis_sets.json",
+        }
+    )
+    provider = TheOddsApiProvider(
+        config=TheOddsApiConfig(
+            api_key=FIXTURE_KEY,
+            markets=("h2h_s1", "h2h_s2"),
+        ),
+        transport=transport,
+        clock=lambda: NOW,
+    )
+
+    event = asyncio.run(provider.discover_events("tennis_atp_us_open"))[0]
+    snapshot = asyncio.run(provider.fetch_odds(event.external_id))
+
+    assert snapshot is not None
+    assert len(snapshot.markets) == 4
+    assert {market.period_index for market in snapshot.markets} == {1, 2}
+    assert {market.line for market in snapshot.markets} == {None}
+    assert all(
+        {selection.label for selection in market.selections}
+        == {"Jannik Sinner", "Carlos Alcaraz"}
+        for market in snapshot.markets
+    )
+    assert all(
+        {selection.handicap for selection in market.selections} == {None}
+        for market in snapshot.markets
+    )
+    by_key = {
+        market.label.rsplit(" ", 1)[1]: market.period_index
+        for market in snapshot.markets
+    }
+    assert by_key == {"h2h_s1": 1, "h2h_s2": 2}
+    assert transport.requests[-1].query["markets"] == "h2h_s1,h2h_s2"
+
+
+def test_phase17_8_tennis_set_moneyline_requires_exact_event_participants() -> None:
+    transport = FixtureHttpTransport(
+        fixture_overrides={
+            "events": "events_tennis_atp_us_open_phase16_5.json",
+            "odds": "odds_event_phase17_8_bad_set_participants.json",
+        }
+    )
+    provider = TheOddsApiProvider(
+        config=TheOddsApiConfig(api_key=FIXTURE_KEY, markets=("h2h_s1",)),
+        transport=transport,
+        clock=lambda: NOW,
+    )
+
+    event = asyncio.run(provider.discover_events("tennis_atp_us_open"))[0]
+    try:
+        asyncio.run(provider.fetch_odds(event.external_id))
+    except ProviderError as error:
+        assert error.kind is ProviderErrorKind.MALFORMED_RESPONSE
+        assert "home and away participants" in str(error)
+    else:
+        raise AssertionError("tennis set participant drift must fail closed")
+
+
+def test_phase17_8_tennis_set_moneyline_rejects_unexpected_point_semantics() -> None:
+    transport = FixtureHttpTransport(
+        fixture_overrides={
+            "events": "events_tennis_atp_us_open_phase16_5.json",
+            "odds": "odds_event_phase17_8_bad_set_point.json",
+        }
+    )
+    provider = TheOddsApiProvider(
+        config=TheOddsApiConfig(api_key=FIXTURE_KEY, markets=("h2h_s2",)),
+        transport=transport,
+        clock=lambda: NOW,
+    )
+
+    event = asyncio.run(provider.discover_events("tennis_atp_us_open"))[0]
+    try:
+        asyncio.run(provider.fetch_odds(event.external_id))
+    except ProviderError as error:
+        assert error.kind is ProviderErrorKind.MALFORMED_RESPONSE
+        assert "must not carry point" in str(error)
+    else:
+        raise AssertionError("tennis set point parameters must fail closed")
