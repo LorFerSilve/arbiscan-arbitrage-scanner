@@ -247,24 +247,34 @@ The default provider request remains `h2h`; Draw No Bet is opt-in.
 
 See [football Draw No Bet](../markets/football-draw-no-bet.md) and ADR-0017.
 
-## Phase 17.6 tennis set-winner scope and Phase 17.7 revalidation
+## Phase 17.8 tennis indexed set winner
 
-Phase 17.6 did **not** add a tennis set-winner mapping for The Odds API because the
-provider material reviewed during that implementation did not establish an exact
-indexed set-winner key.
-
-During the Phase 17.7 provider revalidation, the current official betting-market list
-was found to document tennis set moneyline keys:
+The provider's current official market list documents the tennis keys:
 
 - `h2h_s1` — moneyline for the first set;
 - `h2h_s2` — moneyline for the second set.
 
-That new evidence changes provider feasibility, but it does not retroactively make
-the existing adapter support those keys. The implementation remains fail-closed until
-a follow-up phase adds strict parser fixtures, participant validation, structured
-`period_index` mapping, and cross-transport equivalence tests against OddsPapi.
+When either key is explicitly configured, the adapter requires:
 
-Phase 17.8 owns that cross-transport completion.
+- a tennis event;
+- exactly two outcomes;
+- outcome labels exactly matching the event participants;
+- no numeric `point` semantics.
+
+It emits:
+
+- `h2h_s1` with `SourceMarket.period_index=1`;
+- `h2h_s2` with `SourceMarket.period_index=2`;
+- no market line;
+- no selection handicap.
+
+Malformed participant identity or point-bearing set-moneyline data fails closed at
+the adapter boundary.
+
+The default request remains `h2h`; indexed set markets are opt-in.
+
+Phase 17.8 fixtures also prove cross-transport equivalence with OddsPapi Set 1 / Set
+2 winner and ADR-0012 consolidation when both transports observe Pinnacle.
 
 Official references:
 
