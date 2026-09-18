@@ -1,0 +1,44 @@
+[
+  {
+    "marketId": 121,
+    "marketLength": 2,
+    "marketName": "Match Winner",
+    "playerProp": false,
+    "sportId": 12,
+    "handicap": 0,
+    "period": "match",
+    "marketType": "winner",
+    "outcomes": [
+      {"outcomeId": 121, "outcomeName": "1"},
+      {"outcomeId": 122, "outcomeName": "2"}
+    ]
+  },
+  {
+    "marketId": 123,
+    "marketLength": 2,
+    "marketName": "First Set Winner",
+    "playerProp": false,
+    "sportId": 12,
+    "handicap": 0,
+    "period": "p1",
+    "marketType": "winner",
+    "outcomes": [
+      {"outcomeId": 123, "outcomeName": "1"},
+      {"outcomeId": 124, "outcomeName": "2"}
+    ]
+  },
+  {
+    "marketId": 125,
+    "marketLength": 2,
+    "marketName": "Second Set Winner",
+    "playerProp": false,
+    "sportId": 12,
+    "handicap": 0,
+    "period": "p2",
+    "marketType": "winner",
+    "outcomes": [
+      {"outcomeId": 125, "outcomeName": "1"},
+      {"outcomeId": 126, "outcomeName": "2"}
+    ]
+  }
+]
