@@ -1216,30 +1216,46 @@ Each market family requires its own semantic specification and test matrix befor
 
 # Phase 18 — Historical analysis, replay, and backtesting
 
+Status: **Complete**.
+
 ## Objective
 
 Measure how the system would have behaved rather than relying on anecdotal opportunities.
 
-## Capabilities
+## Delivered capabilities
 
-- replay normalized historical quote streams;
-- reproduce opportunity lifecycle;
-- analyze duration of opportunities;
-- estimate sensitivity to detection latency;
-- quantify stale-data false positives;
-- compare providers;
-- measure matching precision/recall on labeled data;
-- analyze theoretical vs actionable opportunities.
+- deterministic replay of normalized canonical quote streams;
+- stable SHA-256 identity for a fixed historical corpus;
+- reuse of production market-book, arbitrage, opportunity, and optional actionability
+  primitives rather than a separate backtest detector;
+- contiguous opportunity lifecycle/duration analysis;
+- configurable detection-latency sensitivity;
+- stale-data false-positive counterfactual analysis;
+- provider quote, best-price, complete-book, and provider-only signal comparisons;
+- matching precision/recall on labeled event-identity decisions;
+- explicit theoretical versus modeled-actionable detection counts;
+- deterministic time/provider-filtered canonical quote loading from SQLite audit
+  persistence;
+- persistence-to-replay reproducibility regression.
+
+ADR-0024 owns the historical-replay and realized-profit boundary.
 
 ## Important caveat
 
-Backtests must avoid claiming realized profitability from price snapshots alone. Execution uncertainty, account limits, rejected bets, latency, odds changes, market suspension, fees, and bookmaker rules must be modeled or explicitly excluded from the conclusion.
+Backtests do not claim realized profitability from price snapshots alone. Execution
+uncertainty, account limits, rejected bets, latency, odds changes, market suspension,
+fees, and bookmaker rules must be modeled or explicitly excluded from the conclusion.
 
 ## Exit criteria
 
-- detection behavior can be reproduced offline;
-- system changes can be evaluated against a fixed historical corpus;
-- performance claims distinguish theoretical signal quality from actual betting execution.
+- **Complete:** detection behavior can be reproduced offline through production
+  correctness primitives;
+- **Complete:** system changes can be evaluated against one digest-identified fixed
+  historical corpus;
+- **Complete:** reports distinguish theoretical signal quality, modeled actionability,
+  and unproven realized execution.
+
+The next dependency is **Phase 19 — performance and scalability engineering**.
 
 ---
 
@@ -1531,14 +1547,15 @@ The critical architectural rule is that **provider integrations do not define th
 
 # Current project status
 
-- Repository created.
-- Repository is public.
+- Repository created and public.
 - `main` is protected by an active ruleset.
-- Pull requests are required for changes to the default branch.
-- Force pushes and default-branch deletion are blocked.
-- Linear history is required.
-- Review conversations must be resolved before merge.
-- Squash merge is the intended repository merge strategy.
-- No application implementation has started.
+- Pull requests, resolved review conversations, linear history, and squash merges are
+  required for default-branch changes.
+- Phases 0 through 17 are merged to `main`.
+- Phase 18 historical replay/backtesting is implemented on its feature branch and
+  subject to the normal PR/CI merge gate.
+- OddsPapi remains production-blocked by the documented rights/compliance gate.
+- The product remains scanner-only; no automated wager execution is enabled.
 
-**Next milestone: Phase 0 — Product definition, scope, and invariants.**
+**Next milestone after Phase 18 merge: Phase 19 — Performance and scalability
+engineering.**
