@@ -363,6 +363,14 @@ def _source_markets(payload: Mapping[str, object], *, event_id: str) -> tuple[So
                         "totals market must contain exactly one Over and one Under outcome"
                     )
                 market_line = next(iter(total_points))
+            elif market_key == "btts":
+                if any(point is not None for point in points):
+                    raise _SchemaError("btts market outcomes must not carry point")
+                btts_labels = [selection.label.casefold() for selection in selections]
+                if len(selections) != 2 or sorted(btts_labels) != ["no", "yes"]:
+                    raise _SchemaError(
+                        "btts market must contain exactly one Yes and one No outcome"
+                    )
             elif market_key == "spreads":
                 if any(point is None for point in points):
                     raise _SchemaError("spreads market outcomes require point")
