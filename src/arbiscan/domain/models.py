@@ -218,6 +218,7 @@ class Market:
     line: Decimal | None = None
     period_index: int | None = None
     set_index: int | None = None
+    subject_participant_id: ParticipantId | None = None
     provider_references: tuple[ProviderMarketReference, ...] = field(default_factory=tuple)
 
     def __post_init__(self) -> None:
@@ -270,6 +271,40 @@ class Market:
             raise DomainValidationError("set-winner markets must use MarketPeriod.SET")
         if self.kind is MarketKind.GAME_WINNER and self.period is not MarketPeriod.GAME:
             raise DomainValidationError("game-winner markets must use MarketPeriod.GAME")
+
+        if self.subject_participant_id is not None:
+            require_instance(
+                self.subject_participant_id,
+                ParticipantId,
+                field="market.subject_participant_id",
+            )
+        if self.kind is MarketKind.PODIUM_FINISH:
+            if self.subject_participant_id is None:
+                raise DomainValidationError(
+                    "podium-finish markets require market.subject_participant_id"
+                )
+        elif self.subject_participant_id is not None:
+            raise DomainValidationError(
+                "subject_participant_id is only valid for podium-finish markets"
+            )
+
+        if self.kind is MarketKind.OUTRIGHT_WINNER and self.period not in {
+            MarketPeriod.RACE,
+            MarketPeriod.QUALIFYING,
+            MarketPeriod.SESSION,
+            MarketPeriod.TOURNAMENT,
+        }:
+            raise DomainValidationError(
+                "outright-winner markets require race, qualifying, session, or tournament scope"
+            )
+        if self.kind in {MarketKind.PODIUM_FINISH, MarketKind.HEAD_TO_HEAD} and self.period not in {
+            MarketPeriod.RACE,
+            MarketPeriod.QUALIFYING,
+            MarketPeriod.SESSION,
+        }:
+            raise DomainValidationError(
+                "motorsport podium/head-to-head markets require race, qualifying, or session scope"
+            )
 
         provider_ids = [reference.provider_id for reference in references]
         if len(set(provider_ids)) != len(provider_ids):
