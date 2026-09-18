@@ -210,3 +210,16 @@ def test_unexpected_selection_handicap_is_rejected_fail_closed() -> None:
     assert tuple(issue.code for issue in result.issues) == (
         NormalizationIssueCode.SELECTION_PARAMETER_MISMATCH,
     )
+
+
+def test_unexpected_period_index_is_rejected_before_quote_creation() -> None:
+    event, snapshot, registry, hooks = _total_context()
+    modified_market = replace(snapshot.markets[0], period_index=1)
+    modified_snapshot = replace(snapshot, markets=(modified_market,))
+
+    result = _normalize(event, modified_snapshot, registry, hooks)
+
+    assert result.quotes == ()
+    assert tuple(issue.code for issue in result.issues) == (
+        NormalizationIssueCode.MARKET_PARAMETER_MISMATCH,
+    )
