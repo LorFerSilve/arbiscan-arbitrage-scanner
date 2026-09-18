@@ -4,37 +4,45 @@ ArbiScan is a multi-bookmaker sports-odds aggregation and arbitrage-detection en
 
 ## Current status
 
-Phases 0 through 15 of [`roadmap.md`](roadmap.md) are implemented. **Phase 16.1 — provider candidate review and selection — is complete.** OddsPapi is the selected development target for the second real transport source, while production enablement remains blocked pending explicit data-rights clarification and the remaining Phase 16 correctness gates.
+Phases 0 through 16 and **Phases 17.1 through 17.9** of
+[`roadmap.md`](roadmap.md) are technically implemented on the active Phase 17 stack.
 
-The next implementation dependency is **Phase 16.2 — multi-source provenance hardening**: source observations from different transport providers must remain auditable and must not cause the same bookmaker to be counted twice.
+The next implementation dependency is **Phase 17.10 — motorsport/F1 winner, podium,
+and head-to-head semantics**.
 
-The implemented core now includes:
+The implemented core includes:
 
 - provider-neutral canonical event/market/selection/quote models;
 - deterministic Decimal-based arbitrage mathematics and stake allocation;
-- a strict async provider-adapter contract plus synthetic providers;
-- one real odds-data integration through The Odds API;
+- strict async provider adapters with two real transport schemas;
 - semantic normalization and cross-provider event matching;
+- multi-source price-origin provenance and same-bookmaker consolidation;
 - canonical best-price market books;
 - realtime ingestion, freshness/stale control, rate-limit handling, and provider isolation;
 - persistence/audit evidence and opportunity reconstruction;
 - opportunity lifecycle/actionability revalidation;
 - transport-neutral service/API contracts;
 - system/provider observability;
-- read-only dashboard projection and alert deduplication.
+- read-only dashboard projection and alert deduplication;
+- advanced football totals/handicaps/BTTS/DNB, indexed tennis set winners, and
+  full-event basketball half-point spreads/totals.
 
-The project is still versioned as development software and is **not** being productized into a packaged local launcher yet. That is deliberate: provider coverage and correctness work take priority over packaging/deployment.
-
-See [`docs/providers/phase-16-readiness.md`](docs/providers/phase-16-readiness.md) for the Phase 16 implementation sequence and [`docs/providers/phase-16.1-provider-selection.md`](docs/providers/phase-16.1-provider-selection.md) for the completed provider decision.
+The project remains development software. OddsPapi is technically integrated but
+remains blocked from production activation pending the documented provider-rights
+clarifications.
 
 ## Current market scope
 
-Initial supported semantics remain intentionally narrow:
+Enabled advanced semantics remain intentionally narrow:
 
-1. football pre-match 1X2 match winner;
-2. tennis pre-match two-way match winner.
+1. football pre-match regulation winner, push-free half-goal totals/handicaps, BTTS,
+   and settlement-aware Draw No Bet;
+2. tennis pre-match two-way match winner plus documented Set 1 / Set 2 winner;
+3. basketball full-event half-point totals and spreads, with regulation/sub-period,
+   integer/quarter-line, alternate, and live variants fail-closed.
 
-Advanced totals, handicaps/spreads, set markets, outrights, motorsport/F1 market expansion, and broader market semantics remain later roadmap work.
+Motorsport/F1, broader outrights, exchange-backed outcomes, and richer settlement
+algebra remain later roadmap work.
 
 ## Development
 
