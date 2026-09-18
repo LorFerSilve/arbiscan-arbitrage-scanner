@@ -1,6 +1,6 @@
 # Tennis indexed set winner
 
-Status: **Supported in Phase 17.6 for documented pre-match set 1 and set 2 markets**
+Status: **Supported for documented pre-match Set 1 and Set 2 markets across both real transport schemas**
 
 ## Canonical semantics
 
@@ -77,32 +77,41 @@ They are resolved to canonical participant IDs only after event matching.
 
 OddsPapi remains production-blocked independently of this technical capability.
 
-## The Odds API scope
+## The Odds API mapping
 
-Phase 17.6 did **not** implement a The Odds API set-winner mapping.
+Phase 17.8 implements the provider's documented tennis set moneyline keys:
 
-A Phase 17.7 revalidation of the current official market list subsequently found
-documented tennis keys:
+- `h2h_s1` — first-set moneyline — canonical `period_index=1`;
+- `h2h_s2` — second-set moneyline — canonical `period_index=2`.
 
-- `h2h_s1` — first-set moneyline;
-- `h2h_s2` — second-set moneyline.
+The adapter accepts those keys only when:
 
-That provider evidence is sufficient to reopen transport feasibility, but not to
-declare support without implementation. The current adapter still emits no canonical
-set-winner quotes from those keys.
+- the event is tennis;
+- exactly two outcomes are present;
+- outcome labels exactly match the event participants;
+- no outcome carries a `point`.
 
-Phase 17.8 will validate and implement the exact mapping, including:
+The set number is preserved as structured `SourceMarket.period_index`. It is never
+derived from display labels.
 
-- exact two-participant outcome identity;
-- no unsupported point semantics;
-- structured set `period_index`;
-- same-set equivalence with OddsPapi;
-- Set 1 versus Set 2 isolation;
-- ADR-0012 overlap-safe consolidation when both transports report the same bookmaker.
+The default provider request remains `h2h`; set markets are opt-in.
 
 Official reference:
 
 - https://the-odds-api.com/sports-odds-data/betting-markets.html
+
+## Cross-transport equivalence
+
+Phase 17.8 proves that The Odds API `h2h_s1` / `h2h_s2` and OddsPapi market
+123 / 125 normalize to the same canonical Set 1 / Set 2 identities.
+
+The regression deliberately exposes Pinnacle through both transports. Equal-time,
+equal-price observations consolidate under ADR-0012 to one executable Pinnacle price
+origin per set/selection while preserving transport provenance.
+
+Before consolidation the two transports contribute 16 source quotes. Four Pinnacle
+overlaps collapse deterministically, leaving 12 executable quotes with no material
+conflicts.
 
 ## Arbitrage boundary
 
@@ -114,8 +123,9 @@ two-way book. The existing generic path can therefore perform:
 - Opportunity creation;
 - conservative stake allocation.
 
-The Phase 17.6 integration regression proves that Set 1 and Set 2 create separate
-market books and that only the Set 1 fixture contains a theoretical arbitrage.
+The Phase 17.6 regression established indexed-set arithmetic on OddsPapi. Phase 17.8
+extends the same canonical markets across both real transport schemas and proves
+same-bookmaker overlap consolidation before best-price selection.
 
 ## Retirement, walkover, and incomplete-set caveat
 
@@ -142,6 +152,5 @@ Phase 17.6 does not enable:
 - live/in-play set markets;
 - label-derived set indexes;
 - cross-comparison between different `period_index` values;
-- The Odds API set winner until the documented `h2h_s1` / `h2h_s2` keys pass the Phase 17.8 adapter and cross-transport validation;
 - bookmaker-rule-independent guarantees for retirement, walkover, abandonment, or
   incomplete-set settlement.
