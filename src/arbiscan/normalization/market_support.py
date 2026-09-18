@@ -6,7 +6,14 @@ from dataclasses import dataclass
 from decimal import Decimal
 from enum import StrEnum
 
-from arbiscan.domain import Market, MarketKind, MarketPeriod, Sport
+from arbiscan.domain import (
+    AsianHandicapLineClass,
+    Market,
+    MarketKind,
+    MarketPeriod,
+    Sport,
+    asian_handicap_line_profile,
+)
 
 
 class MarketSupportStatus(StrEnum):
@@ -41,6 +48,16 @@ def is_push_free_football_total_line(line: Decimal) -> bool:
     if doubled != doubled.to_integral_value():
         return False
     return int(doubled) % 2 == 1
+
+
+def is_push_free_football_handicap_line(line: Decimal) -> bool:
+    """Return whether ordinary two-outcome math safely models this handicap line."""
+    if type(line) is not Decimal or not line.is_finite():
+        return False
+    return (
+        asian_handicap_line_profile(line).line_class
+        is AsianHandicapLineClass.HALF_GOAL
+    )
 
 
 def assess_market_support(*, sport: Sport, market: Market) -> MarketSupportDecision:
@@ -78,6 +95,31 @@ def assess_market_support(*, sport: Sport, market: Market) -> MarketSupportDecis
         return MarketSupportDecision(
             MarketSupportStatus.SUPPORTED,
             "football regulation total uses a push-free half-goal line",
+        )
+
+    if market.kind is MarketKind.HANDICAP:
+        if sport is not Sport.FOOTBALL:
+            return MarketSupportDecision(
+                MarketSupportStatus.UNSUPPORTED,
+                "Phase 17.3 enables handicaps only for football",
+            )
+        if market.period is not MarketPeriod.REGULATION:
+            return MarketSupportDecision(
+                MarketSupportStatus.UNSUPPORTED,
+                "Phase 17.3 football handicaps require regulation-time settlement",
+            )
+        if market.line is None or not is_push_free_football_handicap_line(market.line):
+            return MarketSupportDecision(
+                MarketSupportStatus.UNSUPPORTED,
+                (
+                    "Phase 17.3 football handicaps require a half-goal line; "
+                    "integer PUSH and quarter-line split settlements need the "
+                    "settlement-aware payout path"
+                ),
+            )
+        return MarketSupportDecision(
+            MarketSupportStatus.SUPPORTED,
+            "football regulation handicap uses a push-free half-goal line",
         )
 
     return MarketSupportDecision(
