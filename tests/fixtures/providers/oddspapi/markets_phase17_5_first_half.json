@@ -1,0 +1,16 @@
+[
+  {
+    "marketId": 2072,
+    "marketLength": 2,
+    "marketName": "Asian Handicap",
+    "playerProp": false,
+    "sportId": 10,
+    "handicap": 0,
+    "period": "firsthalf",
+    "marketType": "handicap",
+    "outcomes": [
+      {"outcomeId": 2072, "outcomeName": "1"},
+      {"outcomeId": 2073, "outcomeName": "2"}
+    ]
+  }
+]
