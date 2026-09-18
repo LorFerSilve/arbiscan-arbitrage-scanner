@@ -944,9 +944,8 @@ Expand beyond simple winner markets after the canonical market model has proven 
 
 ## Status
 
-In progress. **Phases 17.1 through 17.3 are technically complete.** The next
-dependency is **Phase 17.4 — football both-teams-to-score semantics and provider
-feasibility**.
+In progress. **Phases 17.1 through 17.4 are technically complete.** The next
+dependency is **Phase 17.5 — football draw-no-bet settlement semantics**.
 
 ### 17.1 — Structured advanced-market parameter foundation
 
@@ -991,26 +990,40 @@ scenario-aware guaranteed-return/stake engine.
 
 ### 17.4 — Football both-teams-to-score semantics and provider feasibility
 
-The next market-family dependency is football pre-match regulation
-both-teams-to-score (BTTS).
+Status: **Complete**.
+
+Phase 17.4 adds canonical `BOTH_TEAMS_TO_SCORE` with exact YES/NO completeness and
+enables football regulation-time BTTS across both existing real transport schemas.
+
+The Odds API mapping uses the exact documented `btts` event market and rejects
+malformed outcome or point semantics. OddsPapi requires the structured full-time
+`Both Teams To Score` catalog identity and does not promote first-half records.
+
+The end-to-end regression proves multi-source normalization, overlapping Pinnacle
+consolidation, best-price YES/NO construction, theoretical arbitrage detection,
+Opportunity creation, and conservative stake allocation without provider-specific
+core math.
+
+### 17.5 — Football draw-no-bet settlement semantics
+
+The next dependency is regulation-time football draw-no-bet (DNB).
 
 Before enablement it must establish:
 
-- exact regulation-time settlement scope;
-- canonical YES/NO completeness;
-- provider-specific market identity without label-only guessing;
-- whether The Odds API and OddsPapi expose equivalent BTTS through the currently
-  supported API surfaces;
-- fixture-backed mappings and malformed/unsupported regressions;
-- multi-source same-market comparison;
-- end-to-end market-book and arbitrage evaluation using only provider-independent core
-  math.
+- canonical participant-side outcome completeness;
+- exact regulation-time provider identity;
+- draw-as-refund/PUSH settlement semantics;
+- the payout matrix for both participant selections when the match is drawn;
+- whether reciprocal-odds arbitrage remains a sound detection prefilter;
+- whether the current `StakePlan` can guarantee profit across win/loss/draw-refund
+  terminal states or needs the settlement-aware path anticipated by Phase 17.3;
+- provider-specific mappings and schema-faithful fixtures;
+- cross-source equivalence and fail-closed period/settlement variants;
+- end-to-end regressions that distinguish theoretical price shape from truly
+  guaranteed post-settlement return.
 
-If equivalent semantics cannot be demonstrated for both real transports, the phase
-must fail closed or narrow the provider scope rather than manufacture equivalence.
-
-Later Phase 17 dependencies should address draw-no-bet, tennis set/game markets, and
-the remaining roadmap candidates only after their own semantic specifications exist.
+Later Phase 17 dependencies should address tennis set/game markets and the remaining
+roadmap candidates only after their own semantic specifications exist.
 
 ## Candidate markets
 
