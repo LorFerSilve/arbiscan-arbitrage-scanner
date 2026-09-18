@@ -103,6 +103,7 @@ What evidence or change should cause this decision to be reconsidered?
 - [`0017-draw-no-bet-refund-aware-evaluation.md`](0017-draw-no-bet-refund-aware-evaluation.md) — reuses Asian Handicap 0 for DNB and separates decisive-state edge from the shared draw-refund state.
 - [`0018-tennis-indexed-set-winner-provider-scope.md`](0018-tennis-indexed-set-winner-provider-scope.md) — makes tennis set index structural, enables only demonstrated set-winner mappings, and rejects provider-capability guessing.
 - [`0019-tennis-game-identity-and-score-state-gate.md`](0019-tennis-game-identity-and-score-state-gate.md) — models nested set/game identity while keeping game-winner runtime support closed until stable provider score-state semantics exist.
+- [`0020-basketball-full-event-period-and-push-free-scope.md`](0020-basketball-full-event-period-and-push-free-scope.md) — separates basketball full-event identity from regulation/sub-period variants and restricts generic evaluation to half-point totals/spreads.
 
 ## Initial ADR topics
 
