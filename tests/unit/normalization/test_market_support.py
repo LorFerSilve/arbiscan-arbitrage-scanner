@@ -17,6 +17,7 @@ def _market(
     kind: MarketKind,
     period: MarketPeriod = MarketPeriod.REGULATION,
     line: Decimal | None = None,
+    period_index: int | None = None,
 ) -> Market:
     return Market(
         id=MarketId(f"market:{kind.value}:{period.value}:{line}"),
@@ -24,6 +25,7 @@ def _market(
         kind=kind,
         period=period,
         line=line,
+        period_index=period_index,
     )
 
 
@@ -192,3 +194,37 @@ def test_phase17_5_settlement_aware_path_does_not_unlock_other_integer_handicaps
             purpose=MarketSupportPurpose.SETTLEMENT_AWARE,
         )
         assert decision.status is MarketSupportStatus.UNSUPPORTED
+
+
+def test_phase17_6_supports_only_documented_indexed_tennis_set_winners() -> None:
+    for period_index in (1, 2):
+        decision = assess_market_support(
+            sport=Sport.TENNIS,
+            market=_market(
+                kind=MarketKind.SET_WINNER,
+                period=MarketPeriod.SET,
+                period_index=period_index,
+            ),
+        )
+        assert decision.status is MarketSupportStatus.SUPPORTED
+        assert decision.supported
+
+    third_set = assess_market_support(
+        sport=Sport.TENNIS,
+        market=_market(
+            kind=MarketKind.SET_WINNER,
+            period=MarketPeriod.SET,
+            period_index=3,
+        ),
+    )
+    football = assess_market_support(
+        sport=Sport.FOOTBALL,
+        market=_market(
+            kind=MarketKind.SET_WINNER,
+            period=MarketPeriod.SET,
+            period_index=1,
+        ),
+    )
+
+    assert third_set.status is MarketSupportStatus.UNSUPPORTED
+    assert football.status is MarketSupportStatus.UNSUPPORTED
