@@ -13,6 +13,7 @@ from arbiscan.normalization.market_support import (
     MarketSupportDecision,
     MarketSupportStatus,
     assess_market_support,
+    is_push_free_football_handicap_line,
     is_push_free_football_total_line,
 )
 from arbiscan.normalization.markets import MarketAlias, MarketNormalizer, MarketSemantic
@@ -46,6 +47,7 @@ __all__ = [
     "SportAlias",
     "SportNormalizer",
     "assess_market_support",
+    "is_push_free_football_handicap_line",
     "is_push_free_football_total_line",
     "normalize_alias_key",
     "normalize_odds",
