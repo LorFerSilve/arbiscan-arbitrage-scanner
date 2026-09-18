@@ -287,6 +287,7 @@ def normalize_source_snapshot(
         if (
             market.line != canonical_market.line
             or market.period_index != canonical_market.period_index
+            or market.set_index != canonical_market.set_index
         ):
             issues.append(
                 _issue(
@@ -297,7 +298,9 @@ def normalize_source_snapshot(
                         "source market parameters conflict with canonical market "
                         f"(source line={market.line!s}, canonical line={canonical_market.line!s}, "
                         f"source period_index={market.period_index!s}, "
-                        f"canonical period_index={canonical_market.period_index!s})"
+                        f"canonical period_index={canonical_market.period_index!s}, "
+                        f"source set_index={market.set_index!s}, "
+                        f"canonical set_index={canonical_market.set_index!s})"
                     ),
                     market=market,
                 )
