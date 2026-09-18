@@ -185,6 +185,7 @@ def _migrate_v2_payload(value: object) -> object:
         mapping.setdefault("subject_participant_id", None)
     return mapping
 
+
 def _decode(value: object) -> object:
     if value is None or isinstance(value, (bool, int, str)):
         return value
