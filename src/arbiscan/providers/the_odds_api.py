@@ -373,17 +373,11 @@ def _source_markets(payload: Mapping[str, object], *, event_id: str) -> tuple[So
                 market_line = next(iter(total_points))
             elif market_key in {"h2h_s1", "h2h_s2"}:
                 if not sport_key.startswith("tennis_"):
-                    raise _SchemaError(
-                        f"{market_key} is only supported for tennis events"
-                    )
+                    raise _SchemaError(f"{market_key} is only supported for tennis events")
                 if any(point is not None for point in points):
-                    raise _SchemaError(
-                        f"{market_key} market outcomes must not carry point"
-                    )
+                    raise _SchemaError(f"{market_key} market outcomes must not carry point")
                 if len(selections) != 2:
-                    raise _SchemaError(
-                        f"{market_key} market must contain exactly two outcomes"
-                    )
+                    raise _SchemaError(f"{market_key} market must contain exactly two outcomes")
                 if {selection.label for selection in selections} != {
                     home_team,
                     away_team,
