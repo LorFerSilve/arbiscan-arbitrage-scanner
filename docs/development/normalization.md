@@ -201,6 +201,28 @@ stake-allocation path is reused unchanged.
 
 See [football BTTS](../markets/football-btts.md) and ADR-0016.
 
+## Phase 17.5 evaluation-path support gate
+
+Settlement-aware markets must not become eligible merely because their canonical
+identity is structurally valid.
+
+`normalize_source_snapshot()` therefore accepts an explicit
+`MarketSupportPurpose`:
+
+- `GENERIC_ARBITRAGE` — the default and existing behavior;
+- `SETTLEMENT_AWARE` — an opt-in path for markets whose payout semantics are handled
+  by a dedicated evaluator.
+
+Phase 17.5 keeps football regulation `HANDICAP / line 0` fail-closed on the generic
+path and admits it only for `SETTLEMENT_AWARE`. That exact line is Draw No Bet /
+Asian Handicap 0.
+
+The settlement-aware purpose does **not** generally unlock integer or quarter Asian
+handicaps. Non-zero integer and quarter lines remain unsupported until their payout
+matrices and staking semantics are implemented.
+
+See [football Draw No Bet](../markets/football-draw-no-bet.md) and ADR-0017.
+
 ## Strict quote bridge integration
 
 `normalize_source_snapshot()` still requires explicit canonical ID hooks for event, market, and selection identity. Phase 7 changes its price behavior: all currently supported `SourceOddsFormat` values are passed through `normalize_odds()` before an `OddsQuote` is created.
