@@ -944,8 +944,8 @@ Expand beyond simple winner markets after the canonical market model has proven 
 
 ## Status
 
-In progress. **Phases 17.1 through 17.5 are technically complete.** The next
-dependency is **Phase 17.6 — tennis set-winner and indexed-set semantics**.
+In progress. **Phases 17.1 through 17.6 are technically complete.** The next
+dependency is **Phase 17.7 — tennis game-market identity and score-state semantics**.
 
 ### 17.1 — Structured advanced-market parameter foundation
 
@@ -1029,24 +1029,50 @@ Phase 17.5 settlement-aware gate.
 
 ### 17.6 — Tennis set-winner and indexed-set semantics
 
-The next dependency is tennis pre-match set-winner support.
+Status: **Complete**.
+
+Phase 17.6 enables tennis Set 1 and Set 2 winner markets through structured
+`MarketPeriod.SET / period_index` identity.
+
+Canonical completeness requires exactly the two event participants. OddsPapi maps
+documented market 123 / `p1` to Set 1 and market 125 / `p2` to Set 2, emitting the
+index as structured source data. Strict source/canonical index equality prevents
+cross-set quote construction.
+
+The Odds API remains unsupported for this family because no exact documented indexed
+tennis set-winner market key was established. Phase 17.6 intentionally narrows
+provider scope rather than guessing semantic equivalence.
+
+For a normally completed set, ordinary two-way arbitrage and stake allocation are
+valid under the canonical model. Bookmaker-specific retirement, walkover,
+abandonment, and incomplete-set rules remain an execution-realism limitation and are
+not represented as a universal realized-profit guarantee.
+
+### 17.7 — Tennis game-market identity and score-state semantics
+
+The next dependency is tennis game-level market feasibility and identity.
 
 Before enablement it must establish:
 
-- `MarketPeriod.SET` plus a positive `period_index` as mandatory market identity;
-- exact two-participant selection completeness for each set;
-- provider-specific source mappings for individual set winner markets;
-- whether both real transports expose equivalent pre-match set markets through their
-  current API surfaces;
-- exact rejection of set 1 versus set 2/3 cross-comparison;
-- retirement, withdrawal, walkover, and incomplete-set settlement behavior where
-  provider rules expose relevant distinctions;
-- schema-faithful provider fixtures;
-- end-to-end same-set market-book/arbitrage regressions without parsing the set index
-  from labels as canonical identity.
+- whether game markets require both set index and game index in canonical identity;
+- whether service/receiver identity is also required;
+- exact provider machine identity for numbered/current-game markets;
+- tiebreak versus ordinary-game distinction;
+- whether pre-match game markets exist with stable identity or depend on live score
+  state;
+- provider-specific outcome completeness;
+- retirement, abandonment, and unfinished-game settlement behavior;
+- fail-closed behavior when a provider exposes only human labels or mutable score
+  strings;
+- whether the current canonical `MarketPeriod` / parameter model is sufficient or
+  needs a dedicated game-level identity field.
 
-Later Phase 17 dependencies should address tennis game markets and the remaining
-roadmap candidates only after their own semantic specifications exist.
+If stable machine-readable game identity cannot be demonstrated, Phase 17.7 must
+remain fail-closed rather than infer canonical state from labels or scores.
+
+Later Phase 17 dependencies should address basketball, motorsport/F1, outright
+markets, and exchange-backed outcomes only after their own semantic specifications
+exist.
 
 ## Candidate markets
 
