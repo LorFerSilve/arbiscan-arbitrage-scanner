@@ -36,7 +36,9 @@ def _market_scope(
     config: BacktestConfig,
 ) -> tuple[MarketId, ...]:
     if config.market_ids is None:
-        return tuple(sorted((market.id for market in registry.markets), key=lambda value: value.value))
+        return tuple(
+            sorted((market.id for market in registry.markets), key=lambda value: value.value)
+        )
 
     unknown = tuple(
         market_id for market_id in config.market_ids if registry.market(market_id) is None
@@ -252,8 +254,7 @@ def run_backtest(
                         market_id=book.market.id,
                         counterfactual_profit_margin=evaluation.theoretical_profit_margin,
                         max_quote_age=max(
-                            detected_at - quote_effective_timestamp(quote)
-                            for quote in book.quotes
+                            detected_at - quote_effective_timestamp(quote) for quote in book.quotes
                         ),
                     )
                 )
@@ -267,9 +268,9 @@ def run_backtest(
                 provider_policy=_provider_only_policy(provider_id),
                 market_ids=market_scope,
             )
-            provider_complete_books[provider_id] = (
-                provider_complete_books.get(provider_id, 0) + len(provider_batch.books)
-            )
+            provider_complete_books[provider_id] = provider_complete_books.get(
+                provider_id, 0
+            ) + len(provider_batch.books)
             for book in provider_batch.books:
                 evaluation = evaluate_market(
                     book.quotes,
@@ -278,9 +279,7 @@ def run_backtest(
                 )
                 if not evaluation.is_arbitrage:
                     continue
-                provider_theoretical[provider_id] = (
-                    provider_theoretical.get(provider_id, 0) + 1
-                )
+                provider_theoretical[provider_id] = provider_theoretical.get(provider_id, 0) + 1
                 if config.actionability_policy is None:
                     continue
                 opportunity = build_opportunity(
@@ -302,9 +301,7 @@ def run_backtest(
                     policy=config.actionability_policy,
                 )
                 if lifecycle.state is LifecycleState.ACTIONABLE:
-                    provider_actionable[provider_id] = (
-                        provider_actionable.get(provider_id, 0) + 1
-                    )
+                    provider_actionable[provider_id] = provider_actionable.get(provider_id, 0) + 1
 
         active_markets = set(strict_arbitrage_by_market)
         for market_id in tuple(open_intervals):
