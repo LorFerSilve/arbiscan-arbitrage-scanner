@@ -65,6 +65,7 @@ A risk with high correctness or security impact must not be dismissed merely bec
 | R-047 | Tennis retirement, walkover, abandonment, or incomplete-set rules differ across bookmakers and invalidate a generic realized-profit guarantee | Medium | High | Keep Phase 17.6 output theoretical for normal completed-set settlement; require bookmaker settlement-rule modeling before actionable guarantee | Mitigating |
 | R-048 | Tennis individual-game quotes from different sets or game numbers are conflated because their participants and labels are identical | Medium | Critical | ADR-0019 nested `set_index` + game `period_index`, exact source/canonical parameter matching, and game-winner completeness | Closed |
 | R-049 | Mutable current/next-game, tiebreak, or service-relative tennis markets are inferred from labels/score state and treated as a fixed numbered game | Medium | Critical | ADR-0019 keeps GAME_WINNER runtime support closed; no label/score/service-rotation inference before explicit provider score-state semantics | Closed |
+| R-050 | Tennis Set 1/Set 2 observations of the same bookmaker through The Odds API and OddsPapi are counted twice or conflict silently | Medium | Critical | ADR-0012 price-origin consolidation plus Phase 17.8 equal-time equivalent-overlap and strict set-index regressions | Closed |
 
 ## Critical risk themes
 
@@ -88,6 +89,8 @@ Phase 17.5 separates a positive decisive-state Draw No Bet price edge from stric
 Phase 17.6 makes tennis set number part of canonical market identity. Odds from different sets cannot share a market book even when their participant labels are identical. The normal completed-set payout shape can use ordinary two-way math, but bookmaker-specific retirement, walkover, and incomplete-set rules remain an execution-realism risk and are not treated as a universal settlement guarantee.
 
 Phase 17.7 extends indexed tennis identity one hierarchy level deeper. A game is identified by both its containing `set_index` and its game `period_index`; mismatches fail before support evaluation. Because neither current transport has yet demonstrated a stable fixed Set N / Game M winner mapping, GAME_WINNER remains runtime-disabled, preventing mutable current/next-game, tiebreak, or service-relative labels from becoming false canonical identity.
+
+Phase 17.8 completes Set 1 / Set 2 winner across both real transport schemas. Same-bookmaker Pinnacle observations remain independently auditable by transport but consolidate to one executable price origin, while strict `period_index` equality prevents cross-set comparison. The existing retirement/walkover/incomplete-set limitation remains separate and mitigating.
 
 ### 2. Temporal correctness
 
