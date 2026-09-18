@@ -115,3 +115,25 @@ def test_retention_preserves_quotes_referenced_by_opportunities(tmp_path: Path) 
 
     assert removed == 1
     assert store.reconstruct_opportunity("opportunity-1").quotes == quotes
+
+
+def test_load_quotes_supports_deterministic_time_and_provider_filters(tmp_path: Path) -> None:
+    store = SqliteAuditStore(tmp_path / "arbiscan.db")
+    store.migrate()
+    start = datetime(2026, 9, 1, 12, 0, tzinfo=UTC)
+    first = _quote(1, at=start)
+    second = _quote(2, at=start + timedelta(seconds=5))
+    third = _quote(3, at=start + timedelta(seconds=10))
+    store.persist_quote(third)
+    store.persist_quote(first)
+    store.persist_quote(second)
+
+    all_quotes = store.load_quotes()
+    filtered = store.load_quotes(
+        start_at=start + timedelta(seconds=1),
+        end_at=start + timedelta(seconds=9),
+        provider_ids=(second.provider_id,),
+    )
+
+    assert tuple(quote.id for quote in all_quotes) == (first.id, second.id, third.id)
+    assert filtered == (second,)
