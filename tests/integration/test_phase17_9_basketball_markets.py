@@ -277,9 +277,7 @@ def test_two_real_transports_consolidate_and_evaluate_basketball_markets() -> No
     source_quotes = _normalize(the_odds_api, registry) + _normalize(oddspapi, registry)
     assert len(source_quotes) == 16
 
-    store = MultiSourceLiveQuoteStore(
-        RealtimeIngestionPolicy(freshness_window=FRESHNESS_WINDOW)
-    )
+    store = MultiSourceLiveQuoteStore(RealtimeIngestionPolicy(freshness_window=FRESHNESS_WINDOW))
     applied = store.apply(source_quotes, observed_at=AS_OF)
     assert applied.rejected_count == 0
 
