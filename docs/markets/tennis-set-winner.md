@@ -79,15 +79,30 @@ OddsPapi remains production-blocked independently of this technical capability.
 
 ## The Odds API scope
 
-Phase 17.6 deliberately does **not** add a The Odds API set-winner mapping.
+Phase 17.6 did **not** implement a The Odds API set-winner mapping.
 
-Current official tennis material documents match-winner and the provider's ordinary
-tennis spread/total coverage, but Phase 17.6 found no documented exact tennis
-set-winner market key that can safely establish an indexed set identity.
+A Phase 17.7 revalidation of the current official market list subsequently found
+documented tennis keys:
 
-ArbiScan therefore does not invent an alias or parse a bookmaker title to manufacture
-one. The family remains unsupported for that transport until provider documentation
-or schema evidence supplies an exact machine-readable mapping.
+- `h2h_s1` — first-set moneyline;
+- `h2h_s2` — second-set moneyline.
+
+That provider evidence is sufficient to reopen transport feasibility, but not to
+declare support without implementation. The current adapter still emits no canonical
+set-winner quotes from those keys.
+
+Phase 17.8 will validate and implement the exact mapping, including:
+
+- exact two-participant outcome identity;
+- no unsupported point semantics;
+- structured set `period_index`;
+- same-set equivalence with OddsPapi;
+- Set 1 versus Set 2 isolation;
+- ADR-0012 overlap-safe consolidation when both transports report the same bookmaker.
+
+Official reference:
+
+- https://the-odds-api.com/sports-odds-data/betting-markets.html
 
 ## Arbitrage boundary
 
@@ -127,6 +142,6 @@ Phase 17.6 does not enable:
 - live/in-play set markets;
 - label-derived set indexes;
 - cross-comparison between different `period_index` values;
-- The Odds API set winner without a documented exact market key;
+- The Odds API set winner until the documented `h2h_s1` / `h2h_s2` keys pass the Phase 17.8 adapter and cross-transport validation;
 - bookmaker-rule-independent guarantees for retirement, walkover, abandonment, or
   incomplete-set settlement.
