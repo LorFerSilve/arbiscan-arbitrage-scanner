@@ -38,28 +38,25 @@ This directory contains the reproducible engineering setup plus formal completio
 - [`phase-17.4-completion.md`](phase-17.4-completion.md) — Phase 17.4 football regulation-time BTTS provider equivalence and YES/NO enablement.
 - [`phase-17.5-completion.md`](phase-17.5-completion.md) — Phase 17.5 football Draw No Bet / Asian Handicap 0 refund-aware evaluation.
 - [`phase-17.6-completion.md`](phase-17.6-completion.md) — Phase 17.6 indexed tennis Set 1/Set 2 winner semantics with provider-narrowed support.
+- [`phase-17.7-completion.md`](phase-17.7-completion.md) — Phase 17.7 nested tennis game identity and fail-closed score-state/provider feasibility gate.
 
 ## Current hand-off
 
-Phases 0 through 16 and **Phases 17.1–17.6** are the completed technical baseline.
-The next roadmap dependency is **Phase 17.7 — tennis game-market identity and
-score-state semantics**.
+Phases 0 through 16 and **Phases 17.1–17.7** are the completed technical baseline.
+The next roadmap dependency is **Phase 17.8 — tennis set-winner cross-transport
+completion**.
 
-Phase 17.6 establishes that tennis set number is canonical structured identity:
-Set 1 and Set 2 cannot share one market book even when their selections look
-identical. OddsPapi supplies exact documented Set 1/Set 2 mappings; The Odds API is
-left unsupported for this family rather than receiving a guessed market key.
+Phase 17.7 adds a canonical nested game identity: `set_index` identifies the
+containing set and game `period_index` identifies the game inside that set.
+`GAME_WINNER` remains runtime-disabled because neither current transport has yet
+demonstrated a stable fixed Set N / Game M winner mapping. Labels, mutable score
+strings, tiebreaks, and service-relative markets are not used to manufacture one.
 
-The ordinary two-way evaluator is valid for the modeled normally completed set, but
-bookmaker-specific retirement, walkover, abandonment, and incomplete-set settlement
-rules remain outside the current execution model. Such opportunities remain
-theoretical under those stated assumptions.
+Provider revalidation during Phase 17.7 also found that The Odds API's current
+official market list now documents tennis `h2h_s1` and `h2h_s2` set moneylines.
+The Phase 17.6 implementation remains OddsPapi-only; Phase 17.8 will add and validate
+the The Odds API side and prove cross-transport same-set equivalence under ADR-0012.
 
-Before Phase 17.7 enables any game-level market, the implementation must establish
-stable machine-readable game identity, including any required set index, game index,
-server/receiver context, and tiebreak distinction. Label- or score-string inference
-must not become canonical identity.
-
-Provider-specific production/legal blockers remain independent of Phase 17 technical
-support. OddsPapi remains production-blocked as documented in
-[`../providers/oddspapi.md`](../providers/oddspapi.md).
+The tennis retirement/walkover/incomplete-set limitation remains explicit, and
+OddsPapi's production/legal blockers remain independent of technical market support.
+See [`../providers/oddspapi.md`](../providers/oddspapi.md).
