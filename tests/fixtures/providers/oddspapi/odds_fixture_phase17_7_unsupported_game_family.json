@@ -1,0 +1,69 @@
+{
+  "fixtureId": "id1000001761301777",
+  "participant1Id": 501,
+  "participant2Id": 502,
+  "sportId": 12,
+  "tournamentId": 77,
+  "seasonId": 130299,
+  "statusId": 0,
+  "hasOdds": true,
+  "startTime": "2026-09-18T15:00:00.000Z",
+  "updatedAt": "2026-09-18T14:57:00.000Z",
+  "statusName": "Pre-Game",
+  "participant1Name": "Carlos Alcaraz",
+  "participant2Name": "Jannik Sinner",
+  "sportName": "Tennis",
+  "tournamentName": "US Open",
+  "bookmakerOdds": {
+    "pinnacle": {
+      "bookmakerIsActive": true,
+      "bookmakerFixtureId": "phase17-7-game-family",
+      "fixturePath": "https://example.invalid/tennis-fixture",
+      "suspended": false,
+      "markets": {
+        "601": {
+          "bookmakerMarketId": "game-handicap",
+          "marketActive": true,
+          "outcomes": {
+            "601": {
+              "players": {
+                "0": {
+                  "active": true,
+                  "betslip": null,
+                  "bookmakerOutcomeId": "game-p1",
+                  "bookmakerChangedAt": "2026-09-18T14:58:01Z",
+                  "changedAt": "2026-09-18T14:58:01Z",
+                  "limit": 100,
+                  "playerName": null,
+                  "price": 1.91,
+                  "priceAmerican": "-110",
+                  "priceFractional": "10/11",
+                  "mainLine": true,
+                  "exchangeMeta": null
+                }
+              }
+            },
+            "602": {
+              "players": {
+                "0": {
+                  "active": true,
+                  "betslip": null,
+                  "bookmakerOutcomeId": "game-p2",
+                  "bookmakerChangedAt": "2026-09-18T14:58:02Z",
+                  "changedAt": "2026-09-18T14:58:02Z",
+                  "limit": 100,
+                  "playerName": null,
+                  "price": 1.91,
+                  "priceAmerican": "-110",
+                  "priceFractional": "10/11",
+                  "mainLine": true,
+                  "exchangeMeta": null
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,18 @@
+[
+  {
+    "key": "soccer_epl",
+    "group": "Soccer",
+    "title": "EPL",
+    "description": "English Premier League",
+    "active": true,
+    "has_outrights": false
+  },
+  {
+    "key": "soccer_uefa_champions_league_winner",
+    "group": "Soccer",
+    "title": "UEFA Champions League Winner",
+    "description": "Synthetic Phase 17.11 outright competition",
+    "active": true,
+    "has_outrights": true
+  }
+]

@@ -18,6 +18,10 @@ from arbiscan.domain import (
 )
 from arbiscan.matching.catalog import CanonicalRegistry
 from arbiscan.matching.hooks import MatchedCanonicalIdHooks
+from arbiscan.normalization.market_support import (
+    MarketSupportPurpose,
+    assess_market_support,
+)
 from arbiscan.normalization.odds import OddsNormalizationError, normalize_odds
 from arbiscan.providers.models import (
     CanonicalIdHooks,
@@ -36,8 +40,11 @@ class NormalizationIssueCode(StrEnum):
     IDENTITY_MISMATCH = "identity_mismatch"
     UNMAPPED_MARKET = "unmapped_market"
     MARKET_EVENT_MISMATCH = "market_event_mismatch"
+    MARKET_PARAMETER_MISMATCH = "market_parameter_mismatch"
+    UNSUPPORTED_MARKET_VARIANT = "unsupported_market_variant"
     UNMAPPED_SELECTION = "unmapped_selection"
     SELECTION_MARKET_MISMATCH = "selection_market_mismatch"
+    SELECTION_PARAMETER_MISMATCH = "selection_parameter_mismatch"
     STALE_SNAPSHOT = "stale_snapshot"
     FUTURE_SNAPSHOT = "future_snapshot"
     FUTURE_INGESTION = "future_ingestion"
@@ -143,6 +150,7 @@ def normalize_source_snapshot(
     registry: CanonicalRegistry,
     as_of: datetime,
     freshness_window: timedelta,
+    support_purpose: MarketSupportPurpose = MarketSupportPurpose.GENERIC_ARBITRAGE,
 ) -> NormalizationResult:
     """Normalize one validated source snapshot using explicit canonical mappings only.
 
@@ -159,6 +167,8 @@ def normalize_source_snapshot(
     equality after the matcher has already enforced its configured tolerance.
     """
     now = _utc(as_of, field_name="as_of")
+    if not isinstance(support_purpose, MarketSupportPurpose):
+        raise ValueError("support_purpose must be MarketSupportPurpose")
     if not isinstance(freshness_window, timedelta) or freshness_window <= timedelta(0):
         raise ValueError("freshness_window must be a positive timedelta")
 
@@ -274,6 +284,44 @@ def normalize_source_snapshot(
                 )
             )
             continue
+        if (
+            market.line != canonical_market.line
+            or market.period_index != canonical_market.period_index
+            or market.set_index != canonical_market.set_index
+        ):
+            issues.append(
+                _issue(
+                    NormalizationIssueCode.MARKET_PARAMETER_MISMATCH,
+                    provider,
+                    event,
+                    (
+                        "source market parameters conflict with canonical market "
+                        f"(source line={market.line!s}, canonical line={canonical_market.line!s}, "
+                        f"source period_index={market.period_index!s}, "
+                        f"canonical period_index={canonical_market.period_index!s}, "
+                        f"source set_index={market.set_index!s}, "
+                        f"canonical set_index={canonical_market.set_index!s})"
+                    ),
+                    market=market,
+                )
+            )
+            continue
+        support = assess_market_support(
+            sport=canonical_event.sport,
+            market=canonical_market,
+            purpose=support_purpose,
+        )
+        if not support.supported:
+            issues.append(
+                _issue(
+                    NormalizationIssueCode.UNSUPPORTED_MARKET_VARIANT,
+                    provider,
+                    event,
+                    support.detail,
+                    market=market,
+                )
+            )
+            continue
         if _status(market.source_status) is not QuoteStatus.ACTIVE:
             issues.append(
                 _issue(
@@ -309,6 +357,22 @@ def normalize_source_snapshot(
                         provider,
                         event,
                         "canonical selection belongs to a different market",
+                        market=market,
+                        selection=selection,
+                    )
+                )
+                continue
+            if selection.handicap != canonical_selection.handicap:
+                issues.append(
+                    _issue(
+                        NormalizationIssueCode.SELECTION_PARAMETER_MISMATCH,
+                        provider,
+                        event,
+                        (
+                            "source selection handicap conflicts with canonical selection "
+                            f"(source handicap={selection.handicap!s}, "
+                            f"canonical handicap={canonical_selection.handicap!s})"
+                        ),
                         market=market,
                         selection=selection,
                     )

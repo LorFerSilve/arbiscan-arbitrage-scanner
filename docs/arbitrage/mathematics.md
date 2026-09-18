@@ -63,9 +63,11 @@ B / S
 - `theoretical_profit_margin()`;
 - `is_theoretical_arbitrage()`;
 - `evaluate_market()`;
+- `evaluate_refundable_two_way_market()`;
 - `build_opportunity()`;
 - `allocate_stakes()`;
 - `ArbitrageEvaluation`;
+- `RefundableTwoWayEvaluation`;
 - `StakeConstraint`;
 - `CurrencyRoundingPolicy`.
 
@@ -188,6 +190,45 @@ Otherwise it returns `None`.
 
 This is important for small-bankroll or low-margin opportunities. For example, odds `2.01 / 2.01` are theoretically profitable, but a EUR 1.00 bankroll can round both EUR 0.50 payouts down to EUR 1.00. The rounded guaranteed profit is then zero, so no guaranteed `StakePlan` is emitted.
 
+## Refundable two-way markets
+
+Phase 17.5 adds a separate evaluator for two priced outcomes that also share one
+refund terminal state, initially football Draw No Bet / Asian Handicap 0.
+
+For decisive outcomes, the existing reciprocal formula still applies:
+
+```text
+S = 1/o1 + 1/o2
+R_decisive = 1/S
+M_decisive = R_decisive - 1
+```
+
+The shared refund state returns all stake:
+
+```text
+R_refund = 1
+R_worst = min(R_decisive, R_refund)
+M_worst = R_worst - 1
+```
+
+When `S < 1`, the two decisive outcomes have positive equalized margin, but a Draw
+No Bet draw still has zero profit. Therefore:
+
+```text
+M_decisive > 0
+M_refund = 0
+M_worst = 0
+```
+
+`evaluate_refundable_two_way_market()` exposes these states through
+`RefundableTwoWayEvaluation`. It deliberately does not call
+`build_opportunity()` or `allocate_stakes()`.
+
+The existing canonical `Opportunity` and `StakePlan` semantics mean strict
+positive guaranteed profit. A refundable/no-loss edge must not weaken that meaning.
+A future settlement-aware opportunity/stake model may add actionable DNB support
+while retaining the shared refund scenario.
+
 ## Reproducibility
 
 The Phase 3 core has no provider-specific schema dependency and performs no I/O. A calculation can be reproduced from:
@@ -199,3 +240,67 @@ The Phase 3 core has no provider-specific schema dependency and performs no I/O.
 - currency policy;
 - stake constraints;
 - caller-supplied canonical IDs/timestamps.
+
+
+## Phase 17.11 arbitrary-N outright applicability
+
+The core reciprocal-odds formula is already valid for arbitrary N mutually-exclusive
+and exhaustive outcomes. Phase 17.11 therefore does not add a new outright formula.
+
+Instead, `OutrightEvaluationProfile` defines the semantic preconditions under which
+that existing formula describes the actual settlement partition. Generic math is
+eligible only for a complete/static candidate set with no Field/Other bucket, no
+tie/dead-heat split settlement, and equivalent withdrawal/void rules across compared
+price origins.
+
+If any condition fails, mathematical reciprocal-sum correctness is insufficient to
+claim guaranteed outright profit. The runtime market-support gate remains closed until
+a provider path can prove those conditions.
+
+
+## Phase 17.12 exchange scenario mathematics
+
+Exchange prices use a dedicated settlement path because a LAY price cannot be reduced
+to an ordinary bookmaker decimal quote.
+
+For exchange BACK stake `B` at price `o`:
+
+```text
+selection wins  -> +B * (o - 1)
+selection loses -> -B
+```
+
+For exchange LAY stake `L`:
+
+```text
+laid selection wins  -> -L * (o - 1)
+laid selection loses -> +L
+```
+
+The lay liability is therefore:
+
+```text
+liability = L * (o - 1)
+```
+
+`evaluate_exchange_portfolio()` enumerates every canonical terminal selection and
+combines ordinary bookmaker BACK legs with exchange BACK/LAY legs.
+
+Exchange P&L is first netted by exchange price origin and commission scope. Commission
+is then applied only to a positive net result for that exchange market/scope:
+
+```text
+commission = max(exchange_market_profit, 0) * commission_rate
+net_profit = gross_portfolio_profit - commission
+```
+
+This reflects exchange commission semantics such as Betfair's documented charge on
+net market winnings rather than on each individually profitable bet.
+
+A portfolio is classified as exchange arbitrage only when the minimum net profit over
+all terminal selection scenarios is strictly positive.
+
+The evaluator assumes each `ExchangeStake` is matched at its quoted price and rejects
+stake above the observation's visible available liquidity. It does not claim that the
+same liquidity will still be available later, nor does it optimize stakes or model
+unmatched/partially matched orders.

@@ -1,0 +1,19 @@
+[
+  {
+    "fixtureId": "id1100048668099001",
+    "participant1Id": 7001,
+    "participant2Id": 7002,
+    "sportId": 11,
+    "tournamentId": 132,
+    "seasonId": 140001,
+    "statusId": 0,
+    "hasOdds": true,
+    "startTime": "2026-09-18T19:00:00.000Z",
+    "updatedAt": "2026-09-18T12:57:00.000Z",
+    "statusName": "Pre-Game",
+    "participant1Name": "Boston Celtics",
+    "participant2Name": "New York Knicks",
+    "sportName": "Basketball",
+    "tournamentName": "NBA"
+  }
+]

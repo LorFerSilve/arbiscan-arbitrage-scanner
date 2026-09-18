@@ -141,3 +141,21 @@ Invalid or contradictory provider data may be normalized only through explicit, 
 The software architecture will not assume that data access, storage, redistribution, commercial use, or gambling-related functionality is universally permitted.
 
 Provider terms and applicable jurisdictional requirements must be reviewed for each real integration and deployment context.
+
+
+## Phase 17.12 clarification
+
+The initial-product non-goal for exchange back/lay arbitrage remains an execution and
+live-integration boundary.
+
+Phase 17.12 adds provider-independent BACK/LAY settlement mathematics, liability,
+liquidity and commission semantics so future exchange data cannot be handled
+incorrectly. It does **not** add:
+
+- live exchange credentials or account integration;
+- exchange order placement;
+- automatic hedging;
+- unmatched-order management;
+- a live exchange provider adapter.
+
+Those remain outside the current scanner execution scope.

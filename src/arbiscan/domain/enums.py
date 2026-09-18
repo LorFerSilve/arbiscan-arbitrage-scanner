@@ -7,6 +7,7 @@ class Sport(StrEnum):
     """Sports currently representable by the canonical model."""
 
     FOOTBALL = "football"
+    BASKETBALL = "basketball"
     TENNIS = "tennis"
     MOTORSPORT = "motorsport"
 
@@ -40,8 +41,12 @@ class MarketKind(StrEnum):
     QUALIFICATION_WINNER = "qualification_winner"
     TOTAL_POINTS = "total_points"
     HANDICAP = "handicap"
+    BOTH_TEAMS_TO_SCORE = "both_teams_to_score"
     SET_WINNER = "set_winner"
+    GAME_WINNER = "game_winner"
     OUTRIGHT_WINNER = "outright_winner"
+    PODIUM_FINISH = "podium_finish"
+    HEAD_TO_HEAD = "head_to_head"
 
 
 class MarketPeriod(StrEnum):
@@ -52,9 +57,12 @@ class MarketPeriod(StrEnum):
     FIRST_HALF = "first_half"
     SECOND_HALF = "second_half"
     SET = "set"
+    GAME = "game"
     PERIOD = "period"
     QUARTER = "quarter"
     RACE = "race"
+    QUALIFYING = "qualifying"
+    SESSION = "session"
     TOURNAMENT = "tournament"
 
 

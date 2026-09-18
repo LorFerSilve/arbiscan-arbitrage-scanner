@@ -85,6 +85,193 @@ Unsupported market families are ignored fail-closed. A known fixture status othe
 than pre-match is structurally valid, but all emitted source quotes are suspended so
 live/finished data cannot enter the current pre-match execution path.
 
+## Phase 17.2 football regulation totals
+
+Phase 17.2 extends the development adapter to recognize the provider catalog family
+`Over Under Full Time` only when its structured semantics are compatible:
+
+- football sport;
+- `period=fulltime`;
+- `marketType=totals`;
+- non-player market;
+- positive catalog `handicap`/line;
+- exactly the outcomes `Over` and `Under`.
+
+The catalog handicap is retained as exact `SourceMarket.line`. The adapter does not
+itself declare every such line safe for arbitrage: strict canonical normalization
+applies ADR-0014 and enables only regulation half-goal (`x.5`) totals. Integer and
+quarter lines therefore remain fail-closed.
+
+The adapter's non-prematch suspension path also preserves structured Phase-17
+parameters instead of discarding the line while changing eligibility state.
+
+This technical extension does **not** change the production decision below. OddsPapi
+remains production-blocked until the provider-specific rights questions are resolved.
+
+## Phase 17.3 football Asian handicap
+
+Phase 17.3 recognizes the development catalog family `Asian Handicap` for football
+when the market is non-player, uses `period=fulltime`, and exposes exactly outcomes
+`1` and `2`.
+
+The catalog handicap is interpreted as the participant-1 line:
+
+- outcome `1` receives `handicap`;
+- outcome `2` receives `-handicap`;
+- `SourceMarket.line` receives the catalog handicap.
+
+This matches ArbiScan's canonical participant-1 anchor and lets strict normalization
+verify market direction and each participant-side handicap independently.
+
+The adapter preserves integer and quarter lines as structured source semantics, but
+the canonical support policy permits only regulation-time half-goal lines into the
+generic arbitrage/stake pipeline. OddsPapi's documented settlement vocabulary
+includes PUSH, HALF-WIN and HALF-LOSS, so those richer variants are deliberately not
+flattened into ordinary two-outcome payout math.
+
+This market-family extension does **not** change the provider's production status.
+OddsPapi remains production-blocked until the independent rights/licensing questions
+below are resolved.
+
+## Phase 17.4 football both teams to score
+
+The documented market catalog exposes `Both Teams To Score` with full-time
+structured semantics. Phase 17.4 accepts that family only when:
+
+- football sport;
+- non-player market;
+- `period=fulltime`;
+- `marketType=totals`;
+- `handicap=0`;
+- outcome set exactly `Yes` and `No`.
+
+A record with the same market name but `firsthalf` is not promoted to regulation
+BTTS. This prevents label-only matching from collapsing distinct settlement periods.
+
+No line or selection handicap is attached to canonical BTTS.
+
+This technical capability does **not** change OddsPapi's production status. The
+provider remains production-blocked until its independent rights/licensing questions
+are resolved.
+
+## Phase 17.5 football Draw No Bet
+
+OddsPapi exposes Draw No Bet through football Asian Handicap zero. Public provider
+material identifies market 1072 / Asian Handicap 0 as the Draw No Bet settlement
+shape, and the settlement API exposes `PUSH` explicitly.
+
+Phase 17.5 reuses the existing Asian Handicap adapter path and additionally requires
+`marketType=handicap` for that catalog family.
+
+For the supported regulation-time line-zero case:
+
+- `period=fulltime`;
+- `handicap=0`;
+- outcome `1` receives selection handicap `0`;
+- outcome `2` receives selection handicap `0`;
+- `SourceMarket.line = 0`.
+
+A first-half Asian Handicap zero catalog record is ignored rather than promoted to
+regulation Draw No Bet.
+
+The canonical market remains blocked from generic arbitrage normalization and is
+available only through the explicit settlement-aware path. A draw PUSH returns stake,
+so a positive decisive-state edge does not become strictly positive guaranteed profit.
+
+This technical capability does **not** change OddsPapi's production status. The
+provider remains production-blocked until the independent rights/licensing questions
+are resolved.
+
+See [football Draw No Bet](../markets/football-draw-no-bet.md) and ADR-0017.
+
+## Phase 17.6 tennis indexed set winner
+
+OddsPapi's tennis market catalog provides exact indexed set-winner identities used by
+Phase 17.6:
+
+- market 123, `First Set Winner`, `period=p1` -> canonical set index 1;
+- market 125, `Second Set Winner`, `period=p2` -> canonical set index 2.
+
+Both mappings additionally require:
+
+- tennis sport;
+- non-player market;
+- `marketType=winner`;
+- `handicap=0`;
+- exactly outcomes `1` and `2`.
+
+The adapter emits the canonical-relevant index as structured
+`SourceMarket.period_index`; it does not derive the index by parsing the market
+label. A catalog record whose market ID/name and provider period disagree is ignored
+fail-closed.
+
+Outcome `1` and `2` remain provider participant-order identities until the normal
+event/participant matching layer resolves them to canonical participant IDs.
+
+For a normally completed set the two participant outcomes use the ordinary generic
+two-way arbitrage path. Retirement, walkover, abandonment, and incomplete-set
+settlement remain bookmaker/execution-rule concerns and are not treated as
+provider-independent guaranteed settlement.
+
+This technical capability does **not** change OddsPapi's production status. The
+provider remains production-blocked until the independent rights/licensing questions
+are resolved.
+
+See [tennis indexed set winner](../markets/tennis-set-winner.md) and ADR-0018.
+
+## Phase 17.8 tennis set-winner cross-transport equivalence
+
+Phase 17.8 reuses the existing OddsPapi indexed set-winner mapping unchanged and
+proves it equivalent to The Odds API's documented `h2h_s1` / `h2h_s2` keys.
+
+The deterministic regression deliberately exposes Pinnacle through both transport
+sources at equal timestamps and equal prices. ADR-0012 consolidates each overlapping
+Pinnacle set/selection pair into one executable price origin while retaining the
+selected transport provenance.
+
+Across Set 1 and Set 2 there are four equivalent Pinnacle overlaps and no material
+conflicts. Betfair remains an independent OddsPapi price origin and can contribute a
+best price alongside The Odds API bookmakers.
+
+This technical cross-transport completion does **not** change OddsPapi's independent
+production-rights status. OddsPapi remains production-blocked until the documented
+licensing/retention/display/geography questions are resolved.
+
+See [tennis indexed set winner](../markets/tennis-set-winner.md), ADR-0012, and
+ADR-0018.
+
+## Phase 17.7 tennis game-market feasibility
+
+OddsPapi's public tennis coverage includes broad game-related market families such as
+game handicaps, total games, tiebreak propositions, and other set/game derivatives.
+
+Phase 17.7 did not establish a stable documented machine-readable identity for a fixed
+individual `Set N / Game M Winner` wager. Those broader game-derived families are
+not equivalent to a numbered game winner and are not promoted into
+`MarketKind.GAME_WINNER`.
+
+A deterministic negative fixture specifically verifies that a tennis
+`Game Handicap` catalog family remains outside the numbered game-winner path.
+
+Consequently:
+
+- no OddsPapi `GAME_WINNER` mapping is enabled;
+- no set/game indexes are inferred from labels or mutable score state;
+- service-relative and tiebreak propositions remain separate until explicitly
+  modeled.
+
+Official references reviewed:
+
+- https://oddspapi.io/sports/tennis
+- https://oddspapi.io/blog/us-open-odds-api/
+- https://oddspapi.io/en/docs/get-markets
+
+This technical conclusion does **not** change OddsPapi's production status. The
+provider remains production-blocked until the independent rights/licensing questions
+are resolved.
+
+See [tennis game-market identity](../markets/tennis-game-identity.md) and ADR-0019.
+
 ## Relevant source fields
 
 The adapter preserves or validates at least:
@@ -184,6 +371,57 @@ For mixed-source activation, Phases 16.2 through 16.8 now enforce and test:
 These guarantees satisfy the Phase 16 technical coexistence gate. They do not resolve
 the independent production-rights questions below.
 
+## Phase 17.9 basketball full-event spreads and totals
+
+OddsPapi exposes Basketball as `sportId=11`. Its current basketball catalogue
+distinguishes regulation-time result from overtime-inclusive winner semantics and
+names the main line families explicitly:
+
+- `Over Under (incl. overtime)`;
+- `Handicap (incl. overtime)`.
+
+Phase 17.9 maps only those exact total/handicap families to the canonical full-event
+basketball path. The adapter requires non-player match markets, exact Over/Under or
+participant-1/participant-2 outcomes, and preserves the catalogue handicap as the
+structured market line. Spread outcome 1 receives that line and outcome 2 its exact
+negation.
+
+Quarter/half families are not promoted to full-event identity. Integer and quarter
+lines are structurally preserved when present but remain blocked by the canonical
+support gate because the generic engine does not model PUSH or split settlement.
+
+Official reference:
+
+- https://oddspapi.io/sports/basketball
+
+See [basketball full-event spreads and totals](../markets/basketball-full-event-spreads-totals.md)
+and ADR-0020.
+
+## Phase 17.10 motorsport/F1 feasibility gate
+
+OddsPapi publicly lists Motorsports among its covered sports and exposes exact sport
+records through `GET /v4/sports` plus market records through `GET /v4/markets`.
+
+Phase 17.10 does not infer an F1 identifier from the marketing label. The public API
+documentation defines `sportId` and `slug` as runtime catalogue values but does not
+publish one fixed F1 sport record or stable winner/podium/H2H market IDs as normative
+constants.
+
+The adapter therefore keeps motorsport absent from `_SLUG_TO_SPORT` until a live
+catalogue record is explicitly verified and can be retained under the provider-data
+policy. A deterministic fixture proves that an unverified `motorsports` record
+remains unmapped and cannot enter competition/event discovery.
+
+No F1 market record is accepted by `_is_supported_market()` in Phase 17.10.
+
+Official references:
+
+- https://oddspapi.io/en
+- https://oddspapi.io/en/docs/get-sports
+- https://oddspapi.io/en/docs/get-markets
+
+See [motorsport/F1 semantics](../markets/motorsport-f1-semantics.md) and ADR-0021.
+
 ## Fixture policy
 
 Until provider rights are clarified:
@@ -242,3 +480,57 @@ The unresolved items in the Production blockers section remain external prerequi
 Until they are resolved and recorded, production-like composition should keep OddsPapi
 out of the enabled transport set. This is intentionally stricter than technical
 integration readiness.
+
+
+## Phase 17.11 broader outright feasibility gate
+
+OddsPapi's public REST contract exposes the current market catalogue dynamically
+through `GET /v4/markets`. ArbiScan therefore does not promote a generic
+`Tournament Winner` label into canonical `OUTRIGHT_WINNER` semantics without a
+verified sport/market contract and complete candidate identity.
+
+A deterministic synthetic Phase 17.11 catalogue record containing a tournament
+winner family and a Field outcome remains outside `_market_records()` target
+families and cannot emit source markets.
+
+This is intentional. Before a broader OddsPapi outright can be enabled, ArbiScan
+needs evidence for:
+
+- stable market identity;
+- complete/static candidate membership;
+- participant-kind consistency;
+- explicit Field/Other semantics if present;
+- tie/dead-heat behavior;
+- withdrawal/void behavior;
+- cross-transport equivalence for the same underlying outright.
+
+Official reference reviewed on 2026-09-18:
+
+- https://oddspapi.io/us/docs/get-markets
+
+The provider's independent production-rights blocker remains unchanged.
+
+See [tournament/championship outright semantics](../markets/outright-tournament-championship.md)
+and ADR-0022.
+
+
+## Phase 17.12 exchange boundary
+
+OddsPapi currently carries bookmaker-labelled price origins, including a synthetic
+fixture using the slug `betfair`. Phase 17.12 deliberately leaves those price
+origins as `ProviderKind.BOOKMAKER`.
+
+A provider/brand name is not evidence of exchange execution semantics. The current
+adapter does not expose, for those observations:
+
+- explicit BACK versus LAY side;
+- exchange ladder liquidity at the quoted price;
+- account/market commission scope and effective commission rate;
+- matched versus unmatched order state.
+
+The Phase 17.12 regression therefore proves that a Betfair-labelled OddsPapi price
+cannot enter the exchange evaluator merely by string identity.
+
+A later authorized exchange integration must construct the separate
+`ExchangePriceObservation` contract explicitly. The existing OddsPapi
+production-rights blocker remains unchanged.

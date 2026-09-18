@@ -1,0 +1,19 @@
+[
+  {
+    "marketId": 9901,
+    "marketLength": 5,
+    "marketName": "Tournament Winner",
+    "playerProp": false,
+    "sportId": 10,
+    "handicap": 0,
+    "period": "tournament",
+    "marketType": "winner",
+    "outcomes": [
+      {"outcomeId": 9901, "outcomeName": "Arsenal"},
+      {"outcomeId": 9902, "outcomeName": "Bayern Munich"},
+      {"outcomeId": 9903, "outcomeName": "Inter"},
+      {"outcomeId": 9904, "outcomeName": "Real Madrid"},
+      {"outcomeId": 9905, "outcomeName": "Field"}
+    ]
+  }
+]

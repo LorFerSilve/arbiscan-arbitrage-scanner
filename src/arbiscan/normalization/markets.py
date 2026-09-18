@@ -10,7 +10,12 @@ from arbiscan.normalization.resolution import Resolution
 from arbiscan.normalization.text import normalize_alias_key
 
 _PARAMETERIZED = {MarketKind.TOTAL_POINTS, MarketKind.HANDICAP}
-_INDEXED_PERIODS = {MarketPeriod.SET, MarketPeriod.PERIOD, MarketPeriod.QUARTER}
+_INDEXED_PERIODS = {
+    MarketPeriod.SET,
+    MarketPeriod.GAME,
+    MarketPeriod.PERIOD,
+    MarketPeriod.QUARTER,
+}
 
 
 @dataclass(frozen=True, slots=True)
@@ -21,6 +26,7 @@ class MarketSemantic:
     period: MarketPeriod
     line: Decimal | None = None
     period_index: int | None = None
+    set_index: int | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.kind, MarketKind):
@@ -42,8 +48,17 @@ class MarketSemantic:
                 raise ValueError("indexed periods require period_index >= 1")
         elif self.period_index is not None:
             raise ValueError("period_index is only valid for indexed periods")
+        if self.set_index is not None and type(self.set_index) is not int:
+            raise ValueError("market semantic set_index must be int")
+        if self.period is MarketPeriod.GAME:
+            if self.set_index is None or self.set_index < 1:
+                raise ValueError("game periods require set_index >= 1")
+        elif self.set_index is not None:
+            raise ValueError("set_index is only valid for game periods")
         if self.kind is MarketKind.SET_WINNER and self.period is not MarketPeriod.SET:
             raise ValueError("set winner must use set period")
+        if self.kind is MarketKind.GAME_WINNER and self.period is not MarketPeriod.GAME:
+            raise ValueError("game winner must use game period")
 
 
 @dataclass(frozen=True, slots=True)
@@ -57,6 +72,7 @@ class MarketAlias:
     provider_id: ProviderId | None = None
     requires_line: bool = False
     requires_period_index: bool = False
+    requires_set_index: bool = False
 
     def __post_init__(self) -> None:
         object.__setattr__(
@@ -70,12 +86,18 @@ class MarketAlias:
             raise ValueError("market alias period must be MarketPeriod")
         if self.provider_id is not None and not isinstance(self.provider_id, ProviderId):
             raise ValueError("market alias provider_id must be ProviderId")
-        if type(self.requires_line) is not bool or type(self.requires_period_index) is not bool:
+        if (
+            type(self.requires_line) is not bool
+            or type(self.requires_period_index) is not bool
+            or type(self.requires_set_index) is not bool
+        ):
             raise ValueError("market alias requirement flags must be bool")
         if self.requires_line != (self.kind in _PARAMETERIZED):
             raise ValueError("parameterized market aliases must require line exactly")
         if self.requires_period_index != (self.period in _INDEXED_PERIODS):
             raise ValueError("indexed market periods must require period_index exactly")
+        if self.requires_set_index != (self.period is MarketPeriod.GAME):
+            raise ValueError("game market periods must require set_index exactly")
 
 
 @dataclass(frozen=True, slots=True)
@@ -96,6 +118,7 @@ class MarketNormalizer:
         provider_id: ProviderId | None = None,
         line: str | Decimal | None = None,
         period_index: int | None = None,
+        set_index: int | None = None,
     ) -> Resolution[MarketSemantic]:
         key = normalize_alias_key(alias, field_name="market alias")
         if not isinstance(sport, Sport):
@@ -142,6 +165,11 @@ class MarketNormalizer:
                 continue
             if not entry.requires_period_index and period_index is not None:
                 continue
+            if entry.requires_set_index and set_index is None:
+                missing_context = True
+                continue
+            if not entry.requires_set_index and set_index is not None:
+                continue
             try:
                 semantics.add(
                     MarketSemantic(
@@ -149,6 +177,7 @@ class MarketNormalizer:
                         period=entry.period,
                         line=normalized_line,
                         period_index=period_index,
+                        set_index=set_index,
                     )
                 )
             except ValueError:
@@ -162,6 +191,7 @@ class MarketNormalizer:
                     value.period.value,
                     "" if value.line is None else str(value.line),
                     value.period_index or 0,
+                    value.set_index or 0,
                 ),
             )
         )

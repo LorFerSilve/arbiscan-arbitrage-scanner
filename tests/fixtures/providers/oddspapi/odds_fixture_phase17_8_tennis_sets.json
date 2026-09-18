@@ -1,0 +1,203 @@
+{
+  "fixtureId": "id1000001761301777",
+  "participant1Id": 501,
+  "participant2Id": 502,
+  "sportId": 12,
+  "tournamentId": 77,
+  "seasonId": 130299,
+  "statusId": 0,
+  "hasOdds": true,
+  "startTime": "2026-09-18T15:00:00.000Z",
+  "updatedAt": "2026-09-18T14:57:00.000Z",
+  "statusName": "Pre-Game",
+  "participant1Name": "Carlos Alcaraz",
+  "participant2Name": "Jannik Sinner",
+  "sportName": "Tennis",
+  "tournamentName": "US Open",
+  "bookmakerOdds": {
+    "pinnacle": {
+      "bookmakerIsActive": true,
+      "bookmakerFixtureId": "pinnacle-tennis-fixture",
+      "fixturePath": "https://example.invalid/tennis-fixture",
+      "suspended": false,
+      "markets": {
+        "123": {
+          "bookmakerMarketId": "pinnacle-123",
+          "marketActive": true,
+          "outcomes": {
+            "123": {
+              "players": {
+                "0": {
+                  "active": true,
+                  "betslip": null,
+                  "bookmakerOutcomeId": "pin-s1-alcaraz",
+                  "bookmakerChangedAt": "2026-09-18T14:58:00Z",
+                  "changedAt": "2026-09-18T14:58:00Z",
+                  "limit": 100,
+                  "playerName": null,
+                  "price": 1.96,
+                  "priceAmerican": "-104",
+                  "priceFractional": "24/25",
+                  "mainLine": true,
+                  "exchangeMeta": null
+                }
+              }
+            },
+            "124": {
+              "players": {
+                "0": {
+                  "active": true,
+                  "betslip": null,
+                  "bookmakerOutcomeId": "pin-s1-sinner",
+                  "bookmakerChangedAt": "2026-09-18T14:58:00Z",
+                  "changedAt": "2026-09-18T14:58:00Z",
+                  "limit": 100,
+                  "playerName": null,
+                  "price": 2.05,
+                  "priceAmerican": "105",
+                  "priceFractional": "21/20",
+                  "mainLine": true,
+                  "exchangeMeta": null
+                }
+              }
+            }
+          }
+        },
+        "125": {
+          "bookmakerMarketId": "pinnacle-125",
+          "marketActive": true,
+          "outcomes": {
+            "125": {
+              "players": {
+                "0": {
+                  "active": true,
+                  "betslip": null,
+                  "bookmakerOutcomeId": "pin-s2-alcaraz",
+                  "bookmakerChangedAt": "2026-09-18T14:58:00Z",
+                  "changedAt": "2026-09-18T14:58:00Z",
+                  "limit": 100,
+                  "playerName": null,
+                  "price": 1.88,
+                  "priceAmerican": "-114",
+                  "priceFractional": "22/25",
+                  "mainLine": true,
+                  "exchangeMeta": null
+                }
+              }
+            },
+            "126": {
+              "players": {
+                "0": {
+                  "active": true,
+                  "betslip": null,
+                  "bookmakerOutcomeId": "pin-s2-sinner",
+                  "bookmakerChangedAt": "2026-09-18T14:58:00Z",
+                  "changedAt": "2026-09-18T14:58:00Z",
+                  "limit": 100,
+                  "playerName": null,
+                  "price": 1.94,
+                  "priceAmerican": "-106",
+                  "priceFractional": "47/50",
+                  "mainLine": true,
+                  "exchangeMeta": null
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "betfair": {
+      "bookmakerIsActive": true,
+      "bookmakerFixtureId": "betfair-tennis-fixture",
+      "fixturePath": "https://example.invalid/tennis-fixture",
+      "suspended": false,
+      "markets": {
+        "123": {
+          "bookmakerMarketId": "betfair-123",
+          "marketActive": true,
+          "outcomes": {
+            "123": {
+              "players": {
+                "0": {
+                  "active": true,
+                  "betslip": null,
+                  "bookmakerOutcomeId": "bf-s1-alcaraz",
+                  "bookmakerChangedAt": "2026-09-18T14:58:20Z",
+                  "changedAt": "2026-09-18T14:58:20Z",
+                  "limit": 100,
+                  "playerName": null,
+                  "price": 2.10,
+                  "priceAmerican": "110",
+                  "priceFractional": "11/10",
+                  "mainLine": true,
+                  "exchangeMeta": null
+                }
+              }
+            },
+            "124": {
+              "players": {
+                "0": {
+                  "active": true,
+                  "betslip": null,
+                  "bookmakerOutcomeId": "bf-s1-sinner",
+                  "bookmakerChangedAt": "2026-09-18T14:58:20Z",
+                  "changedAt": "2026-09-18T14:58:20Z",
+                  "limit": 100,
+                  "playerName": null,
+                  "price": 1.90,
+                  "priceAmerican": "-111",
+                  "priceFractional": "9/10",
+                  "mainLine": true,
+                  "exchangeMeta": null
+                }
+              }
+            }
+          }
+        },
+        "125": {
+          "bookmakerMarketId": "betfair-125",
+          "marketActive": true,
+          "outcomes": {
+            "125": {
+              "players": {
+                "0": {
+                  "active": true,
+                  "betslip": null,
+                  "bookmakerOutcomeId": "bf-s2-alcaraz",
+                  "bookmakerChangedAt": "2026-09-18T14:58:21Z",
+                  "changedAt": "2026-09-18T14:58:21Z",
+                  "limit": 100,
+                  "playerName": null,
+                  "price": 1.91,
+                  "priceAmerican": "-110",
+                  "priceFractional": "91/100",
+                  "mainLine": true,
+                  "exchangeMeta": null
+                }
+              }
+            },
+            "126": {
+              "players": {
+                "0": {
+                  "active": true,
+                  "betslip": null,
+                  "bookmakerOutcomeId": "bf-s2-sinner",
+                  "bookmakerChangedAt": "2026-09-18T14:58:21Z",
+                  "changedAt": "2026-09-18T14:58:21Z",
+                  "limit": 100,
+                  "playerName": null,
+                  "price": 1.90,
+                  "priceAmerican": "-111",
+                  "priceFractional": "9/10",
+                  "mainLine": true,
+                  "exchangeMeta": null
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

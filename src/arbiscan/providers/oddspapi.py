@@ -115,7 +115,7 @@ class _MarketRecord:
 
 
 _SLUG_TO_SPORT: Mapping[str, Sport] = MappingProxyType(
-    {"soccer": Sport.FOOTBALL, "tennis": Sport.TENNIS}
+    {"soccer": Sport.FOOTBALL, "basketball": Sport.BASKETBALL, "tennis": Sport.TENNIS}
 )
 _KNOWN_FIXTURE_STATUS_IDS = frozenset({0, 1, 2, 3})
 
@@ -287,7 +287,18 @@ def _source_event(
 
 def _market_records(payload: object) -> Mapping[str, _MarketRecord]:
     records: dict[str, _MarketRecord] = {}
-    target_names = {"full time result", "match winner", "winner"}
+    target_names = {
+        "full time result",
+        "match winner",
+        "winner",
+        "over under full time",
+        "asian handicap",
+        "over under (incl. overtime)",
+        "handicap (incl. overtime)",
+        "both teams to score",
+        "first set winner",
+        "second set winner",
+    }
     for index, raw in enumerate(_sequence(payload, path="markets")):
         item = _mapping(raw, path=f"markets[{index}]")
         market_id = str(_integer(item.get("marketId"), path=f"markets[{index}].marketId"))
@@ -337,24 +348,91 @@ def _market_records(payload: object) -> Mapping[str, _MarketRecord]:
     return MappingProxyType(records)
 
 
-def _is_mvp_market(record: _MarketRecord, sport: Sport) -> bool:
-    if record.player_prop or record.handicap != Decimal(0):
+def _is_supported_market(record: _MarketRecord, sport: Sport) -> bool:
+    if record.player_prop:
         return False
     name = record.name.casefold()
     if sport is Sport.FOOTBALL:
-        return (
+        winner = (
             name == "full time result"
             and record.period == "fulltime"
             and record.market_type == "1x2"
+            and record.handicap == Decimal(0)
             and len(record.outcomes) == 3
         )
+        total = (
+            name == "over under full time"
+            and record.period == "fulltime"
+            and record.market_type == "totals"
+            and record.handicap > Decimal(0)
+            and len(record.outcomes) == 2
+            and {value.casefold() for value in record.outcomes.values()} == {"over", "under"}
+        )
+        asian_handicap = (
+            name == "asian handicap"
+            and record.period == "fulltime"
+            and record.market_type == "handicap"
+            and len(record.outcomes) == 2
+            and {value.casefold() for value in record.outcomes.values()} == {"1", "2"}
+        )
+        both_teams_to_score = (
+            name == "both teams to score"
+            and record.period == "fulltime"
+            and record.market_type == "totals"
+            and record.handicap == Decimal(0)
+            and len(record.outcomes) == 2
+            and {value.casefold() for value in record.outcomes.values()} == {"yes", "no"}
+        )
+        return winner or total or asian_handicap or both_teams_to_score
     if sport is Sport.TENNIS:
-        return (
+        match_winner = (
             name in {"match winner", "winner"}
             and record.period in {"fulltime", "match"}
+            and record.market_type == "winner"
+            and record.handicap == Decimal(0)
             and len(record.outcomes) == 2
+            and {value.casefold() for value in record.outcomes.values()} == {"1", "2"}
         )
+        set_winner = (
+            (record.external_id == "123" and name == "first set winner" and record.period == "p1")
+            or (
+                record.external_id == "125"
+                and name == "second set winner"
+                and record.period == "p2"
+            )
+        ) and (
+            record.market_type == "winner"
+            and record.handicap == Decimal(0)
+            and len(record.outcomes) == 2
+            and {value.casefold() for value in record.outcomes.values()} == {"1", "2"}
+        )
+        return match_winner or set_winner
+    if sport is Sport.BASKETBALL:
+        full_event_total = (
+            name == "over under (incl. overtime)"
+            and record.period == "fulltime"
+            and record.market_type == "totals"
+            and record.handicap > Decimal(0)
+            and len(record.outcomes) == 2
+            and {value.casefold() for value in record.outcomes.values()} == {"over", "under"}
+        )
+        full_event_handicap = (
+            name == "handicap (incl. overtime)"
+            and record.period == "fulltime"
+            and record.market_type == "handicap"
+            and len(record.outcomes) == 2
+            and {value.casefold() for value in record.outcomes.values()} == {"1", "2"}
+        )
+        return full_event_total or full_event_handicap
     return False
+
+
+def _tennis_set_index(record: _MarketRecord) -> int | None:
+    if record.external_id == "123" and record.name.casefold() == "first set winner":
+        return 1
+    if record.external_id == "125" and record.name.casefold() == "second set winner":
+        return 2
+    return None
 
 
 def _shared_bookmaker_provider(slug: str) -> Provider:
@@ -412,7 +490,11 @@ def _source_markets(
 
         for market_id in sorted(raw_markets, key=lambda value: (len(value), value)):
             record = catalog.get(market_id)
-            if record is None or record.sport_id != sport_id or not _is_mvp_market(record, sport):
+            if (
+                record is None
+                or record.sport_id != sport_id
+                or not _is_supported_market(record, sport)
+            ):
                 continue
             raw_market = _mapping(
                 raw_markets[market_id],
@@ -496,11 +578,62 @@ def _source_markets(
                                 price=str(price),
                                 odds_format=SourceOddsFormat.DECIMAL,
                                 source_status=source_status,
+                                handicap=(
+                                    record.handicap
+                                    if (
+                                        (
+                                            sport is Sport.FOOTBALL
+                                            and record.name.casefold() == "asian handicap"
+                                        )
+                                        or (
+                                            sport is Sport.BASKETBALL
+                                            and record.name.casefold()
+                                            == "handicap (incl. overtime)"
+                                        )
+                                    )
+                                    and record.outcomes[outcome_id].casefold() == "1"
+                                    else (
+                                        -record.handicap
+                                        if (
+                                            (
+                                                sport is Sport.FOOTBALL
+                                                and record.name.casefold() == "asian handicap"
+                                            )
+                                            or (
+                                                sport is Sport.BASKETBALL
+                                                and record.name.casefold()
+                                                == "handicap (incl. overtime)"
+                                            )
+                                        )
+                                        and record.outcomes[outcome_id].casefold() == "2"
+                                        else None
+                                    )
+                                ),
                             ),
                         ),
                         source_status=source_status,
                         price_provider=price_provider,
                         source_timestamp=source_timestamp,
+                        period_index=(_tennis_set_index(record) if sport is Sport.TENNIS else None),
+                        line=(
+                            record.handicap
+                            if (
+                                (
+                                    sport is Sport.FOOTBALL
+                                    and record.name.casefold()
+                                    in {"over under full time", "asian handicap"}
+                                )
+                                or (
+                                    sport is Sport.BASKETBALL
+                                    and record.name.casefold()
+                                    in {
+                                        "over under (incl. overtime)",
+                                        "handicap (incl. overtime)",
+                                    }
+                                )
+                            )
+                            else None
+                        ),
                     )
                 )
     return tuple(markets)
@@ -837,12 +970,16 @@ class OddsPapiProvider(ProviderAdapter):
                     price=selection.price,
                     odds_format=selection.odds_format,
                     source_status="suspended",
+                    handicap=selection.handicap,
                 )
                 for selection in market.selections
             ),
             source_status="suspended",
             price_provider=market.price_provider,
             source_timestamp=market.source_timestamp,
+            line=market.line,
+            period_index=market.period_index,
+            set_index=market.set_index,
         )
 
     def stream_odds(self, external_event_ids: tuple[str, ...]) -> AsyncIterator[OddsSnapshot]:
@@ -916,6 +1053,19 @@ class OddsPapiProvider(ProviderAdapter):
         try:
             records = _sport_records(payload)
             matches = tuple(record for record in records if record.sport is sport)
+            if not matches:
+                error = self._error(
+                    operation,
+                    ProviderErrorKind.UNSUPPORTED,
+                    f"OddsPapi has no verified record for canonical sport {sport.value}",
+                )
+                self._emit(
+                    operation,
+                    outcome=ProviderTelemetryOutcome.FAILURE,
+                    response=response,
+                    error=error,
+                )
+                raise error
             if len(matches) != 1:
                 raise _SchemaError(
                     f"OddsPapi returned {len(matches)} records for canonical sport {sport.value}"

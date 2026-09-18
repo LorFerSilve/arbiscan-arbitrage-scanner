@@ -1,0 +1,59 @@
+[
+  {
+    "marketId": 101,
+    "marketLength": 3,
+    "marketName": "Full Time Result",
+    "playerProp": false,
+    "sportId": 10,
+    "handicap": 0,
+    "period": "fulltime",
+    "marketType": "1x2",
+    "outcomes": [
+      {"outcomeId": 101, "outcomeName": "1"},
+      {"outcomeId": 102, "outcomeName": "X"},
+      {"outcomeId": 103, "outcomeName": "2"}
+    ]
+  },
+  {
+    "marketId": 106,
+    "marketLength": 2,
+    "marketName": "Over Under Full Time",
+    "playerProp": false,
+    "sportId": 10,
+    "handicap": 2.5,
+    "period": "fulltime",
+    "marketType": "totals",
+    "outcomes": [
+      {"outcomeId": 106, "outcomeName": "Over"},
+      {"outcomeId": 107, "outcomeName": "Under"}
+    ]
+  },
+  {
+    "marketId": 108,
+    "marketLength": 2,
+    "marketName": "Over Under Full Time",
+    "playerProp": false,
+    "sportId": 10,
+    "handicap": 3,
+    "period": "fulltime",
+    "marketType": "totals",
+    "outcomes": [
+      {"outcomeId": 108, "outcomeName": "Over"},
+      {"outcomeId": 109, "outcomeName": "Under"}
+    ]
+  },
+  {
+    "marketId": 110,
+    "marketLength": 2,
+    "marketName": "Over Under Full Time",
+    "playerProp": false,
+    "sportId": 10,
+    "handicap": 3.5,
+    "period": "fulltime",
+    "marketType": "totals",
+    "outcomes": [
+      {"outcomeId": 110, "outcomeName": "Over"},
+      {"outcomeId": 111, "outcomeName": "Under"}
+    ]
+  }
+]

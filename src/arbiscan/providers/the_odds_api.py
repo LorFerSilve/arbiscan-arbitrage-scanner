@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import math
-from collections.abc import AsyncIterator, Callable, Mapping
+from collections.abc import AsyncIterator, Callable, Collection, Mapping
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
@@ -63,6 +63,7 @@ class TheOddsApiConfig:
     markets: tuple[str, ...] = ("h2h",)
     request_timeout_seconds: float = 10.0
     include_sids: bool = True
+    basketball_full_event_bookmakers: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         if not isinstance(self.api_key, str) or not self.api_key.strip():
@@ -85,6 +86,25 @@ class TheOddsApiConfig:
         object.__setattr__(self, "regions", regions)
         object.__setattr__(self, "markets", markets)
 
+        if any(not isinstance(value, str) for value in self.basketball_full_event_bookmakers):
+            raise ProviderContractError(
+                "The Odds API basketball_full_event_bookmakers must contain text values"
+            )
+        basketball_bookmakers = tuple(
+            value.strip().casefold() for value in self.basketball_full_event_bookmakers
+        )
+        if any(not value for value in basketball_bookmakers) or len(
+            set(basketball_bookmakers)
+        ) != len(basketball_bookmakers):
+            raise ProviderContractError(
+                "The Odds API basketball_full_event_bookmakers must be unique non-empty text"
+            )
+        object.__setattr__(
+            self,
+            "basketball_full_event_bookmakers",
+            basketball_bookmakers,
+        )
+
         timeout = self.request_timeout_seconds
         if isinstance(timeout, bool) or not isinstance(timeout, (int, float)):
             raise ProviderContractError("The Odds API request timeout must be numeric")
@@ -101,11 +121,13 @@ class _SportRecord:
     group: str
     title: str
     active: bool
+    has_outrights: bool
 
 
 _GROUP_TO_SPORT: Mapping[str, Sport] = MappingProxyType(
     {
         "Soccer": Sport.FOOTBALL,
+        "Basketball": Sport.BASKETBALL,
         "Tennis": Sport.TENNIS,
         "Motor Sports": Sport.MOTORSPORT,
         "Motorsports": Sport.MOTORSPORT,
@@ -183,6 +205,18 @@ def _price_text(value: object, *, path: str) -> str:
     return str(value)
 
 
+def _optional_point(value: object | None, *, path: str) -> Decimal | None:
+    if value is None:
+        return None
+    if type(value) is int:
+        return Decimal(value)
+    if type(value) is not Decimal:
+        raise _SchemaError(f"{path} must be numeric")
+    if not value.is_finite():
+        raise _SchemaError(f"{path} must be finite")
+    return value
+
+
 def _header_int(headers: Mapping[str, str], name: str) -> int | None:
     raw = headers.get(name.casefold())
     if raw is None:
@@ -209,6 +243,10 @@ def _sport_records(payload: object) -> tuple[_SportRecord, ...]:
                 group=_text(item.get("group"), path=f"sports[{index}].group"),
                 title=_text(item.get("title"), path=f"sports[{index}].title"),
                 active=_boolean(item.get("active"), path=f"sports[{index}].active"),
+                has_outrights=_boolean(
+                    item.get("has_outrights"),
+                    path=f"sports[{index}].has_outrights",
+                ),
             )
         )
     return tuple(records)
@@ -259,8 +297,18 @@ def _selection_id(
     return f"{bookmaker_key}:{market_key}:{suffix}"
 
 
-def _source_markets(payload: Mapping[str, object], *, event_id: str) -> tuple[SourceMarket, ...]:
+def _source_markets(
+    payload: Mapping[str, object],
+    *,
+    event_id: str,
+    basketball_full_event_bookmakers: Collection[str] = (),
+) -> tuple[SourceMarket, ...]:
     markets: list[SourceMarket] = []
+    sport_key = _text(payload.get("sport_key"), path="event.sport_key")
+    home_team = _text(payload.get("home_team"), path="event.home_team")
+    away_team = _text(payload.get("away_team"), path="event.away_team")
+    if home_team == away_team:
+        raise _SchemaError("event home and away participants must differ")
     bookmakers = _sequence(payload.get("bookmakers"), path="event.bookmakers")
     for bookmaker_index, raw_bookmaker in enumerate(bookmakers):
         bookmaker = _mapping(raw_bookmaker, path=f"bookmakers[{bookmaker_index}]")
@@ -290,6 +338,15 @@ def _source_markets(payload: Mapping[str, object], *, event_id: str) -> tuple[So
                 market.get("key"),
                 path=f"bookmakers[{bookmaker_index}].markets[{market_index}].key",
             )
+            if (
+                sport_key.startswith("basketball_")
+                and market_key in {"spreads", "totals"}
+                and bookmaker_key.casefold() not in basketball_full_event_bookmakers
+            ):
+                # The transport exposes the bookmaker's featured game market but does
+                # not encode its overtime settlement rule. Only price origins with an
+                # independently verified full-event rule may enter this canonical path.
+                continue
             market_sid = _optional_text(
                 market.get("sid"),
                 path=f"bookmakers[{bookmaker_index}].markets[{market_index}].sid",
@@ -305,8 +362,14 @@ def _source_markets(payload: Mapping[str, object], *, event_id: str) -> tuple[So
             if not raw_outcomes:
                 raise _SchemaError("market.outcomes must not be empty")
             selections: list[SourceSelectionQuote] = []
+            points: list[Decimal | None] = []
             for outcome_index, raw_outcome in enumerate(raw_outcomes):
                 outcome = _mapping(raw_outcome, path=f"outcomes[{outcome_index}]")
+                point = _optional_point(
+                    outcome.get("point"),
+                    path=f"outcomes[{outcome_index}].point",
+                )
+                points.append(point)
                 selections.append(
                     SourceSelectionQuote(
                         external_selection_id=_selection_id(
@@ -324,8 +387,85 @@ def _source_markets(payload: Mapping[str, object], *, event_id: str) -> tuple[So
                             path=f"outcomes[{outcome_index}].price",
                         ),
                         odds_format=SourceOddsFormat.DECIMAL,
+                        handicap=(
+                            point
+                            if market_key == "spreads"
+                            else Decimal("0")
+                            if market_key == "draw_no_bet"
+                            else None
+                        ),
                     )
                 )
+
+            market_line: Decimal | None = None
+            period_index: int | None = None
+            if market_key == "totals":
+                if any(point is None for point in points):
+                    raise _SchemaError("totals market outcomes require point")
+                total_points = {point for point in points if point is not None}
+                if len(total_points) != 1:
+                    raise _SchemaError("totals market outcomes must share one point")
+                total_labels = {selection.label.casefold() for selection in selections}
+                if len(selections) != 2 or total_labels != {"over", "under"}:
+                    raise _SchemaError(
+                        "totals market must contain exactly one Over and one Under outcome"
+                    )
+                market_line = next(iter(total_points))
+            elif market_key in {"h2h_s1", "h2h_s2"}:
+                if not sport_key.startswith("tennis_"):
+                    raise _SchemaError(f"{market_key} is only supported for tennis events")
+                if any(point is not None for point in points):
+                    raise _SchemaError(f"{market_key} market outcomes must not carry point")
+                if len(selections) != 2:
+                    raise _SchemaError(f"{market_key} market must contain exactly two outcomes")
+                if {selection.label for selection in selections} != {
+                    home_team,
+                    away_team,
+                }:
+                    raise _SchemaError(
+                        f"{market_key} market outcomes must match the event home and away participants"
+                    )
+                period_index = 1 if market_key == "h2h_s1" else 2
+            elif market_key == "btts":
+                if any(point is not None for point in points):
+                    raise _SchemaError("btts market outcomes must not carry point")
+                btts_labels = [selection.label.casefold() for selection in selections]
+                if len(selections) != 2 or sorted(btts_labels) != ["no", "yes"]:
+                    raise _SchemaError(
+                        "btts market must contain exactly one Yes and one No outcome"
+                    )
+            elif market_key == "draw_no_bet":
+                if any(point is not None for point in points):
+                    raise _SchemaError("draw_no_bet market outcomes must not carry point")
+                if len(selections) != 2:
+                    raise _SchemaError("draw_no_bet market must contain exactly two outcomes")
+                if {selection.label for selection in selections} != {home_team, away_team}:
+                    raise _SchemaError(
+                        "draw_no_bet market outcomes must match the event home and away participants"
+                    )
+                market_line = Decimal("0")
+            elif market_key == "spreads":
+                if any(point is None for point in points):
+                    raise _SchemaError("spreads market outcomes require point")
+                if len(selections) != 2:
+                    raise _SchemaError("spreads market must contain exactly two outcomes")
+                by_label = {selection.label: selection for selection in selections}
+                if set(by_label) != {home_team, away_team}:
+                    raise _SchemaError(
+                        "spreads market outcomes must match the event home and away participants"
+                    )
+                home_handicap = by_label[home_team].handicap
+                away_handicap = by_label[away_team].handicap
+                if home_handicap is None or away_handicap is None:
+                    raise _SchemaError("spreads market outcomes require handicap points")
+                if home_handicap != -away_handicap:
+                    raise _SchemaError(
+                        "spreads market home and away handicap points must be exact opposites"
+                    )
+                market_line = home_handicap
+            elif any(point is not None for point in points):
+                raise _SchemaError(f"market {market_key!r} carries unsupported point semantics")
+
             markets.append(
                 SourceMarket(
                     external_event_id=event_id,
@@ -334,6 +474,8 @@ def _source_markets(payload: Mapping[str, object], *, event_id: str) -> tuple[So
                     selections=tuple(selections),
                     price_provider=price_provider,
                     source_timestamp=last_update,
+                    line=market_line,
+                    period_index=period_index,
                 )
             )
     return tuple(markets)
@@ -342,8 +484,20 @@ def _source_markets(payload: Mapping[str, object], *, event_id: str) -> tuple[So
 class TheOddsApiProvider(ProviderAdapter):
     """Strict adapter for The Odds API V4.
 
-    Phase 6 intentionally requests decimal ``h2h`` data by default. Broader
-    market-semantic and odds-format conversion remains Phase 7 work.
+    The adapter still requests decimal ``h2h`` data by default. Sports metadata
+    preserves the provider's explicit ``has_outrights`` flag; outright competitions
+    fail before the binary event parser until a dedicated multi-participant identity
+    path can prove complete candidate sets and settlement equivalence. Phase 17 preserves
+    structured ``point`` parameters for explicitly configured totals/spreads.
+    Basketball is discovered as a canonical sport; featured ``spreads`` and
+    ``totals`` remain distinct from the provider's quarter/half market keys.
+    Totals require an exact Over/Under pair; spreads require the event's exact home/away
+    pair with opposite points and anchor ``SourceMarket.line`` to the home participant.
+    Draw No Bet requires the exact event participant pair, carries no source point, and
+    is represented canonically as the existing Asian-handicap-zero settlement shape.
+    Tennis set moneylines use only the documented ``h2h_s1`` and ``h2h_s2``
+    keys, require the event participant pair without point semantics, and preserve the
+    set number as structured ``SourceMarket.period_index``.
     """
 
     def __init__(
@@ -462,11 +616,23 @@ class TheOddsApiProvider(ProviderAdapter):
 
         records = await self._load_sports(operation, emit_success=False)
         competition = next((value for value in records if value.key == competition_id), None)
-        if competition is None or _GROUP_TO_SPORT.get(competition.group) is None:
+        canonical_sport = None if competition is None else _GROUP_TO_SPORT.get(competition.group)
+        if competition is None or canonical_sport is None:
             raise self._error(
                 operation,
                 ProviderErrorKind.UNSUPPORTED,
                 "competition is not available as a supported canonical sport",
+            )
+        if competition.has_outrights:
+            raise self._error(
+                operation,
+                ProviderErrorKind.UNSUPPORTED,
+                (
+                    "Phase 17.11 does not promote The Odds API outright competitions "
+                    "through binary home/away event identity; documented outright "
+                    "schemas can omit home/away participants and require a dedicated "
+                    "multi-participant parser with complete candidate-set proof"
+                ),
             )
 
         query = {"dateFormat": "iso"}
@@ -534,7 +700,13 @@ class TheOddsApiProvider(ProviderAdapter):
                 raise _SchemaError("event.id does not match the requested event")
             if returned_sport != competition_id:
                 raise _SchemaError("event.sport_key does not match the discovered competition")
-            markets = _source_markets(item, event_id=event_id)
+            markets = _source_markets(
+                item,
+                event_id=event_id,
+                basketball_full_event_bookmakers=frozenset(
+                    self._config.basketball_full_event_bookmakers
+                ),
+            )
             ingested_at = _utc(self._clock(), field_name="clock")
             snapshot = OddsSnapshot(
                 provider_id=self.provider.id,

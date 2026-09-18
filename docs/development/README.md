@@ -32,19 +32,32 @@ This directory contains the reproducible engineering setup plus formal completio
 - [`phase-16.6-completion.md`](phase-16.6-completion.md) — Phase 16.6 real multi-source coexistence regressions.
 - [`phase-16.7-completion.md`](phase-16.7-completion.md) — Phase 16.7 observability and operational tuning for the second real source.
 - [`phase-16.8-completion.md`](phase-16.8-completion.md) — Phase 16.8 staged enablement and formal Phase 16 technical closure.
+- [`phase-17.1-completion.md`](phase-17.1-completion.md) — Phase 17.1 structured advanced-market semantic foundation.
+- [`phase-17.2-completion.md`](phase-17.2-completion.md) — Phase 17.2 football pre-match regulation totals on push-free half-goal lines.
+- [`phase-17.3-completion.md`](phase-17.3-completion.md) — Phase 17.3 football Asian handicap identity, settlement semantics, and half-goal enablement.
+- [`phase-17.4-completion.md`](phase-17.4-completion.md) — Phase 17.4 football regulation-time BTTS provider equivalence and YES/NO enablement.
+- [`phase-17.5-completion.md`](phase-17.5-completion.md) — Phase 17.5 football Draw No Bet / Asian Handicap 0 refund-aware evaluation.
+- [`phase-17.6-completion.md`](phase-17.6-completion.md) — Phase 17.6 indexed tennis Set 1/Set 2 winner semantics with provider-narrowed support.
+- [`phase-17.7-completion.md`](phase-17.7-completion.md) — Phase 17.7 nested tennis game identity and fail-closed score-state/provider feasibility gate.
+- [`phase-17.8-completion.md`](phase-17.8-completion.md) — Phase 17.8 The Odds API + OddsPapi tennis Set 1/Set 2 cross-transport completion.
+- [`phase-17.9-completion.md`](phase-17.9-completion.md) — Phase 17.9 basketball full-event spreads/totals with overtime-period and push-free settlement gates.
+- [`phase-17.10-completion.md`](phase-17.10-completion.md) — Phase 17.10 motorsport/F1 canonical semantics and fail-closed provider/settlement feasibility gate.
+- [`phase-17.11-completion.md`](phase-17.11-completion.md) — Phase 17.11 broader outright candidate-set and settlement-safety gate.
+- [`phase-17.12-completion.md`](phase-17.12-completion.md) — Phase 17.12 exchange BACK/LAY, liability, liquidity, and commission-aware settlement foundation.
 
 ## Current hand-off
 
-Phases 0 through 16 are the completed technical baseline. The next roadmap
-dependency is **Phase 17 — Advanced market support**.
+Phases 0 through 16 and **Phases 17.1–17.12** are the completed technical baseline.
+Phase 17 expansion is now closed at the semantic-foundation level.
 
-Before Phase 17 implementation, read
-[`phase-16.8-completion.md`](phase-16.8-completion.md),
-[`../providers/phase-16-readiness.md`](../providers/phase-16-readiness.md), ADR-0012,
-and the Phase 16.2 through Phase 16.7 completion records so every new market family
-preserves the established provenance, matching, freshness, overlap, observability,
-staged-enablement, and fail-closed invariants.
+Phase 17.12 introduces a separate exchange settlement path with explicit BACK/LAY
+identity, lay liability, visible liquidity, exchange/transport provenance, commission
+scope, and net-market commission. Existing aggregator Betfair-labelled observations
+remain ordinary bookmaker price origins because neither current transport exposes the
+required exchange-order contract.
 
-Phase 16 technical completion does not override unresolved provider-specific
-production/legal blockers. OddsPapi remains production-blocked as documented in
-[`../providers/oddspapi.md`](../providers/oddspapi.md).
+No live exchange adapter or automated wagering path is enabled. The existing
+OddsPapi production/legal blocker remains unchanged.
+
+The next roadmap dependency is **Phase 18 — historical analysis, replay, and
+backtesting**.

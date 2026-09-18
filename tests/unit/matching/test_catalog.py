@@ -3,8 +3,20 @@
 import asyncio
 from collections.abc import Callable
 from dataclasses import replace
+from decimal import Decimal
 
-from arbiscan.domain import EventId, MarketId, ParticipantId, SelectionId, Sport
+from arbiscan.domain import (
+    EventId,
+    Market,
+    MarketId,
+    MarketKind,
+    MarketPeriod,
+    ParticipantId,
+    Selection,
+    SelectionId,
+    SelectionKind,
+    Sport,
+)
 from arbiscan.matching import CanonicalRegistry
 from arbiscan.providers.synthetic import build_phase5_synthetic_scenario
 
@@ -84,4 +96,274 @@ def test_registry_rejects_participant_from_another_event() -> None:
             selections=selections,
         ),
         "outside its event",
+    )
+
+
+def test_registry_requires_exact_over_under_completeness_for_totals() -> None:
+    scenario = build_phase5_synthetic_scenario()
+    event_id = scenario.registry.events[0].id
+    market = Market(
+        id=MarketId("market:test:total:2.5"),
+        event_id=event_id,
+        kind=MarketKind.TOTAL_POINTS,
+        period=MarketPeriod.REGULATION,
+        line=Decimal("2.5"),
+    )
+    over = Selection(
+        id=SelectionId("selection:test:over:2.5"),
+        market_id=market.id,
+        kind=SelectionKind.OVER,
+    )
+    under = Selection(
+        id=SelectionId("selection:test:under:2.5"),
+        market_id=market.id,
+        kind=SelectionKind.UNDER,
+    )
+
+    valid = CanonicalRegistry(
+        competitions=scenario.registry.competitions,
+        participants=scenario.registry.participants,
+        events=scenario.registry.events,
+        markets=(*scenario.registry.markets, market),
+        selections=(*scenario.registry.selections, over, under),
+    )
+    assert valid.selection_ids_for_market(market.id) == tuple(
+        sorted((over.id, under.id), key=lambda value: value.value)
+    )
+
+    _assert_registry_error(
+        lambda: CanonicalRegistry(
+            competitions=scenario.registry.competitions,
+            participants=scenario.registry.participants,
+            events=scenario.registry.events,
+            markets=(*scenario.registry.markets, market),
+            selections=(*scenario.registry.selections, over),
+        ),
+        "exactly one OVER and one UNDER",
+    )
+
+
+def test_registry_requires_anchored_mirrored_handicap_selections() -> None:
+    scenario = build_phase5_synthetic_scenario()
+    event = scenario.registry.events[0]
+    assert len(event.participants) == 2
+    line = Decimal("-0.5")
+    market = Market(
+        id=MarketId("market:test:handicap:-0.5"),
+        event_id=event.id,
+        kind=MarketKind.HANDICAP,
+        period=MarketPeriod.REGULATION,
+        line=line,
+    )
+    participant1, participant2 = event.participants
+    first = Selection(
+        id=SelectionId("selection:test:handicap:first"),
+        market_id=market.id,
+        kind=SelectionKind.PARTICIPANT,
+        participant_id=participant1.id,
+        handicap=line,
+    )
+    second = Selection(
+        id=SelectionId("selection:test:handicap:second"),
+        market_id=market.id,
+        kind=SelectionKind.PARTICIPANT,
+        participant_id=participant2.id,
+        handicap=-line,
+    )
+
+    valid = CanonicalRegistry(
+        competitions=scenario.registry.competitions,
+        participants=scenario.registry.participants,
+        events=scenario.registry.events,
+        markets=(*scenario.registry.markets, market),
+        selections=(*scenario.registry.selections, first, second),
+    )
+    assert set(valid.selection_ids_for_market(market.id)) == {first.id, second.id}
+
+    wrong_second = replace(second, handicap=line)
+    _assert_registry_error(
+        lambda: CanonicalRegistry(
+            competitions=scenario.registry.competitions,
+            participants=scenario.registry.participants,
+            events=scenario.registry.events,
+            markets=(*scenario.registry.markets, market),
+            selections=(*scenario.registry.selections, first, wrong_second),
+        ),
+        "market.line for participant 1 and its negation for participant 2",
+    )
+
+
+def test_registry_rejects_incomplete_handicap_outcome_set() -> None:
+    scenario = build_phase5_synthetic_scenario()
+    event = scenario.registry.events[0]
+    assert len(event.participants) == 2
+    line = Decimal("0.5")
+    market = Market(
+        id=MarketId("market:test:handicap:0.5"),
+        event_id=event.id,
+        kind=MarketKind.HANDICAP,
+        period=MarketPeriod.REGULATION,
+        line=line,
+    )
+    only_first = Selection(
+        id=SelectionId("selection:test:handicap:only-first"),
+        market_id=market.id,
+        kind=SelectionKind.PARTICIPANT,
+        participant_id=event.participants[0].id,
+        handicap=line,
+    )
+
+    _assert_registry_error(
+        lambda: CanonicalRegistry(
+            competitions=scenario.registry.competitions,
+            participants=scenario.registry.participants,
+            events=scenario.registry.events,
+            markets=(*scenario.registry.markets, market),
+            selections=(*scenario.registry.selections, only_first),
+        ),
+        "exactly two participant selections",
+    )
+
+
+def test_registry_requires_exact_yes_no_completeness_for_btts() -> None:
+    scenario = build_phase5_synthetic_scenario()
+    event_id = scenario.registry.events[0].id
+    market = Market(
+        id=MarketId("market:test:btts"),
+        event_id=event_id,
+        kind=MarketKind.BOTH_TEAMS_TO_SCORE,
+        period=MarketPeriod.REGULATION,
+    )
+    yes = Selection(
+        id=SelectionId("selection:test:btts:yes"),
+        market_id=market.id,
+        kind=SelectionKind.YES,
+    )
+    no = Selection(
+        id=SelectionId("selection:test:btts:no"),
+        market_id=market.id,
+        kind=SelectionKind.NO,
+    )
+
+    valid = CanonicalRegistry(
+        competitions=scenario.registry.competitions,
+        participants=scenario.registry.participants,
+        events=scenario.registry.events,
+        markets=(*scenario.registry.markets, market),
+        selections=(*scenario.registry.selections, yes, no),
+    )
+    assert set(valid.selection_ids_for_market(market.id)) == {yes.id, no.id}
+
+    _assert_registry_error(
+        lambda: CanonicalRegistry(
+            competitions=scenario.registry.competitions,
+            participants=scenario.registry.participants,
+            events=scenario.registry.events,
+            markets=(*scenario.registry.markets, market),
+            selections=(*scenario.registry.selections, yes),
+        ),
+        "exactly one YES and one NO",
+    )
+
+
+def test_registry_requires_exact_participant_completeness_for_set_winner() -> None:
+    scenario = build_phase5_synthetic_scenario()
+    event = scenario.registry.events[0]
+    assert len(event.participants) == 2
+    market = Market(
+        id=MarketId("market:test:set-winner:1"),
+        event_id=event.id,
+        kind=MarketKind.SET_WINNER,
+        period=MarketPeriod.SET,
+        period_index=1,
+    )
+    first = Selection(
+        id=SelectionId("selection:test:set-winner:first"),
+        market_id=market.id,
+        kind=SelectionKind.PARTICIPANT,
+        participant_id=event.participants[0].id,
+    )
+    second = Selection(
+        id=SelectionId("selection:test:set-winner:second"),
+        market_id=market.id,
+        kind=SelectionKind.PARTICIPANT,
+        participant_id=event.participants[1].id,
+    )
+
+    valid = CanonicalRegistry(
+        competitions=scenario.registry.competitions,
+        participants=scenario.registry.participants,
+        events=scenario.registry.events,
+        markets=(*scenario.registry.markets, market),
+        selections=(*scenario.registry.selections, first, second),
+    )
+    assert set(valid.selection_ids_for_market(market.id)) == {first.id, second.id}
+
+    _assert_registry_error(
+        lambda: CanonicalRegistry(
+            competitions=scenario.registry.competitions,
+            participants=scenario.registry.participants,
+            events=scenario.registry.events,
+            markets=(*scenario.registry.markets, market),
+            selections=(*scenario.registry.selections, first),
+        ),
+        "exactly two participant selections",
+    )
+
+    outsider = replace(second, participant_id=ParticipantId("participant:everton"))
+    _assert_registry_error(
+        lambda: CanonicalRegistry(
+            competitions=scenario.registry.competitions,
+            participants=scenario.registry.participants,
+            events=scenario.registry.events,
+            markets=(*scenario.registry.markets, market),
+            selections=(*scenario.registry.selections, first, outsider),
+        ),
+        "outside its event",
+    )
+
+
+def test_registry_requires_exact_participant_completeness_for_game_winner() -> None:
+    scenario = build_phase5_synthetic_scenario()
+    event = scenario.registry.events[0]
+    assert len(event.participants) == 2
+    market = Market(
+        id=MarketId("market:test:game-winner:set1:game3"),
+        event_id=event.id,
+        kind=MarketKind.GAME_WINNER,
+        period=MarketPeriod.GAME,
+        period_index=3,
+        set_index=1,
+    )
+    first = Selection(
+        id=SelectionId("selection:test:game-winner:first"),
+        market_id=market.id,
+        kind=SelectionKind.PARTICIPANT,
+        participant_id=event.participants[0].id,
+    )
+    second = Selection(
+        id=SelectionId("selection:test:game-winner:second"),
+        market_id=market.id,
+        kind=SelectionKind.PARTICIPANT,
+        participant_id=event.participants[1].id,
+    )
+
+    valid = CanonicalRegistry(
+        competitions=scenario.registry.competitions,
+        participants=scenario.registry.participants,
+        events=scenario.registry.events,
+        markets=(*scenario.registry.markets, market),
+        selections=(*scenario.registry.selections, first, second),
+    )
+    assert set(valid.selection_ids_for_market(market.id)) == {first.id, second.id}
+
+    _assert_registry_error(
+        lambda: CanonicalRegistry(
+            competitions=scenario.registry.competitions,
+            participants=scenario.registry.participants,
+            events=scenario.registry.events,
+            markets=(*scenario.registry.markets, market),
+            selections=(*scenario.registry.selections, first),
+        ),
+        "exactly two participant selections",
     )

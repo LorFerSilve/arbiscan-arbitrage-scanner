@@ -96,6 +96,17 @@ What evidence or change should cause this decision to be reconsidered?
 
 - [`0006-aggregator-price-origin-boundary.md`](0006-aggregator-price-origin-boundary.md) — separates transport/data-vendor identity from bookmaker/exchange price-origin identity.
 - [`0012-multi-source-price-observation-provenance.md`](0012-multi-source-price-observation-provenance.md) — defines how Phase 16 must preserve transport provenance and resolve overlapping observations without double-counting a bookmaker.
+- [`0013-structured-advanced-market-parameters.md`](0013-structured-advanced-market-parameters.md) — requires exact structured lines, period indexes, and selection handicaps before Phase 17 market families can enter canonical arbitrage detection.
+- [`0014-football-totals-push-free-settlement-policy.md`](0014-football-totals-push-free-settlement-policy.md) — limits Phase 17.2 football totals to push-free half-goal lines until richer settlement algebra exists.
+- [`0015-football-asian-handicap-identity-and-settlement.md`](0015-football-asian-handicap-identity-and-settlement.md) — anchors signed handicap identity to ordered participant 1, models Asian settlement states, and gates complex settlement from the generic engine.
+- [`0016-football-btts-provider-equivalence.md`](0016-football-btts-provider-equivalence.md) — defines regulation-time BTTS through exact provider market identity and canonical YES/NO completeness.
+- [`0017-draw-no-bet-refund-aware-evaluation.md`](0017-draw-no-bet-refund-aware-evaluation.md) — reuses Asian Handicap 0 for DNB and separates decisive-state edge from the shared draw-refund state.
+- [`0018-tennis-indexed-set-winner-provider-scope.md`](0018-tennis-indexed-set-winner-provider-scope.md) — makes tennis set index structural, enables only demonstrated set-winner mappings, and rejects provider-capability guessing.
+- [`0019-tennis-game-identity-and-score-state-gate.md`](0019-tennis-game-identity-and-score-state-gate.md) — models nested set/game identity while keeping game-winner runtime support closed until stable provider score-state semantics exist.
+- [`0020-basketball-full-event-period-and-push-free-scope.md`](0020-basketball-full-event-period-and-push-free-scope.md) — separates basketball full-event identity from regulation/sub-period variants and restricts generic evaluation to half-point totals/spreads.
+- [`0021-motorsport-identity-and-settlement-gate.md`](0021-motorsport-identity-and-settlement-gate.md) — defines race/qualifying/session motorsport identity, winner/podium/H2H completeness, and keeps runtime support closed until provider and settlement equivalence is proven.
+- [`0022-outright-candidate-set-and-settlement-gate.md`](0022-outright-candidate-set-and-settlement-gate.md) — generalizes complete multi-participant outright identity and defines the settlement evidence required before generic N-outcome math is safe.
+- [`0023-exchange-back-lay-liability-commission.md`](0023-exchange-back-lay-liability-commission.md) — separates exchange BACK/LAY prices from bookmaker quotes and defines liability, liquidity, commission-scope, and scenario-P&L invariants.
 
 ## Initial ADR topics
 

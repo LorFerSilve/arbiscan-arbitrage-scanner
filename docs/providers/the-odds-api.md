@@ -15,7 +15,7 @@ Official resources:
 
 The Odds API is a documented odds aggregator with a low-friction starter tier and broad sports/bookmaker coverage. Its V4 API exposes stable event IDs, ISO timestamps, decimal odds, source IDs where available, usage headers, and a documented European bookmaker region. That makes it suitable for validating ArbiScan's Phase 4 provider boundary against real-world aggregator payloads before adding direct bookmaker integrations.
 
-The Phase 6 adapter intentionally defaults to:
+The adapter still defaults to:
 
 ```text
 regions=eu
@@ -24,7 +24,10 @@ oddsFormat=decimal
 includeSids=true
 ```
 
-This matches the current MVP focus on football 1X2 and two-way match-winner data while avoiding premature implementation of Phase 7's general market/odds normalization.
+This preserves the validated winner-market baseline. Phase 17.1 added structured
+parameter preservation for explicitly configured `totals` and `spreads` responses.
+Phase 17.2 now enables the safe subset of football regulation totals after canonical
+normalization, while the default provider request remains unchanged.
 
 ## Credential
 
@@ -133,6 +136,226 @@ Provider-specific exceptions and source-model validation exceptions do not escap
 
 Telemetry is operation-level rather than raw HTTP-success telemetry: a `2xx` response is not recorded as `SUCCESS` until the response has passed the relevant schema and source-model validation. Preparatory calls inside a larger provider operation do not emit a premature operation success.
 
+## Phase 17.1 structured market parameters
+
+ADR-0013 extends the provider-neutral source contract so advanced-market parameters do
+not have to be recovered from labels.
+
+When the adapter is explicitly configured for additional market keys:
+
+- `totals`: every outcome must contain a numeric `point`; all outcomes must agree
+  on exactly one point, which is preserved as `SourceMarket.line`;
+- `spreads`: every outcome must contain a numeric signed `point`, preserved as
+  `SourceSelectionQuote.handicap`;
+- unexpected point-bearing market keys fail closed as malformed rather than being
+  guessed.
+
+All values cross the adapter boundary as exact finite `Decimal` values. A totals
+payload whose Over and Under outcomes disagree on the point is rejected.
+
+This is a **semantic-foundation change**, not a market enablement decision. The default
+request remains `h2h`. Football totals require a dedicated Phase 17 market-family
+specification covering settlement scope, selection completeness, canonical mappings,
+cross-provider equivalence, and end-to-end detection before they can be enabled.
+Spreads/Asian handicaps additionally require a documented canonical market-line
+anchoring policy before activation.
+
+## Phase 17.2 football regulation totals
+
+When `totals` is explicitly included in `TheOddsApiConfig.markets`, the adapter
+accepts the source market only when every outcome carries a numeric `point`, all
+outcomes share the same point, and the outcome set is exactly one `Over` plus one
+`Under`.
+
+The shared point is preserved as `SourceMarket.line`. Canonical normalization then
+requires exact line identity and the Phase 17.2 supported-market gate accepts only
+positive regulation-time half-goal lines (`x.5`).
+
+Integer and quarter-line totals may be structurally valid provider data but are not
+eligible for generic ArbiScan arbitrage evaluation yet because the current payout
+model does not represent PUSH or split settlement.
+
+See [football regulation totals](../markets/football-regulation-totals.md) and
+ADR-0014.
+
+## Phase 17.3 football Asian handicap
+
+When `spreads` is explicitly configured, Phase 17.3 treats the source points as
+football Asian handicap semantics only after adapter-level orientation checks:
+
+- exactly two outcomes are required;
+- outcome labels must exactly match the event home and away participant labels;
+- both outcomes require numeric `point` values;
+- home and away points must be exact opposites;
+- `SourceMarket.line` is the home participant's signed point;
+- each source selection retains its own signed handicap.
+
+This provider-specific home anchor is then translated into ArbiScan's canonical
+ordered-participant-1 anchor. Strict normalization verifies exact market-line and
+selection-handicap equality.
+
+Only regulation-time half-goal lines are currently eligible for the generic
+arbitrage/stake pipeline. Integer and quarter spread lines are structurally valid
+advanced-market data but remain fail-closed until a settlement-aware payout engine
+supports PUSH and split settlement.
+
+The default adapter request remains `h2h`; spreads are opt-in.
+
+See [football Asian handicap](../markets/football-asian-handicap.md) and ADR-0015.
+
+## Phase 17.4 football both teams to score
+
+The provider's documented soccer additional market key `btts` is available through
+the event-odds endpoint already used by ArbiScan. The documented outcomes are
+`Yes` and `No`.
+
+When `btts` is explicitly configured, the adapter requires:
+
+- exactly two outcomes;
+- exactly one `Yes` and one `No`;
+- no numeric `point` semantics.
+
+The provider separately documents period-specific variants such as `btts_h1`.
+Phase 17.4 therefore treats the exact source market key as part of market identity and
+does not infer full-time settlement from a generic BTTS label.
+
+The default request remains `h2h`; BTTS remains opt-in.
+
+See [football BTTS](../markets/football-btts.md) and ADR-0016.
+
+## Phase 17.5 football Draw No Bet
+
+The provider documents the soccer additional market key `draw_no_bet` as match
+winner excluding the draw, with a draw returning the bet.
+
+When `draw_no_bet` is explicitly configured, the adapter requires:
+
+- exactly two outcomes;
+- outcome labels exactly matching the event home and away participants;
+- no numeric `point` values.
+
+The source is translated to the existing canonical Asian Handicap zero shape:
+
+- `SourceMarket.line = 0`;
+- both participant source selections carry `handicap = 0`.
+
+Generic normalization still rejects line zero. The market becomes eligible only when
+the caller explicitly selects the Phase 17.5 settlement-aware evaluation path, where
+the shared draw refund is modeled.
+
+The default provider request remains `h2h`; Draw No Bet is opt-in.
+
+See [football Draw No Bet](../markets/football-draw-no-bet.md) and ADR-0017.
+
+## Phase 17.8 tennis indexed set winner
+
+The provider's current official market list documents the tennis keys:
+
+- `h2h_s1` — moneyline for the first set;
+- `h2h_s2` — moneyline for the second set.
+
+When either key is explicitly configured, the adapter requires:
+
+- a tennis event;
+- exactly two outcomes;
+- outcome labels exactly matching the event participants;
+- no numeric `point` semantics.
+
+It emits:
+
+- `h2h_s1` with `SourceMarket.period_index=1`;
+- `h2h_s2` with `SourceMarket.period_index=2`;
+- no market line;
+- no selection handicap.
+
+Malformed participant identity or point-bearing set-moneyline data fails closed at
+the adapter boundary.
+
+The default request remains `h2h`; indexed set markets are opt-in.
+
+Phase 17.8 fixtures also prove cross-transport equivalence with OddsPapi Set 1 / Set
+2 winner and ADR-0012 consolidation when both transports observe Pinnacle.
+
+Official references:
+
+- https://the-odds-api.com/sports-odds-data/betting-markets.html
+- https://the-odds-api.com/sports/tennis-odds.html
+
+See [tennis indexed set winner](../markets/tennis-set-winner.md) and ADR-0018.
+
+## Phase 17.7 tennis game-winner scope
+
+The Phase 17.7 revalidation did **not** identify a fixed individual numbered
+`Set N / Game M Winner` market key in the provider's current documented market list.
+
+ArbiScan therefore adds no The Odds API `GAME_WINNER` mapping:
+
+- set/game identity is never inferred from labels;
+- `h2h_s1` / `h2h_s2` are set markets, not game markets;
+- match `h2h`, spreads, and totals are not reinterpreted as individual game winner;
+- no mutable "current game" state is reconstructed from score text.
+
+See [tennis game-market identity](../markets/tennis-game-identity.md) and ADR-0019.
+
+## Phase 17.9 basketball full-event spreads and totals
+
+The provider currently exposes Basketball as a sport group, including NBA under
+`basketball_nba`. Its featured `spreads` and `totals` markets are documented
+separately from quarter and half variants such as `spreads_q1`, `totals_q1`,
+`spreads_h1`, and `totals_h1`.
+
+Phase 17.9 therefore:
+
+- maps the Basketball sport group to `Sport.BASKETBALL`;
+- preserves the exact featured spread/total point line;
+- anchors a spread line to the event home participant and requires the away point to
+  be its exact negation;
+- requires an exact Over/Under pair for totals;
+- does not infer overtime settlement from the transport key alone;
+- requires an explicit `basketball_full_event_bookmakers` allowlist before featured
+  basketball spread/total observations can enter the full-event path;
+- keeps quarter/half and alternate keys outside that path;
+- allows only half-point lines through the generic arbitrage/stake support gate.
+
+The allowlist defaults to empty. Phase 17.9 opts in only Pinnacle and bet365 in its
+deterministic test composition after verifying their current official basketball
+settlement rules. Any other bookmaker remains fail-closed until separately verified.
+
+The default provider request remains `h2h`; basketball spreads/totals are opt-in.
+
+Official references:
+
+- https://the-odds-api.com/sports/nba-odds.html
+- https://the-odds-api.com/sports-odds-data/betting-markets.html
+
+See [basketball full-event spreads and totals](../markets/basketball-full-event-spreads-totals.md)
+and ADR-0020.
+
+## Phase 17.10 motorsport/F1 feasibility gate
+
+The adapter already recognizes provider sport groups `Motor Sports` and
+`Motorsports` as canonical `Sport.MOTORSPORT`.
+
+That does **not** make current F1 outrights executable. ArbiScan's normal event parser
+requires binary `home_team` / `away_team` identity, while the provider documents
+outright/futures schemas separately and its historical outright schema documentation
+notes that ordinary team/home fields can be absent.
+
+Phase 17.10 therefore stops motorsport in `discover_events()` with a structured
+`UNSUPPORTED` provider error before binary event parsing. No `outrights`,
+podium, or H2H key is reinterpreted into a canonical F1 market.
+
+A dedicated future parser must first establish the complete participant grid and
+stable race/session identity.
+
+Official references:
+
+- https://the-odds-api.com/liveapi/guides/v4/
+- https://the-odds-api.com/sports-odds-data/betting-markets.html
+- https://the-odds-api.com/releases/outrights.html
+
+See [motorsport/F1 semantics](../markets/motorsport-f1-semantics.md) and ADR-0021.
+
 ## CI and fixtures
 
 CI never calls the live API. Sanitized fixtures under `tests/fixtures/providers/the_odds_api/` reproduce the documented V4 shapes for:
@@ -151,7 +374,7 @@ Phase 6 does **not** add:
 - generic cross-provider event matching;
 - broad market-semantic normalization;
 - fractional/American odds conversion;
-- totals or handicaps;
+- canonical totals or handicap arbitrage enablement (structured source parameters begin in Phase 17.1);
 - production market-book policy;
 - persistence;
 - WebSocket/streaming ingestion;
@@ -162,3 +385,50 @@ Those remain assigned to later roadmap phases.
 ## Compliance boundary
 
 Using an authorized data API does not remove jurisdictional or licensing obligations. The provider's terms assign responsibility for lawful use to the customer. ArbiScan remains a scanner/reporting system; automated wager placement is outside the initial product boundary.
+
+
+## Phase 17.11 broader outright competition gate
+
+The Odds API explicitly exposes `has_outrights` on sport records and documents an
+`outrights` market for futures such as tournament or championship winners.
+
+Its outright schema is materially different from ordinary fixture identity: provider
+documentation notes that outright payloads can omit the normal teams/home-team fields.
+Phase 17.11 therefore parses and preserves `has_outrights` instead of inferring
+outright status from a sport-key name.
+
+Any competition with `has_outrights=true` fails before ArbiScan's current binary
+home/away event parser. This gate applies generically, not only to motorsport.
+
+A future outright adapter path must provide:
+
+- explicit multi-participant source identity;
+- a complete/static candidate set;
+- stable mapping of every quoted candidate to canonical participant identity;
+- no unresolved Field/Other bucket;
+- settlement equivalence for ties, dead heats, withdrawals and voids.
+
+Official references reviewed on 2026-09-18:
+
+- https://the-odds-api.com/liveapi/guides/v4/
+- https://the-odds-api.com/releases/outrights.html
+- https://the-odds-api.com/sports-odds-data/betting-markets.html
+
+See [tournament/championship outright semantics](../markets/outright-tournament-championship.md)
+and ADR-0022.
+
+
+## Phase 17.12 exchange boundary
+
+Phase 17.12 does not infer exchange semantics from a bookmaker name.
+
+The current The Odds API adapter emits bookmaker-origin decimal prices only. Even if a
+bookmaker key/title refers to an exchange brand, the adapter does not expose a
+machine-readable BACK/LAY side, available matched amount, account commission rate, or
+commission scope.
+
+Those observations therefore remain ordinary `ProviderKind.BOOKMAKER` price origins
+and cannot construct `ExchangePriceObservation`.
+
+A future exchange mapping requires an authorized transport that exposes the explicit
+order-side and liquidity contract defined by ADR-0023.

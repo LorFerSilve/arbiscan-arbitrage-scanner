@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 from collections.abc import Mapping
 from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 
 from arbiscan.domain import ProviderId, Sport
 from arbiscan.observability.provider import InMemoryProviderTelemetry, ProviderTelemetryOutcome
@@ -45,7 +46,7 @@ def test_discovery_maps_only_supported_canonical_sports() -> None:
     football = asyncio.run(provider.discover_competitions(Sport.FOOTBALL))
     tennis = asyncio.run(provider.discover_competitions(Sport.TENNIS))
 
-    assert sports == (Sport.FOOTBALL, Sport.TENNIS)
+    assert sports == (Sport.BASKETBALL, Sport.FOOTBALL, Sport.TENNIS)
     assert tuple(value.external_id for value in football) == ("soccer_epl",)
     assert tuple(value.external_id for value in tennis) == ("tennis_atp_us_open",)
 
@@ -147,3 +148,350 @@ def test_malformed_payload_fails_closed() -> None:
         assert not error.retryable
     else:
         raise AssertionError("expected malformed-response ProviderError")
+
+
+def test_configured_advanced_markets_preserve_structured_point_parameters() -> None:
+    transport = FixtureHttpTransport(
+        fixture_overrides={"odds": "odds_event_phase17_1_parameters.json"}
+    )
+    provider = TheOddsApiProvider(
+        config=TheOddsApiConfig(
+            api_key=FIXTURE_KEY,
+            markets=("totals", "spreads"),
+        ),
+        transport=transport,
+        clock=lambda: NOW,
+    )
+
+    event = asyncio.run(provider.discover_events("soccer_epl"))[0]
+    snapshot = asyncio.run(provider.fetch_odds(event.external_id))
+    assert snapshot is not None
+
+    totals = next(market for market in snapshot.markets if market.label.endswith(" totals"))
+    spread = next(market for market in snapshot.markets if market.label.endswith(" spreads"))
+
+    assert totals.line == Decimal("2.5")
+    assert totals.period_index is None
+    assert {selection.handicap for selection in totals.selections} == {None}
+
+    assert spread.line == Decimal("-1.5")
+    assert {selection.handicap for selection in spread.selections} == {
+        Decimal("-1.5"),
+        Decimal("1.5"),
+    }
+    assert transport.requests[-1].query["markets"] == "totals,spreads"
+
+
+def test_inconsistent_totals_points_fail_closed_at_adapter_boundary() -> None:
+    transport = FixtureHttpTransport(
+        fixture_overrides={"odds": "odds_event_phase17_1_bad_totals.json"}
+    )
+    provider = TheOddsApiProvider(
+        config=TheOddsApiConfig(api_key=FIXTURE_KEY, markets=("totals",)),
+        transport=transport,
+        clock=lambda: NOW,
+    )
+
+    event = asyncio.run(provider.discover_events("soccer_epl"))[0]
+    try:
+        asyncio.run(provider.fetch_odds(event.external_id))
+    except ProviderError as error:
+        assert error.kind is ProviderErrorKind.MALFORMED_RESPONSE
+        assert "must share one point" in str(error)
+    else:
+        raise AssertionError("inconsistent totals points must fail closed")
+
+
+def test_totals_require_exact_over_under_outcome_pair() -> None:
+    transport = FixtureHttpTransport(
+        fixture_overrides={"odds": "odds_event_phase17_2_bad_total_outcomes.json"}
+    )
+    provider = TheOddsApiProvider(
+        config=TheOddsApiConfig(api_key=FIXTURE_KEY, markets=("totals",)),
+        transport=transport,
+        clock=lambda: NOW,
+    )
+
+    event = asyncio.run(provider.discover_events("soccer_epl"))[0]
+    try:
+        asyncio.run(provider.fetch_odds(event.external_id))
+    except ProviderError as error:
+        assert error.kind is ProviderErrorKind.MALFORMED_RESPONSE
+        assert "exactly one Over and one Under" in str(error)
+    else:
+        raise AssertionError("invalid totals outcomes must fail closed")
+
+
+def test_spreads_require_exact_opposite_home_away_points() -> None:
+    transport = FixtureHttpTransport(
+        fixture_overrides={"odds": "odds_event_phase17_3_bad_spread_points.json"}
+    )
+    provider = TheOddsApiProvider(
+        config=TheOddsApiConfig(api_key=FIXTURE_KEY, markets=("spreads",)),
+        transport=transport,
+        clock=lambda: NOW,
+    )
+
+    event = asyncio.run(provider.discover_events("soccer_epl"))[0]
+    try:
+        asyncio.run(provider.fetch_odds(event.external_id))
+    except ProviderError as error:
+        assert error.kind is ProviderErrorKind.MALFORMED_RESPONSE
+        assert "exact opposites" in str(error)
+    else:
+        raise AssertionError("non-opposite spread points must fail closed")
+
+
+def test_spreads_require_exact_event_participant_labels() -> None:
+    transport = FixtureHttpTransport(
+        fixture_overrides={"odds": "odds_event_phase17_3_bad_spread_participants.json"}
+    )
+    provider = TheOddsApiProvider(
+        config=TheOddsApiConfig(api_key=FIXTURE_KEY, markets=("spreads",)),
+        transport=transport,
+        clock=lambda: NOW,
+    )
+
+    event = asyncio.run(provider.discover_events("soccer_epl"))[0]
+    try:
+        asyncio.run(provider.fetch_odds(event.external_id))
+    except ProviderError as error:
+        assert error.kind is ProviderErrorKind.MALFORMED_RESPONSE
+        assert "home and away participants" in str(error)
+    else:
+        raise AssertionError("spread participant drift must fail closed")
+
+
+def test_phase17_4_btts_preserves_exact_yes_no_semantics() -> None:
+    transport = FixtureHttpTransport(
+        fixture_overrides={
+            "events": "events_soccer_epl_phase16_5.json",
+            "odds": "odds_event_phase17_4_btts.json",
+        }
+    )
+    provider = TheOddsApiProvider(
+        config=TheOddsApiConfig(api_key=FIXTURE_KEY, markets=("btts",)),
+        transport=transport,
+        clock=lambda: NOW,
+    )
+
+    event = asyncio.run(provider.discover_events("soccer_epl"))[0]
+    snapshot = asyncio.run(provider.fetch_odds(event.external_id))
+
+    assert snapshot is not None
+    assert len(snapshot.markets) == 2
+    assert {market.line for market in snapshot.markets} == {None}
+    assert all(
+        {selection.label for selection in market.selections} == {"Yes", "No"}
+        for market in snapshot.markets
+    )
+    assert all(
+        {selection.handicap for selection in market.selections} == {None}
+        for market in snapshot.markets
+    )
+    assert transport.requests[-1].query["markets"] == "btts"
+
+
+def test_phase17_4_btts_requires_exact_yes_no_outcome_pair() -> None:
+    transport = FixtureHttpTransport(
+        fixture_overrides={
+            "events": "events_soccer_epl_phase16_5.json",
+            "odds": "odds_event_phase17_4_bad_btts_outcomes.json",
+        }
+    )
+    provider = TheOddsApiProvider(
+        config=TheOddsApiConfig(api_key=FIXTURE_KEY, markets=("btts",)),
+        transport=transport,
+        clock=lambda: NOW,
+    )
+
+    event = asyncio.run(provider.discover_events("soccer_epl"))[0]
+    try:
+        asyncio.run(provider.fetch_odds(event.external_id))
+    except ProviderError as error:
+        assert error.kind is ProviderErrorKind.MALFORMED_RESPONSE
+        assert "exactly one Yes and one No" in str(error)
+    else:
+        raise AssertionError("invalid BTTS outcomes must fail closed")
+
+
+def test_phase17_4_btts_rejects_unexpected_point_semantics() -> None:
+    transport = FixtureHttpTransport(
+        fixture_overrides={
+            "events": "events_soccer_epl_phase16_5.json",
+            "odds": "odds_event_phase17_4_bad_btts_point.json",
+        }
+    )
+    provider = TheOddsApiProvider(
+        config=TheOddsApiConfig(api_key=FIXTURE_KEY, markets=("btts",)),
+        transport=transport,
+        clock=lambda: NOW,
+    )
+
+    event = asyncio.run(provider.discover_events("soccer_epl"))[0]
+    try:
+        asyncio.run(provider.fetch_odds(event.external_id))
+    except ProviderError as error:
+        assert error.kind is ProviderErrorKind.MALFORMED_RESPONSE
+        assert "must not carry point" in str(error)
+    else:
+        raise AssertionError("BTTS point parameters must fail closed")
+
+
+def test_phase17_5_draw_no_bet_maps_to_handicap_zero_semantics() -> None:
+    transport = FixtureHttpTransport(
+        fixture_overrides={
+            "events": "events_soccer_epl_phase16_5.json",
+            "odds": "odds_event_phase17_5_dnb.json",
+        }
+    )
+    provider = TheOddsApiProvider(
+        config=TheOddsApiConfig(api_key=FIXTURE_KEY, markets=("draw_no_bet",)),
+        transport=transport,
+        clock=lambda: NOW,
+    )
+
+    event = asyncio.run(provider.discover_events("soccer_epl"))[0]
+    snapshot = asyncio.run(provider.fetch_odds(event.external_id))
+
+    assert snapshot is not None
+    assert len(snapshot.markets) == 2
+    assert {market.line for market in snapshot.markets} == {Decimal("0")}
+    assert all(
+        {selection.label for selection in market.selections}
+        == {"Liverpool FC", "Manchester United"}
+        for market in snapshot.markets
+    )
+    assert all(
+        {selection.handicap for selection in market.selections} == {Decimal("0")}
+        for market in snapshot.markets
+    )
+    assert transport.requests[-1].query["markets"] == "draw_no_bet"
+
+
+def test_phase17_5_draw_no_bet_requires_exact_event_participants() -> None:
+    transport = FixtureHttpTransport(
+        fixture_overrides={
+            "events": "events_soccer_epl_phase16_5.json",
+            "odds": "odds_event_phase17_5_bad_dnb_participants.json",
+        }
+    )
+    provider = TheOddsApiProvider(
+        config=TheOddsApiConfig(api_key=FIXTURE_KEY, markets=("draw_no_bet",)),
+        transport=transport,
+        clock=lambda: NOW,
+    )
+
+    event = asyncio.run(provider.discover_events("soccer_epl"))[0]
+    try:
+        asyncio.run(provider.fetch_odds(event.external_id))
+    except ProviderError as error:
+        assert error.kind is ProviderErrorKind.MALFORMED_RESPONSE
+        assert "home and away participants" in str(error)
+    else:
+        raise AssertionError("Draw No Bet participant drift must fail closed")
+
+
+def test_phase17_5_draw_no_bet_rejects_unexpected_point_semantics() -> None:
+    transport = FixtureHttpTransport(
+        fixture_overrides={
+            "events": "events_soccer_epl_phase16_5.json",
+            "odds": "odds_event_phase17_5_bad_dnb_point.json",
+        }
+    )
+    provider = TheOddsApiProvider(
+        config=TheOddsApiConfig(api_key=FIXTURE_KEY, markets=("draw_no_bet",)),
+        transport=transport,
+        clock=lambda: NOW,
+    )
+
+    event = asyncio.run(provider.discover_events("soccer_epl"))[0]
+    try:
+        asyncio.run(provider.fetch_odds(event.external_id))
+    except ProviderError as error:
+        assert error.kind is ProviderErrorKind.MALFORMED_RESPONSE
+        assert "must not carry point" in str(error)
+    else:
+        raise AssertionError("Draw No Bet point parameters must fail closed")
+
+
+def test_phase17_8_tennis_set_moneylines_preserve_structured_set_index() -> None:
+    transport = FixtureHttpTransport(
+        fixture_overrides={
+            "events": "events_tennis_atp_us_open_phase16_5.json",
+            "odds": "odds_event_phase17_8_tennis_sets.json",
+        }
+    )
+    provider = TheOddsApiProvider(
+        config=TheOddsApiConfig(
+            api_key=FIXTURE_KEY,
+            markets=("h2h_s1", "h2h_s2"),
+        ),
+        transport=transport,
+        clock=lambda: NOW,
+    )
+
+    event = asyncio.run(provider.discover_events("tennis_atp_us_open"))[0]
+    snapshot = asyncio.run(provider.fetch_odds(event.external_id))
+
+    assert snapshot is not None
+    assert len(snapshot.markets) == 4
+    assert {market.period_index for market in snapshot.markets} == {1, 2}
+    assert {market.line for market in snapshot.markets} == {None}
+    assert all(
+        {selection.label for selection in market.selections} == {"Jannik Sinner", "Carlos Alcaraz"}
+        for market in snapshot.markets
+    )
+    assert all(
+        {selection.handicap for selection in market.selections} == {None}
+        for market in snapshot.markets
+    )
+    by_key = {market.label.rsplit(" ", 1)[1]: market.period_index for market in snapshot.markets}
+    assert by_key == {"h2h_s1": 1, "h2h_s2": 2}
+    assert transport.requests[-1].query["markets"] == "h2h_s1,h2h_s2"
+
+
+def test_phase17_8_tennis_set_moneyline_requires_exact_event_participants() -> None:
+    transport = FixtureHttpTransport(
+        fixture_overrides={
+            "events": "events_tennis_atp_us_open_phase16_5.json",
+            "odds": "odds_event_phase17_8_bad_set_participants.json",
+        }
+    )
+    provider = TheOddsApiProvider(
+        config=TheOddsApiConfig(api_key=FIXTURE_KEY, markets=("h2h_s1",)),
+        transport=transport,
+        clock=lambda: NOW,
+    )
+
+    event = asyncio.run(provider.discover_events("tennis_atp_us_open"))[0]
+    try:
+        asyncio.run(provider.fetch_odds(event.external_id))
+    except ProviderError as error:
+        assert error.kind is ProviderErrorKind.MALFORMED_RESPONSE
+        assert "home and away participants" in str(error)
+    else:
+        raise AssertionError("tennis set participant drift must fail closed")
+
+
+def test_phase17_8_tennis_set_moneyline_rejects_unexpected_point_semantics() -> None:
+    transport = FixtureHttpTransport(
+        fixture_overrides={
+            "events": "events_tennis_atp_us_open_phase16_5.json",
+            "odds": "odds_event_phase17_8_bad_set_point.json",
+        }
+    )
+    provider = TheOddsApiProvider(
+        config=TheOddsApiConfig(api_key=FIXTURE_KEY, markets=("h2h_s2",)),
+        transport=transport,
+        clock=lambda: NOW,
+    )
+
+    event = asyncio.run(provider.discover_events("tennis_atp_us_open"))[0]
+    try:
+        asyncio.run(provider.fetch_odds(event.external_id))
+    except ProviderError as error:
+        assert error.kind is ProviderErrorKind.MALFORMED_RESPONSE
+        assert "must not carry point" in str(error)
+    else:
+        raise AssertionError("tennis set point parameters must fail closed")

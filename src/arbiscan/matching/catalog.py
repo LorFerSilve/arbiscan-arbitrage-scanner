@@ -13,6 +13,7 @@ from arbiscan.domain import (
     EventId,
     Market,
     MarketId,
+    MarketKind,
     Participant,
     ParticipantId,
     Selection,
@@ -108,6 +109,188 @@ class CanonicalRegistry:
                 }:
                     raise ValueError(
                         "registry participant selection references a participant outside its event"
+                    )
+
+        for market in markets:
+            if market.kind is not MarketKind.TOTAL_POINTS:
+                continue
+            market_selections = tuple(
+                selection for selection in selections if selection.market_id == market.id
+            )
+            if len(market_selections) != 2 or {
+                selection.kind for selection in market_selections
+            } != {SelectionKind.OVER, SelectionKind.UNDER}:
+                raise ValueError(
+                    "total-points markets require exactly one OVER and one UNDER selection"
+                )
+
+        for market in markets:
+            if market.kind is not MarketKind.BOTH_TEAMS_TO_SCORE:
+                continue
+            market_selections = tuple(
+                selection for selection in selections if selection.market_id == market.id
+            )
+            if len(market_selections) != 2 or {
+                selection.kind for selection in market_selections
+            } != {SelectionKind.YES, SelectionKind.NO}:
+                raise ValueError(
+                    "both-teams-to-score markets require exactly one YES and one NO selection"
+                )
+
+        for market in markets:
+            if market.kind is not MarketKind.SET_WINNER:
+                continue
+            event = event_map[market.event_id]
+            if len(event.participants) != 2:
+                raise ValueError("set-winner markets require exactly two event participants")
+            market_selections = tuple(
+                selection for selection in selections if selection.market_id == market.id
+            )
+            if len(market_selections) != 2 or any(
+                selection.kind is not SelectionKind.PARTICIPANT for selection in market_selections
+            ):
+                raise ValueError("set-winner markets require exactly two participant selections")
+            event_participant_ids = {participant.id for participant in event.participants}
+            if {
+                selection.participant_id for selection in market_selections
+            } != event_participant_ids:
+                raise ValueError(
+                    "set-winner selections must cover exactly the two event participants"
+                )
+            if any(selection.handicap is not None for selection in market_selections):
+                raise ValueError("set-winner selections must not carry handicaps")
+
+        for market in markets:
+            if market.kind is not MarketKind.GAME_WINNER:
+                continue
+            event = event_map[market.event_id]
+            if len(event.participants) != 2:
+                raise ValueError("game-winner markets require exactly two event participants")
+            market_selections = tuple(
+                selection for selection in selections if selection.market_id == market.id
+            )
+            if len(market_selections) != 2 or any(
+                selection.kind is not SelectionKind.PARTICIPANT for selection in market_selections
+            ):
+                raise ValueError("game-winner markets require exactly two participant selections")
+            event_participant_ids = {participant.id for participant in event.participants}
+            if {
+                selection.participant_id for selection in market_selections
+            } != event_participant_ids:
+                raise ValueError(
+                    "game-winner selections must cover exactly the two event participants"
+                )
+            if any(selection.handicap is not None for selection in market_selections):
+                raise ValueError("game-winner selections must not carry handicaps")
+
+        for market in markets:
+            if market.kind is not MarketKind.OUTRIGHT_WINNER:
+                continue
+            event = event_map[market.event_id]
+            market_selections = tuple(
+                selection for selection in selections if selection.market_id == market.id
+            )
+            if len(event.participants) < 2:
+                raise ValueError("outright-winner markets require at least two event participants")
+            if len({participant.kind for participant in event.participants}) != 1:
+                raise ValueError("outright-winner candidate sets must use one participant kind")
+            if len(market_selections) != len(event.participants) or any(
+                selection.kind is not SelectionKind.PARTICIPANT for selection in market_selections
+            ):
+                raise ValueError(
+                    "outright-winner markets require one participant selection per event participant"
+                )
+            if {selection.participant_id for selection in market_selections} != {
+                participant.id for participant in event.participants
+            }:
+                raise ValueError(
+                    "outright-winner selections must cover exactly all event participants"
+                )
+            if any(selection.handicap is not None for selection in market_selections):
+                raise ValueError("outright-winner selections must not carry handicaps")
+
+        for market in markets:
+            if market.kind is not MarketKind.PODIUM_FINISH:
+                continue
+            event = event_map[market.event_id]
+            subject_id = market.subject_participant_id
+            if subject_id is None or subject_id not in {
+                participant.id for participant in event.participants
+            }:
+                raise ValueError(
+                    "podium-finish market subject must be one of the event participants"
+                )
+            market_selections = tuple(
+                selection for selection in selections if selection.market_id == market.id
+            )
+            if len(market_selections) != 2 or {
+                selection.kind for selection in market_selections
+            } != {SelectionKind.YES, SelectionKind.NO}:
+                raise ValueError(
+                    "podium-finish markets require exactly one YES and one NO selection"
+                )
+            if any(selection.handicap is not None for selection in market_selections):
+                raise ValueError("podium-finish selections must not carry handicaps")
+
+        for market in markets:
+            if market.kind is not MarketKind.HEAD_TO_HEAD:
+                continue
+            event = event_map[market.event_id]
+            event_participant_ids = {participant.id for participant in event.participants}
+            market_selections = tuple(
+                selection for selection in selections if selection.market_id == market.id
+            )
+            if len(market_selections) != 2 or any(
+                selection.kind is not SelectionKind.PARTICIPANT for selection in market_selections
+            ):
+                raise ValueError("head-to-head markets require exactly two participant selections")
+            selected_participants = {selection.participant_id for selection in market_selections}
+            if None in selected_participants or len(selected_participants) != 2:
+                raise ValueError(
+                    "head-to-head selections require two distinct participant identities"
+                )
+            if not selected_participants.issubset(event_participant_ids):
+                raise ValueError(
+                    "head-to-head selections must reference participants from the event"
+                )
+            if any(selection.handicap is not None for selection in market_selections):
+                raise ValueError("head-to-head selections must not carry handicaps")
+
+        for market in markets:
+            if market.kind is not MarketKind.HANDICAP:
+                continue
+            event = event_map[market.event_id]
+            if len(event.participants) != 2:
+                raise ValueError("handicap markets require exactly two ordered event participants")
+            market_selections = tuple(
+                selection for selection in selections if selection.market_id == market.id
+            )
+            if len(market_selections) != 2 or any(
+                selection.kind is not SelectionKind.PARTICIPANT for selection in market_selections
+            ):
+                raise ValueError("handicap markets require exactly two participant selections")
+            by_participant = {
+                selection.participant_id: selection for selection in market_selections
+            }
+            participant_ids = tuple(participant.id for participant in event.participants)
+            if set(by_participant) != set(participant_ids):
+                raise ValueError(
+                    "handicap selections must cover exactly the two ordered event participants"
+                )
+            line = market.line
+            if line is None:
+                raise ValueError("handicap market line is required")
+            expected_handicaps = (line, -line)
+            for participant_id, expected_handicap in zip(
+                participant_ids,
+                expected_handicaps,
+                strict=True,
+            ):
+                selection = by_participant[participant_id]
+                if selection.handicap != expected_handicap:
+                    raise ValueError(
+                        "handicap selection values must equal market.line for participant 1 "
+                        "and its negation for participant 2"
                     )
 
         object.__setattr__(self, "competitions", competitions)

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 from datetime import UTC, datetime
+from decimal import Decimal
 
 from arbiscan.domain import Sport
 from arbiscan.providers import ProviderError, ProviderErrorKind
@@ -101,3 +102,289 @@ def test_fixture_corpus_contains_no_live_credentials_or_captured_account_secret(
     assert "fixture-only" not in fixture_text
     assert "api_key" not in fixture_text.casefold()
     assert "authorization" not in fixture_text.casefold()
+
+
+def test_phase17_2_totals_preserve_catalog_line_and_outcome_identity() -> None:
+    async def scenario() -> None:
+        transport = FixtureHttpTransport(
+            fixture_overrides={
+                "/markets": "markets_phase17_2.json",
+                "/odds": "odds_fixture_phase17_2_totals.json",
+            }
+        )
+        provider = _provider(transport)
+        await _discover_event(provider)
+
+        snapshot = await provider.fetch_odds(EVENT_ID)
+
+        assert snapshot is not None
+        assert len(snapshot.markets) == 4
+        assert {market.line for market in snapshot.markets} == {Decimal("2.5")}
+        assert {market.selections[0].label for market in snapshot.markets} == {
+            "Over",
+            "Under",
+        }
+        assert {
+            market.price_provider.id.value
+            for market in snapshot.markets
+            if market.price_provider is not None
+        } == {
+            "bookmaker:the-odds-api:pinnacle",
+            "bookmaker:the-odds-api:betfair",
+        }
+
+    asyncio.run(scenario())
+
+
+def test_phase17_2_integer_total_is_structurally_preserved_for_later_fail_closed_gate() -> None:
+    async def scenario() -> None:
+        transport = FixtureHttpTransport(
+            fixture_overrides={
+                "/markets": "markets_phase17_2.json",
+                "/odds": "odds_fixture_phase17_2_integer_total.json",
+            }
+        )
+        provider = _provider(transport)
+        await _discover_event(provider)
+
+        snapshot = await provider.fetch_odds(EVENT_ID)
+
+        assert snapshot is not None
+        assert len(snapshot.markets) == 2
+        assert {market.line for market in snapshot.markets} == {Decimal("3")}
+
+    asyncio.run(scenario())
+
+
+def test_phase17_3_asian_handicap_preserves_anchored_line_and_mirrored_selections() -> None:
+    async def scenario() -> None:
+        transport = FixtureHttpTransport(
+            fixture_overrides={
+                "/markets": "markets_phase17_3.json",
+                "/odds": "odds_fixture_phase17_3_handicap.json",
+            }
+        )
+        provider = _provider(transport)
+        await _discover_event(provider)
+
+        snapshot = await provider.fetch_odds(EVENT_ID)
+
+        assert snapshot is not None
+        assert len(snapshot.markets) == 4
+        assert {market.line for market in snapshot.markets} == {Decimal("-0.5")}
+        assert {market.selections[0].label for market in snapshot.markets} == {"1", "2"}
+        by_label = {
+            market.selections[0].label: market.selections[0].handicap
+            for market in snapshot.markets
+            if market.price_provider is not None
+            and market.price_provider.id.value == "bookmaker:the-odds-api:pinnacle"
+        }
+        assert by_label == {"1": Decimal("-0.5"), "2": Decimal("0.5")}
+
+    asyncio.run(scenario())
+
+
+def test_phase17_3_push_and_quarter_lines_are_preserved_for_canonical_support_gate() -> None:
+    async def load(fixture: str) -> tuple[Decimal, set[Decimal | None]]:
+        transport = FixtureHttpTransport(
+            fixture_overrides={
+                "/markets": "markets_phase17_3.json",
+                "/odds": fixture,
+            }
+        )
+        provider = _provider(transport)
+        await _discover_event(provider)
+        snapshot = await provider.fetch_odds(EVENT_ID)
+        assert snapshot is not None
+        assert len(snapshot.markets) == 2
+        line = snapshot.markets[0].line
+        assert line is not None
+        return line, {market.selections[0].handicap for market in snapshot.markets}
+
+    zero_line, zero_handicaps = asyncio.run(load("odds_fixture_phase17_3_handicap_zero.json"))
+    quarter_line, quarter_handicaps = asyncio.run(
+        load("odds_fixture_phase17_3_handicap_quarter.json")
+    )
+
+    assert zero_line == Decimal("0")
+    assert zero_handicaps == {Decimal("0")}
+    assert quarter_line == Decimal("-0.25")
+    assert quarter_handicaps == {Decimal("-0.25"), Decimal("0.25")}
+
+
+def test_phase17_4_btts_preserves_fulltime_yes_no_identity() -> None:
+    async def scenario() -> None:
+        transport = FixtureHttpTransport(
+            fixture_overrides={
+                "/markets": "markets_phase17_4.json",
+                "/odds": "odds_fixture_phase17_4_btts.json",
+            }
+        )
+        provider = _provider(transport)
+        await _discover_event(provider)
+
+        snapshot = await provider.fetch_odds(EVENT_ID)
+
+        assert snapshot is not None
+        assert len(snapshot.markets) == 4
+        assert {market.line for market in snapshot.markets} == {None}
+        assert {market.selections[0].label for market in snapshot.markets} == {
+            "Yes",
+            "No",
+        }
+        assert {market.selections[0].handicap for market in snapshot.markets} == {None}
+        assert {
+            market.price_provider.id.value
+            for market in snapshot.markets
+            if market.price_provider is not None
+        } == {
+            "bookmaker:the-odds-api:pinnacle",
+            "bookmaker:the-odds-api:betfair",
+        }
+
+    asyncio.run(scenario())
+
+
+def test_phase17_4_first_half_btts_catalog_variant_is_not_promoted_to_fulltime() -> None:
+    async def scenario() -> None:
+        transport = FixtureHttpTransport(
+            fixture_overrides={
+                "/markets": "markets_phase17_4_first_half.json",
+                "/odds": "odds_fixture_phase17_4_btts_first_half.json",
+            }
+        )
+        provider = _provider(transport)
+        await _discover_event(provider)
+
+        snapshot = await provider.fetch_odds(EVENT_ID)
+
+        assert snapshot is not None
+        assert snapshot.markets == ()
+
+    asyncio.run(scenario())
+
+
+def test_phase17_5_asian_handicap_zero_is_structural_draw_no_bet() -> None:
+    async def scenario() -> None:
+        transport = FixtureHttpTransport(
+            fixture_overrides={
+                "/markets": "markets_phase17_5.json",
+                "/odds": "odds_fixture_phase17_5_dnb.json",
+            }
+        )
+        provider = _provider(transport)
+        await _discover_event(provider)
+
+        snapshot = await provider.fetch_odds(EVENT_ID)
+
+        assert snapshot is not None
+        assert len(snapshot.markets) == 4
+        assert {market.line for market in snapshot.markets} == {Decimal("0")}
+        assert {market.selections[0].label for market in snapshot.markets} == {"1", "2"}
+        assert {market.selections[0].handicap for market in snapshot.markets} == {Decimal("0")}
+        assert {
+            market.price_provider.id.value
+            for market in snapshot.markets
+            if market.price_provider is not None
+        } == {
+            "bookmaker:the-odds-api:pinnacle",
+            "bookmaker:the-odds-api:betfair",
+        }
+
+    asyncio.run(scenario())
+
+
+def test_phase17_5_first_half_handicap_zero_is_not_promoted_to_regulation_dnb() -> None:
+    async def scenario() -> None:
+        transport = FixtureHttpTransport(
+            fixture_overrides={
+                "/markets": "markets_phase17_5_first_half.json",
+                "/odds": "odds_fixture_phase17_5_dnb_first_half.json",
+            }
+        )
+        provider = _provider(transport)
+        await _discover_event(provider)
+
+        snapshot = await provider.fetch_odds(EVENT_ID)
+
+        assert snapshot is not None
+        assert snapshot.markets == ()
+
+    asyncio.run(scenario())
+
+
+def test_phase17_6_tennis_set_winners_preserve_structured_period_index() -> None:
+    async def scenario() -> None:
+        transport = FixtureHttpTransport(
+            fixture_overrides={
+                "/tournaments": "tournaments_tennis_phase16_5.json",
+                "/fixtures": "fixtures_tournament_77_phase16_5.json",
+                "/markets": "markets_phase17_6_tennis_sets.json",
+                "/odds": "odds_fixture_phase17_6_tennis_sets.json",
+            }
+        )
+        provider = _provider(transport)
+        competitions = await provider.discover_competitions(Sport.TENNIS)
+        assert tuple(value.external_id for value in competitions) == ("77",)
+        events = await provider.discover_events("77")
+        assert tuple(value.external_id for value in events) == ("id1000001761301777",)
+
+        snapshot = await provider.fetch_odds("id1000001761301777")
+
+        assert snapshot is not None
+        assert len(snapshot.markets) == 8
+        by_name = {
+            market.label.split(" ", 1)[1]: market.period_index for market in snapshot.markets
+        }
+        assert by_name["First Set Winner"] == 1
+        assert by_name["Second Set Winner"] == 2
+        assert {market.line for market in snapshot.markets} == {None}
+        assert {market.selections[0].label for market in snapshot.markets} == {"1", "2"}
+
+    asyncio.run(scenario())
+
+
+def test_phase17_6_wrong_catalog_period_is_not_promoted_to_second_set() -> None:
+    async def scenario() -> None:
+        transport = FixtureHttpTransport(
+            fixture_overrides={
+                "/tournaments": "tournaments_tennis_phase16_5.json",
+                "/fixtures": "fixtures_tournament_77_phase16_5.json",
+                "/markets": "markets_phase17_6_bad_second_set_period.json",
+                "/odds": "odds_fixture_phase17_6_tennis_sets.json",
+            }
+        )
+        provider = _provider(transport)
+        await provider.discover_competitions(Sport.TENNIS)
+        await provider.discover_events("77")
+
+        snapshot = await provider.fetch_odds("id1000001761301777")
+
+        assert snapshot is not None
+        assert snapshot.markets == ()
+
+    asyncio.run(scenario())
+
+
+def test_phase17_7_general_tennis_game_family_is_not_promoted_to_numbered_game_winner() -> None:
+    async def scenario() -> None:
+        transport = FixtureHttpTransport(
+            fixture_overrides={
+                "/tournaments": "tournaments_tennis_phase16_5.json",
+                "/fixtures": "fixtures_tournament_77_phase16_5.json",
+                "/markets": "markets_phase17_7_unsupported_game_family.json",
+                "/odds": "odds_fixture_phase17_7_unsupported_game_family.json",
+            }
+        )
+        provider = _provider(transport)
+        competitions = await provider.discover_competitions(Sport.TENNIS)
+        assert tuple(value.external_id for value in competitions) == ("77",)
+        events = await provider.discover_events("77")
+        assert tuple(value.external_id for value in events) == ("id1000001761301777",)
+
+        snapshot = await provider.fetch_odds("id1000001761301777")
+
+        assert snapshot is not None
+        assert snapshot.markets == ()
+
+    asyncio.run(scenario())

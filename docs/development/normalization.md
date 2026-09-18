@@ -120,6 +120,214 @@ Implied probability is defined as a unit probability strictly between `0` and `1
 
 Non-finite values, non-positive fractional components, American zero, impossible implied probabilities, non-profitable decimal prices (`<= 1`), and Decimal arithmetic range failures are rejected with `OddsNormalizationError`.
 
+## Phase 17 structured parameter identity
+
+ADR-0013 makes advanced-market parameters part of strict source/canonical identity.
+
+Provider-neutral source records may now preserve:
+
+- `SourceMarket.line` as an exact finite `Decimal`;
+- `SourceMarket.period_index` as a positive integer;
+- `SourceSelectionQuote.handicap` as an exact finite signed `Decimal`.
+
+These fields are optional so the existing winner-market path remains backward
+compatible. Once a source record maps to a canonical market/selection, however, the
+structured values must match the canonical values exactly. Missing, unexpected, or
+different values produce `MARKET_PARAMETER_MISMATCH` or
+`SELECTION_PARAMETER_MISMATCH` and the affected quote is rejected before market-book
+construction.
+
+Canonical IDs therefore cannot hide a line mismatch. For example, an explicit hook
+that accidentally maps a source total 3.5 market to canonical total 2.5 still fails
+closed.
+
+## Phase 17.2 supported-market gate
+
+Exact identity alone does not imply that the generic arbitrage engine can model a
+market's settlement outcomes. After source/canonical parameters match, strict
+normalization applies the explicit market-support policy.
+
+Phase 17.2 adds football regulation `TOTAL_POINTS` support only for positive
+half-goal lines (`x.5`). Canonical totals require exactly one `OVER` and one
+`UNDER` selection.
+
+Unsupported variants produce `UNSUPPORTED_MARKET_VARIANT` before quote creation.
+This includes integer totals with possible PUSH settlement, quarter lines with split
+settlement, non-regulation totals, totals in other sports, and advanced market
+families not yet enabled by the roadmap.
+
+See [football regulation totals](../markets/football-regulation-totals.md) and
+ADR-0014.
+
+## Phase 17.3 Asian handicap identity and settlement gate
+
+Football `HANDICAP` markets use an explicit ordered-participant sign convention:
+`Market.line` is participant 1's signed handicap and participant 2's canonical
+selection must carry its exact negation. Canonical handicap markets require exactly
+those two participant selections.
+
+The provider-neutral source boundary preserves both the market line and each
+selection's signed handicap. Strict normalization therefore checks both layers:
+a matching market ID cannot hide an opposite market line, and a matching selection ID
+cannot hide a wrong-side handicap.
+
+Phase 17.3 classifies Asian lines as half-goal, integer, quarter, or unsupported and
+models WIN, HALF_WIN, PUSH, HALF_LOSS and LOSS settlement semantics. The existing
+generic arbitrage/stake pipeline is enabled only for regulation-time football
+half-goal handicaps. Integer and quarter variants emit
+`UNSUPPORTED_MARKET_VARIANT` before quote construction because their PUSH or split
+payout states require a settlement-aware guaranteed-return model.
+
+See [football Asian handicap](../markets/football-asian-handicap.md) and ADR-0015.
+
+## Phase 17.4 football BTTS identity
+
+Phase 17.4 adds canonical `BOTH_TEAMS_TO_SCORE` as a non-parameterized
+regulation-time football market with exactly one `YES` and one `NO` selection.
+
+Provider identity is deliberately stronger than generic outcome labels:
+
+- The Odds API mapping is the exact `btts` source market key;
+- OddsPapi mapping requires `Both Teams To Score`, `period=fulltime`,
+  `marketType=totals`, `handicap=0`, and exact Yes/No outcomes.
+
+Period variants are not aliases of the regulation market. In particular, OddsPapi
+first-half records are filtered before source quotes are emitted, and The Odds API
+period-specific keys such as `btts_h1` are not part of the regulation BTTS alias set.
+
+The generic market-support gate accepts only football `REGULATION` BTTS. After
+canonical YES/NO completeness is established, the ordinary two-way arbitrage and
+stake-allocation path is reused unchanged.
+
+See [football BTTS](../markets/football-btts.md) and ADR-0016.
+
+## Phase 17.5 evaluation-path support gate
+
+Settlement-aware markets must not become eligible merely because their canonical
+identity is structurally valid.
+
+`normalize_source_snapshot()` therefore accepts an explicit
+`MarketSupportPurpose`:
+
+- `GENERIC_ARBITRAGE` — the default and existing behavior;
+- `SETTLEMENT_AWARE` — an opt-in path for markets whose payout semantics are handled
+  by a dedicated evaluator.
+
+Phase 17.5 keeps football regulation `HANDICAP / line 0` fail-closed on the generic
+path and admits it only for `SETTLEMENT_AWARE`. That exact line is Draw No Bet /
+Asian Handicap 0.
+
+The settlement-aware purpose does **not** generally unlock integer or quarter Asian
+handicaps. Non-zero integer and quarter lines remain unsupported until their payout
+matrices and staking semantics are implemented.
+
+See [football Draw No Bet](../markets/football-draw-no-bet.md) and ADR-0017.
+
+## Phase 17.6 indexed tennis set-winner identity
+
+Tennis `SET_WINNER` is enabled only with `MarketPeriod.SET` and an explicit
+`period_index` of 1 or 2.
+
+The set index is structured source data, not a label-parsing result. OddsPapi uses
+the exact provider market identities and periods:
+
+- market 123 + `p1` -> set index 1;
+- market 125 + `p2` -> set index 2.
+
+The adapter emits `SourceMarket.period_index`. Strict normalization already requires
+exact equality between source and canonical period indexes, so a Set 1 source
+observation explicitly mapped to canonical Set 2 fails with
+`MARKET_PARAMETER_MISMATCH` before quote creation.
+
+The canonical registry also requires exactly two participant selections covering the
+event participants.
+
+Phase 17.6 deliberately does not manufacture a The Odds API mapping because an exact
+documented tennis set-winner market key was not established. Provider capability
+asymmetry is allowed; semantic guessing is not.
+
+See [tennis indexed set winner](../markets/tennis-set-winner.md) and ADR-0018.
+
+## Phase 17.7 nested tennis game identity
+
+A tennis game introduces one more identity dimension than a set.
+
+For canonical `GAME_WINNER / GAME`:
+
+- `set_index` identifies the containing set;
+- `period_index` identifies the game number within that set;
+- both must be positive structured integers.
+
+The provider-neutral `SourceMarket` preserves the same nested identity. Strict
+normalization compares both values independently before market support:
+
+```text
+source.set_index == canonical.set_index
+source.period_index == canonical.period_index
+```
+
+A Set 1 / Game 3 source market therefore cannot become Set 2 / Game 3 or Set 1 /
+Game 4, even if all participant labels and prices otherwise match.
+
+Phase 17.7 deliberately keeps `GAME_WINNER` unsupported at the market-support gate.
+No provider label, score string, "current game" concept, or general game-derived
+market may create canonical game quotes until a transport demonstrates stable
+machine-readable set/game identity and relevant settlement semantics.
+
+See [tennis game-market identity](../markets/tennis-game-identity.md) and ADR-0019.
+
+## Phase 17.8 tennis set-winner cross-transport normalization
+
+The Odds API's exact documented tennis keys `h2h_s1` and `h2h_s2` now enter the
+same canonical Set 1 / Set 2 family already used by OddsPapi.
+
+At the adapter boundary:
+
+- `h2h_s1` emits structured `period_index=1`;
+- `h2h_s2` emits structured `period_index=2`;
+- the source event must be tennis;
+- exactly the event's two participant labels are required;
+- `point` semantics are rejected.
+
+Strict normalization then reuses the Phase 17.1 parameter invariant:
+
+```text
+source.period_index == canonical.period_index
+```
+
+A The Odds API Set 1 source market explicitly mapped to canonical Set 2 fails with
+`MARKET_PARAMETER_MISMATCH` before quote creation.
+
+After normalization, ADR-0012 consolidates observations by price origin rather than
+transport. Phase 17.8 proves four equal-time/equal-price Pinnacle overlaps across
+The Odds API and OddsPapi collapse to one executable quote per set/selection without
+losing transport provenance.
+
+See [tennis indexed set winner](../markets/tennis-set-winner.md), ADR-0012, and
+ADR-0018.
+
+## Phase 17.10 motorsport identity and support gate
+
+Motorsport introduces three different canonical market shapes rather than one generic
+winner label:
+
+- `OUTRIGHT_WINNER` for race/qualifying/session winner;
+- `PODIUM_FINISH` for one explicit subject participant with YES/NO outcomes;
+- `HEAD_TO_HEAD` for exactly two distinct event participants.
+
+Race, qualifying, session, and tournament/championship periods are distinct.
+`Market.subject_participant_id` is valid only for podium-finish identity.
+
+The canonical registry enforces full-grid coverage for race winner, exact YES/NO for
+podium, and exact two-participant completeness for H2H.
+
+None of these motorsport families currently passes `assess_market_support()`.
+Provider mappings remain closed until both real transports demonstrate equivalent
+machine-readable identity and DNS/DNF/disqualification/dead-heat/void settlement
+behavior is explicitly representable.
+
+See [motorsport/F1 semantics](../markets/motorsport-f1-semantics.md) and ADR-0021.
+
 ## Strict quote bridge integration
 
 `normalize_source_snapshot()` still requires explicit canonical ID hooks for event, market, and selection identity. Phase 7 changes its price behavior: all currently supported `SourceOddsFormat` values are passed through `normalize_odds()` before an `OddsQuote` is created.
@@ -159,3 +367,20 @@ The Phase-7 tests cover, among other cases:
 - caller Decimal-context independence;
 - decimal overflow containment;
 - strict-bridge conversion and per-selection failure isolation.
+
+
+## Phase 17.11 broader outright safety
+
+Canonical `OUTRIGHT_WINNER` markets now require an exact participant-selection set
+covering every event candidate, with a single homogeneous participant kind. This
+applies across race, qualifying, session and tournament scopes.
+
+The provider-independent `OutrightEvaluationProfile` separates candidate identity
+from settlement safety. `assess_generic_outright_math()` permits the ordinary
+arbitrary-N reciprocal-odds payout shape only when the candidate set is complete and
+static, outcomes are mutually exclusive and exhaustive, no Field/Other bucket or
+tie/dead-heat split can occur, and withdrawal/void rules are proven equivalent.
+
+This eligibility result does not bypass `assess_market_support()`. Broader
+tournament/championship outrights remain runtime-disabled until a real provider path
+can construct the required evidence without guessing from labels.

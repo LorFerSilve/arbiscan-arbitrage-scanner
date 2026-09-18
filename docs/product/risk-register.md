@@ -56,12 +56,70 @@ A risk with high correctness or security impact must not be dismissed merely bec
 | R-038 | Multiple bookmakers from one aggregator are mistaken for multiple independent data sources | Medium | High | Explicit transport-source definition and Phase 16 independent-source exit criterion | Closed |
 | R-039 | Two transport sources report conflicting same-time prices/status for one bookmaker and selection | Medium | High | Preserve both observations; exclude conflicting slot unless an explicit trust policy resolves it | Closed |
 | R-040 | A technically integrated second transport is activated in an environment before its provider-specific legal/data-rights review is complete | Low-Medium | Critical | Explicit transport-source enablement policy, primary-only rollback path, provider production blockers, and release/deployment gates | Mitigating |
+| R-041 | Advanced markets with different lines, indexed periods, or selection handicaps are mapped to one canonical identity | Medium | Critical | ADR-0013 structured source parameters plus exact fail-closed parameter matching before quote construction | Mitigating |
+| R-042 | Football totals with PUSH or split-settlement semantics enter the ordinary two-outcome guaranteed-return calculation | Medium | Critical | ADR-0014 canonical support gate: enable only regulation positive x.5 totals until push/half-win/half-loss payouts are modeled | Closed |
+| R-043 | Asian handicap direction is inverted across providers, or PUSH/split-settlement variants enter ordinary two-outcome guaranteed-return math | Medium | Critical | ADR-0015 participant-1 line anchor, exact mirrored selection handicaps, explicit settlement profiles, and half-goal-only generic-engine gate | Closed |
+| R-044 | Full-time BTTS is conflated with first-half/other YES-NO propositions or malformed incomplete outcomes | Medium | Critical | ADR-0016 exact provider market identity, regulation-only support gate, and canonical YES/NO completeness | Closed |
+| R-045 | Draw No Bet / Asian Handicap 0 reciprocal edge is surfaced as strictly positive guaranteed profit because the shared draw-refund state is omitted | Medium | Critical | ADR-0017 generic-path block, explicit settlement-aware normalization, and refundable two-way evaluation with worst-case return | Closed |
+| R-046 | Tennis Set 1 and Set 2 quotes are conflated because participant/outcome labels match | Medium | Critical | ADR-0018 structured `period_index`, exact provider market/period mapping, and strict parameter mismatch before quote construction | Closed |
+| R-047 | Tennis retirement, walkover, abandonment, or incomplete-set rules differ across bookmakers and invalidate a generic realized-profit guarantee | Medium | High | Keep Phase 17.6 output theoretical for normal completed-set settlement; require bookmaker settlement-rule modeling before actionable guarantee | Mitigating |
+| R-048 | Tennis individual-game quotes from different sets or game numbers are conflated because their participants and labels are identical | Medium | Critical | ADR-0019 nested `set_index` + game `period_index`, exact source/canonical parameter matching, and game-winner completeness | Closed |
+| R-049 | Mutable current/next-game, tiebreak, or service-relative tennis markets are inferred from labels/score state and treated as a fixed numbered game | Medium | Critical | ADR-0019 keeps GAME_WINNER runtime support closed; no label/score/service-rotation inference before explicit provider score-state semantics | Closed |
+| R-050 | Tennis Set 1/Set 2 observations of the same bookmaker through The Odds API and OddsPapi are counted twice or conflict silently | Medium | Critical | ADR-0012 price-origin consolidation plus Phase 17.8 equal-time equivalent-overlap and strict set-index regressions | Closed |
+| R-051 | F1 winner/podium/H2H prices are compared despite incomplete driver grids, session mismatch, or different DNS/DNF/disqualification/dead-heat rules | High | Critical | ADR-0021 models explicit motorsport identity/completeness and keeps all Phase 17.10 motorsport runtime support closed until provider and settlement equivalence is proven | Closed |
+| R-052 | Tournament/championship outright prices are compared across incomplete/dynamic candidate fields, synthetic Field/Other buckets, or incompatible tie/dead-heat/withdrawal/void settlement | High | Critical | ADR-0022 exact candidate completeness, homogeneous participant-kind boundary, explicit outright settlement profile, and runtime fail-closed provider gate | Closed |
+| R-053 | Exchange lay prices are treated as ordinary bookmaker back odds, or arbitrage ignores lay liability, matched liquidity, account/market commission, or settlement rules | High | Critical | ADR-0023 separate exchange price model, explicit BACK/LAY side, liability/liquidity checks, net-market commission, provenance, and fail-closed support gate | Closed |
 
 ## Critical risk themes
 
 ### 1. Semantic correctness
 
 The dominant correctness risk is not the arbitrage formula itself; it is comparing prices that do not represent the same event, market, or settlement rules. Event matching and market normalization therefore precede broad provider coverage.
+
+Phase 17 extends this rule to structured market parameters. Numeric lines, period
+indexes, and signed selection handicaps are semantic identity, not presentation
+metadata. Parameter mismatches must be rejected before any quote can reach the market
+book.
+
+Phase 17.2 also treats settlement shape as semantic correctness. Football totals are currently enabled only on positive regulation-time half-goal lines, where Over/Under is a true two-outcome win/lose partition. Integer and quarter-line totals fail closed before quote construction rather than being evaluated with incomplete PUSH or split-settlement assumptions.
+
+Phase 17.3 applies the same principle to Asian handicap orientation and settlement geometry. The canonical market line is the signed handicap of ordered participant 1, participant 2 must carry its exact negation, and only half-goal lines may reach ordinary arbitrage/staking. Integer and quarter variants are explicitly settleable in the domain model but remain ineligible for generic guaranteed-return claims.
+
+Phase 17.4 treats BTTS period identity as equally strict. A YES/NO shape is not sufficient: only provider-specific full-match BTTS identity may resolve to canonical regulation-time BTTS, and the canonical graph must contain exactly one YES and one NO selection.
+
+Phase 17.5 separates a positive decisive-state Draw No Bet price edge from strict guaranteed profit. Football regulation handicap zero can enter only the explicit settlement-aware path; its shared draw PUSH returns stake, fixing worst-case profit at zero even when both decisive outcomes are profitable.
+
+Phase 17.6 makes tennis set number part of canonical market identity. Odds from different sets cannot share a market book even when their participant labels are identical. The normal completed-set payout shape can use ordinary two-way math, but bookmaker-specific retirement, walkover, and incomplete-set rules remain an execution-realism risk and are not treated as a universal settlement guarantee.
+
+Phase 17.7 extends indexed tennis identity one hierarchy level deeper. A game is identified by both its containing `set_index` and its game `period_index`; mismatches fail before support evaluation. Because neither current transport has yet demonstrated a stable fixed Set N / Game M winner mapping, GAME_WINNER remains runtime-disabled, preventing mutable current/next-game, tiebreak, or service-relative labels from becoming false canonical identity.
+
+Phase 17.8 completes Set 1 / Set 2 winner across both real transport schemas. Same-bookmaker Pinnacle observations remain independently auditable by transport but consolidate to one executable price origin, while strict `period_index` equality prevents cross-set comparison. The existing retirement/walkover/incomplete-set limitation remains separate and mitigating.
+
+Phase 17.9 makes basketball period and line settlement explicit. Only full-event half-point totals and spreads may use the ordinary two-outcome arbitrage/stake engine. Integer lines can PUSH and quarter lines can require split settlement, so both remain fail-closed. Quarter, half, alternate, and live provider families are not promoted to the full-event canonical identity. OddsPapi's explicit overtime-inclusive labels are preserved. The Odds API does not expose an overtime-settlement flag for featured bookmaker markets, so basketball spreads/totals from that transport are additionally gated by an explicit per-bookmaker full-event allowlist that defaults to empty.
+
+Phase 17.10 separates motorsport race, qualifying, session, and championship scope and
+adds explicit full-grid winner, subject-specific podium, and pairwise H2H
+completeness. All three remain runtime-disabled because incomplete outright candidate
+sets and bookmaker-specific DNS/DNF/disqualification/dead-heat/void behavior can
+invalidate ordinary reciprocal-odds guarantees. Provider labels or advertised sport
+coverage are not sufficient to unlock F1 markets.
+
+
+Phase 17.11 generalizes the same correctness rule to all tournament/championship
+outrights. A canonical outright must cover the exact event candidate set using one
+participant kind. Field/Other buckets, partial or changing candidate lists, ties,
+dead heats, withdrawals and void rules are explicit settlement blockers rather than
+decorative metadata. The generic arbitrary-N formula may be reused only when the
+dedicated outright safety profile proves a complete/static, mutually-exclusive and
+exhaustive settlement partition with equivalent withdrawal/void behavior.
+
+
+Phase 17.12 separates exchange execution semantics from bookmaker prices. A LAY price
+is not another decimal BACK quote: it carries liability, side identity, available
+matched liquidity and commission context. Commission is applied to positive net
+exchange-market winnings per exchange/provider commission scope. Missing side,
+liquidity, commission, scope or settlement verification remains fail-closed, and a
+Betfair-labelled aggregator price does not become an exchange observation by name.
 
 ### 2. Temporal correctness
 

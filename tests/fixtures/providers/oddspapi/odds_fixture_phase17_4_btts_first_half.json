@@ -1,0 +1,54 @@
+{
+  "fixtureId": "id1000001761301153",
+  "participant1Id": 35,
+  "participant2Id": 34,
+  "sportId": 10,
+  "tournamentId": 17,
+  "seasonId": 130281,
+  "statusId": 0,
+  "hasOdds": true,
+  "startTime": "2026-09-17T18:00:00.000Z",
+  "updatedAt": "2026-09-17T10:20:00.000Z",
+  "statusName": "Pre-Game",
+  "participant1Name": "Liverpool FC",
+  "participant2Name": "Manchester United",
+  "bookmakerOdds": {
+    "pinnacle": {
+      "bookmakerIsActive": true,
+      "bookmakerFixtureId": "pinnacle-fixture",
+      "suspended": false,
+      "markets": {
+        "204": {
+          "bookmakerMarketId": "pinnacle-btts-h1-204",
+          "marketActive": true,
+          "outcomes": {
+            "204": {
+              "players": {
+                "0": {
+                  "active": true,
+                  "bookmakerOutcomeId": "pin-h1-yes",
+                  "bookmakerChangedAt": "2026-09-17T10:20:00Z",
+                  "changedAt": "2026-09-17T10:20:00Z",
+                  "price": 1.9,
+                  "mainLine": true
+                }
+              }
+            },
+            "205": {
+              "players": {
+                "0": {
+                  "active": true,
+                  "bookmakerOutcomeId": "pin-h1-no",
+                  "bookmakerChangedAt": "2026-09-17T10:20:01Z",
+                  "changedAt": "2026-09-17T10:20:01Z",
+                  "price": 1.9,
+                  "mainLine": true
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

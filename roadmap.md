@@ -942,6 +942,256 @@ A provider is not considered supported merely because data can be downloaded. It
 
 Expand beyond simple winner markets after the canonical market model has proven itself.
 
+## Status
+
+In progress. **Phases 17.1 through 17.10 are technically complete.** The next
+dependency is **Phase 17.11 — broader outright tournament/championship markets**.
+
+### 17.1 — Structured advanced-market parameter foundation
+
+Status: **Complete**.
+
+Before totals, handicaps, or indexed-period markets can enter canonical detection:
+
+- preserve market lines as exact structured `Decimal` values at the source boundary;
+- preserve indexed-period identity explicitly;
+- preserve signed participant handicaps explicitly;
+- reject source/canonical parameter mismatches before quote construction;
+- prohibit label parsing from becoming canonical parameter identity;
+- add provider parser fixtures proving structured parameter preservation.
+
+ADR-0013 owns this invariant.
+
+### 17.2 — Football totals
+
+Status: **Complete**.
+
+Football pre-match regulation totals are enabled for positive push-free half-goal
+(`x.5`) lines. Phase 17.2 proves exact line equivalence, canonical Over/Under
+completeness, two-real-transport same-line market-book construction, different-line
+non-comparison, and end-to-end arbitrage evaluation. Integer and quarter lines fail
+closed under ADR-0014 because the current generic payout model does not represent
+PUSH or split settlement.
+
+### 17.3 — Football Asian handicap settlement semantics
+
+Status: **Complete**.
+
+Phase 17.3 anchors `Market.line` to ordered canonical participant 1, requires the
+second participant selection to carry the exact negated handicap, and models
+half-goal, integer, quarter and unsupported line geometry with WIN, HALF_WIN, PUSH,
+HALF_LOSS and LOSS settlement states.
+
+The generic `ArbitrageEvaluation` and `StakePlan` are proven sufficient for
+regulation-time half-goal handicaps, which are enabled end to end across both real
+adapter schemas. Integer and quarter lines remain fail-closed for generic opportunity
+generation because their PUSH/split-settlement payout matrices require a future
+scenario-aware guaranteed-return/stake engine.
+
+### 17.4 — Football both-teams-to-score semantics and provider feasibility
+
+Status: **Complete**.
+
+Phase 17.4 adds canonical `BOTH_TEAMS_TO_SCORE` with exact YES/NO completeness and
+enables football regulation-time BTTS across both existing real transport schemas.
+
+The Odds API mapping uses the exact documented `btts` event market and rejects
+malformed outcome or point semantics. OddsPapi requires the structured full-time
+`Both Teams To Score` catalog identity and does not promote first-half records.
+
+The end-to-end regression proves multi-source normalization, overlapping Pinnacle
+consolidation, best-price YES/NO construction, theoretical arbitrage detection,
+Opportunity creation, and conservative stake allocation without provider-specific
+core math.
+
+### 17.5 — Football draw-no-bet settlement semantics
+
+Status: **Complete**.
+
+Phase 17.5 represents Draw No Bet as the already canonical football regulation
+`HANDICAP / line 0` market rather than creating a duplicate market family.
+
+The reciprocal two-price formula remains valid for the two decisive team-win states,
+but a regulation-time draw returns both stakes. The resulting draw return multiplier
+is exactly `1`, so a positive decisive-state edge has worst-case profit exactly zero
+rather than strictly positive guaranteed profit.
+
+The generic arbitrage normalization path therefore remains fail-closed for handicap
+zero. An explicit settlement-aware path admits only this exact DNB case and feeds the
+new provider-independent refundable two-way evaluator. Ordinary
+`Opportunity` / `StakePlan` materialization remains prohibited because those
+schemas mean strictly positive guaranteed profit.
+
+The Odds API `draw_no_bet` market and OddsPapi full-time Asian Handicap 0 are proven
+equivalent through schema-faithful fixtures and a two-real-transport integration
+regression. Other integer/quarter handicap variants remain unsupported by the
+Phase 17.5 settlement-aware gate.
+
+### 17.6 — Tennis set-winner and indexed-set semantics
+
+Status: **Complete**.
+
+Phase 17.6 enables tennis Set 1 and Set 2 winner markets through structured
+`MarketPeriod.SET / period_index` identity.
+
+Canonical completeness requires exactly the two event participants. OddsPapi maps
+documented market 123 / `p1` to Set 1 and market 125 / `p2` to Set 2, emitting the
+index as structured source data. Strict source/canonical index equality prevents
+cross-set quote construction.
+
+The Phase 17.6 implementation remains OddsPapi-only. During Phase 17.7 provider
+revalidation, the current The Odds API market list was found to document tennis
+`h2h_s1` and `h2h_s2` set moneylines. That new evidence does not retroactively
+enable the adapter; Phase 17.8 owns strict mapping and cross-transport validation.
+
+For a normally completed set, ordinary two-way arbitrage and stake allocation are
+valid under the canonical model. Bookmaker-specific retirement, walkover,
+abandonment, and incomplete-set rules remain an execution-realism limitation and are
+not represented as a universal realized-profit guarantee.
+
+### 17.7 — Tennis game-market identity and score-state semantics
+
+Status: **Complete as a fail-closed semantic foundation**.
+
+Phase 17.7 adds `GAME_WINNER` and `MarketPeriod.GAME` with nested structured
+identity:
+
+- `set_index` identifies the containing set;
+- `period_index` identifies the game number within that set.
+
+The provider-neutral source model preserves the same pair, strict normalization
+requires exact equality for both values, and canonical completeness requires exactly
+the event's two participants.
+
+Provider feasibility did not establish a stable fixed Set N / Game M winner mapping
+on either current transport. OddsPapi exposes broader game-derived families such as
+game handicaps/totals/tiebreak propositions, while The Odds API's documented key list
+does not expose an individual numbered game-winner key.
+
+Consequently `GAME_WINNER` remains explicitly unsupported at runtime. Current/next
+game labels, mutable score strings, assumed service rotation, tiebreaks, and
+service-relative propositions cannot create canonical game quotes.
+
+### 17.8 — Tennis set-winner cross-transport completion
+
+Status: **Complete**.
+
+Phase 17.8 adds strict The Odds API support for the documented tennis market keys:
+
+- `h2h_s1` -> `SET_WINNER / SET / period_index=1`;
+- `h2h_s2` -> `SET_WINNER / SET / period_index=2`.
+
+The adapter requires a tennis event, the exact two event participants, and no
+unexpected point semantics. The default request remains `h2h`; set markets are
+opt-in.
+
+Schema-faithful The Odds API and OddsPapi fixtures prove that both transports
+normalize to the same canonical Set 1 / Set 2 markets. Four equal-time/equal-price
+Pinnacle observations overlap across the two feeds and consolidate under ADR-0012 to
+one executable price origin per set/selection. Set 1 and Set 2 remain isolated by
+strict structured `period_index`.
+
+The combined market book allows independent Bet365 and Betfair price contributions,
+detects a theoretical Set 1 arbitrage, and materializes the existing conservative
+stake plan under the normal completed-set settlement assumptions. The tennis
+retirement/walkover/incomplete-set caveat remains unchanged.
+
+### 17.9 — Basketball spreads/totals and overtime-period semantics
+
+Status: **Complete**.
+
+Phase 17.9 introduces canonical basketball sport support and enables a deliberately
+narrow, mathematically safe full-event subset:
+
+- `TOTAL_POINTS / FULL_EVENT` on positive half-point lines;
+- `HANDICAP / FULL_EVENT` on half-point lines;
+- spread identity anchored to ordered participant 1 with participant 2 carrying the
+  exact negated handicap;
+- exact Over/Under or two-participant completeness;
+- The Odds API featured `totals` / `spreads` parsing, kept separate from documented
+  quarter/half keys;
+- OddsPapi exact `Over Under (incl. overtime)` and `Handicap (incl. overtime)`
+  catalog mappings;
+- integer and quarter lines rejected from generic arbitrage/staking because PUSH or
+  split-settlement states are not represented by the two-outcome payout model;
+- quarter, half, alternate, and live market families kept fail-closed;
+- same-bookmaker cross-transport overlap consolidated under ADR-0012;
+- end-to-end generic reciprocal-odds opportunity and conservative stake-plan regression
+  on the push-free subset.
+
+ADR-0020 owns the full-event/overtime and settlement-scope invariant.
+
+### 17.10 — Motorsport/F1 winner, podium, and head-to-head semantics
+
+Status: **Complete as a semantic/provider-feasibility gate; no runtime market enabled.**
+
+Phase 17.10 establishes:
+
+- distinct race, qualifying, session, and tournament/championship scope;
+- driver versus constructor participant identity;
+- race-winner full-grid completeness;
+- subject-specific podium YES/NO identity;
+- exact two-participant head-to-head identity;
+- fail-closed DNS/DNF/disqualification/dead-heat/void settlement boundaries;
+- The Odds API rejection of motorsport outright event shapes before binary home/away
+  parsing;
+- OddsPapi refusal to guess a motorsport sport identifier or market IDs that are not
+  published as stable public constants;
+- explicit runtime rejection of motorsport winner, podium, and head-to-head markets
+  until equivalent machine-readable identity and settlement semantics are demonstrated
+  across enabled real transports.
+
+ADR-0021 owns these invariants.
+
+### 17.11 — Broader outright tournament/championship markets
+
+Status: **Complete as a semantic/provider-feasibility gate; no broader outright runtime market enabled.**
+
+Phase 17.11 establishes:
+
+- exact candidate-set completeness for every canonical `OUTRIGHT_WINNER`;
+- one homogeneous participant kind per outright field;
+- exact one-selection-per-candidate coverage across race, qualifying, session, and
+  tournament/championship scopes;
+- explicit rejection of synthetic Field/Other and non-participant outcomes;
+- a provider-independent settlement-safety profile covering complete/static fields,
+  mutual exclusivity, exhaustiveness, ties, dead heats, withdrawals and voids;
+- proof that the existing arbitrary-N reciprocal-odds engine is mathematically
+  sufficient only when every safety condition is satisfied;
+- The Odds API `has_outrights` preservation and fail-closed rejection before binary
+  home/away event parsing;
+- OddsPapi refusal to promote an unverified tournament-winner catalogue family;
+- continued runtime rejection until real provider identity and settlement equivalence
+  are demonstrated.
+
+ADR-0022 owns these invariants.
+
+### 17.12 — Exchange-backed outcomes, back/lay identity, liability, and commission
+
+Status: **Complete as an exchange settlement/mathematics foundation; no live exchange transport enabled.**
+
+Phase 17.12 establishes:
+
+- explicit `BACK` versus `LAY` side identity;
+- a dedicated exchange price model separate from ordinary bookmaker `OddsQuote`;
+- strict `ProviderKind.EXCHANGE` price-origin identity plus independent transport provenance;
+- lay liability `stake * (odds - 1)`;
+- visible matched-liquidity limits;
+- explicit commission rate and exchange account/market commission scope;
+- commission on positive net exchange-market winnings rather than per-leg winnings;
+- deterministic terminal-scenario evaluation for bookmaker BACK + exchange BACK/LAY portfolios;
+- positive-guaranteed-profit classification only after commission in every terminal scenario;
+- back/lay and opposing lay/lay regression matrices;
+- fail-closed handling when side, liquidity, commission, commission scope, active status,
+  or settlement-rule verification is missing;
+- explicit prevention of provider-name inference: current aggregator Betfair-labelled
+  prices remain ordinary bookmaker origins unless a real exchange contract supplies
+  side/liquidity/commission semantics.
+
+ADR-0023 owns these invariants.
+
+Phase 17 expansion is now semantically complete through 17.12.
+
 ## Candidate markets
 
 - football totals;

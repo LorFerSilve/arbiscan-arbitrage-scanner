@@ -53,8 +53,8 @@ from arbiscan.domain.models import (
     StakePlan,
 )
 
-SCHEMA_VERSION = 2
-_SUPPORTED_SCHEMA_VERSIONS = frozenset({1, SCHEMA_VERSION})
+SCHEMA_VERSION = 3
+_SUPPORTED_SCHEMA_VERSIONS = frozenset({1, 2, SCHEMA_VERSION})
 
 _MODEL_TYPES: dict[str, Callable[..., object]] = {
     type_.__name__: type_
@@ -167,6 +167,25 @@ def _migrate_v1_payload(value: object) -> object:
     return mapping
 
 
+def _migrate_v2_payload(value: object) -> object:
+    """Upgrade schema-v2 Markets with Phase-17 optional identity fields.
+
+    Schema v2 predates Market.set_index and Market.subject_participant_id.
+    Both fields are optional, so historical payloads migrate deterministically
+    to explicit null values while current-schema decoding stays exact-key strict.
+    """
+    if isinstance(value, list):
+        return [_migrate_v2_payload(item) for item in value]
+    if not isinstance(value, dict):
+        return value
+
+    mapping = {str(key): _migrate_v2_payload(item) for key, item in value.items()}
+    if mapping.get("$type") == "Market":
+        mapping.setdefault("set_index", None)
+        mapping.setdefault("subject_participant_id", None)
+    return mapping
+
+
 def _decode(value: object) -> object:
     if value is None or isinstance(value, (bool, int, str)):
         return value
@@ -270,6 +289,9 @@ def loads[T](data: str, expected_type: type[T]) -> T:
     payload = envelope["payload"]
     if schema_version == 1:
         payload = _migrate_v1_payload(payload)
+        payload = _migrate_v2_payload(payload)
+    elif schema_version == 2:
+        payload = _migrate_v2_payload(payload)
 
     result = _decode(payload)
     if not isinstance(result, expected_type):
