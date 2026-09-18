@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 from collections.abc import Mapping
 from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 
 from arbiscan.domain import ProviderId, Sport
 from arbiscan.observability.provider import InMemoryProviderTelemetry, ProviderTelemetryOutcome
@@ -147,3 +148,55 @@ def test_malformed_payload_fails_closed() -> None:
         assert not error.retryable
     else:
         raise AssertionError("expected malformed-response ProviderError")
+
+
+def test_configured_advanced_markets_preserve_structured_point_parameters() -> None:
+    transport = FixtureHttpTransport(
+        fixture_overrides={"odds": "odds_event_phase17_1_parameters.json"}
+    )
+    provider = TheOddsApiProvider(
+        config=TheOddsApiConfig(
+            api_key=FIXTURE_KEY,
+            markets=("totals", "spreads"),
+        ),
+        transport=transport,
+        clock=lambda: NOW,
+    )
+
+    event = asyncio.run(provider.discover_events("soccer_epl"))[0]
+    snapshot = asyncio.run(provider.fetch_odds(event.external_id))
+    assert snapshot is not None
+
+    totals = next(market for market in snapshot.markets if market.label.endswith(" totals"))
+    spread = next(market for market in snapshot.markets if market.label.endswith(" spreads"))
+
+    assert totals.line == Decimal("2.5")
+    assert totals.period_index is None
+    assert {selection.handicap for selection in totals.selections} == {None}
+
+    assert spread.line is None
+    assert {selection.handicap for selection in spread.selections} == {
+        Decimal("-1.5"),
+        Decimal("1.5"),
+    }
+    assert transport.requests[-1].query["markets"] == "totals,spreads"
+
+
+def test_inconsistent_totals_points_fail_closed_at_adapter_boundary() -> None:
+    transport = FixtureHttpTransport(
+        fixture_overrides={"odds": "odds_event_phase17_1_bad_totals.json"}
+    )
+    provider = TheOddsApiProvider(
+        config=TheOddsApiConfig(api_key=FIXTURE_KEY, markets=("totals",)),
+        transport=transport,
+        clock=lambda: NOW,
+    )
+
+    event = asyncio.run(provider.discover_events("soccer_epl"))[0]
+    try:
+        asyncio.run(provider.fetch_odds(event.external_id))
+    except ProviderError as error:
+        assert error.kind is ProviderErrorKind.MALFORMED_RESPONSE
+        assert "must share one point" in str(error)
+    else:
+        raise AssertionError("inconsistent totals points must fail closed")
