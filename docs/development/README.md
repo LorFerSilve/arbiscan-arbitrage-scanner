@@ -36,20 +36,25 @@ This directory contains the reproducible engineering setup plus formal completio
 - [`phase-17.2-completion.md`](phase-17.2-completion.md) — Phase 17.2 football pre-match regulation totals on push-free half-goal lines.
 - [`phase-17.3-completion.md`](phase-17.3-completion.md) — Phase 17.3 football Asian handicap identity, settlement semantics, and half-goal enablement.
 - [`phase-17.4-completion.md`](phase-17.4-completion.md) — Phase 17.4 football regulation-time BTTS provider equivalence and YES/NO enablement.
+- [`phase-17.5-completion.md`](phase-17.5-completion.md) — Phase 17.5 football Draw No Bet / Asian Handicap 0 refund-aware evaluation.
 
 ## Current hand-off
 
-Phases 0 through 16 and **Phases 17.1–17.4** are the completed technical baseline.
-The next roadmap dependency is **Phase 17.5 — football draw-no-bet settlement
+Phases 0 through 16 and **Phases 17.1–17.5** are the completed technical baseline.
+The next roadmap dependency is **Phase 17.6 — tennis set-winner and indexed-set
 semantics**.
 
-Before Phase 17.5 implementation, treat draw-no-bet as a settlement problem rather
-than merely a two-selection market. A regulation-time draw returns stake, so the
-phase must prove detection and stake allocation across the draw-refund terminal state
-before enabling the market.
+Phase 17.5 establishes that Draw No Bet is canonical Asian Handicap 0 and must use an
+explicit refund-aware evaluation path. A positive reciprocal edge in the decisive
+states still has zero worst-case profit because a regulation-time draw refunds both
+stakes. Ordinary `Opportunity` / `StakePlan` materialization therefore remains
+blocked for DNB.
 
-Phase 17.4 establishes that both existing real transport schemas can contribute
-regulation-time BTTS through exact machine-readable provider identity. This does not
-weaken any provider-specific production/legal blocker. OddsPapi remains
-production-blocked as documented in
+Before Phase 17.6 enablement, set identity must be structured rather than label-derived:
+set 1 and set 2 must never share a canonical market even when their participants and
+prices otherwise look equivalent. Provider settlement behavior for retirement,
+withdrawal, or incomplete sets must also remain explicit.
+
+Provider-specific production/legal blockers remain independent of Phase 17 technical
+support. OddsPapi remains production-blocked as documented in
 [`../providers/oddspapi.md`](../providers/oddspapi.md).
