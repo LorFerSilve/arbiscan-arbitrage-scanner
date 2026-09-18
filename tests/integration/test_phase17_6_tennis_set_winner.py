@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 from dataclasses import dataclass
 from decimal import Decimal
+from typing import cast
 
 from arbiscan.arbitrage import (
     CurrencyRoundingPolicy,
@@ -316,15 +317,16 @@ def test_structured_period_index_mismatch_fails_before_quote_creation() -> None:
         for market in observation.snapshot.markets
         if market.period_index == 1
     }
-    remapped = dict(hooks.base.market_ids)
+    base = cast(StaticCanonicalIdHooks, hooks.base)
+    remapped = dict(base.market_ids)
     for source_market_id in source_set1_market_ids:
         remapped[source_market_id] = SET2_MARKET_ID
 
     mismatched_hooks = MatchedCanonicalIdHooks(
         base=StaticCanonicalIdHooks(
-            competition_ids=hooks.base.competition_ids,
+            competition_ids=base.competition_ids,
             market_ids=remapped,
-            selection_ids=hooks.base.selection_ids,
+            selection_ids=base.selection_ids,
         ),
         event_decisions=hooks.event_decisions,
     )
