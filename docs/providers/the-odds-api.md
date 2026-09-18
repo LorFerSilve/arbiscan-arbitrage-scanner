@@ -247,24 +247,45 @@ The default provider request remains `h2h`; Draw No Bet is opt-in.
 
 See [football Draw No Bet](../markets/football-draw-no-bet.md) and ADR-0017.
 
-## Phase 17.6 tennis set-winner scope
+## Phase 17.6 tennis set-winner scope and Phase 17.7 revalidation
 
-Phase 17.6 does **not** add a tennis set-winner mapping for The Odds API.
+Phase 17.6 did **not** add a tennis set-winner mapping for The Odds API because the
+provider material reviewed during that implementation did not establish an exact
+indexed set-winner key.
 
-The current official tennis/provider market material reviewed for this phase did not
-establish an exact machine-readable indexed set-winner key that ArbiScan can safely
-map to `SET_WINNER / SET / period_index`.
+During the Phase 17.7 provider revalidation, the current official betting-market list
+was found to document tennis set moneyline keys:
 
-ArbiScan therefore remains fail-closed for this market family on The Odds API:
+- `h2h_s1` — moneyline for the first set;
+- `h2h_s2` — moneyline for the second set.
 
-- no guessed market key;
-- no label-derived set number;
-- no alias that treats match-winner, spreads, or totals as set winner.
+That new evidence changes provider feasibility, but it does not retroactively make
+the existing adapter support those keys. The implementation remains fail-closed until
+a follow-up phase adds strict parser fixtures, participant validation, structured
+`period_index` mapping, and cross-transport equivalence tests against OddsPapi.
 
-If the provider later documents an exact indexed set-winner market identity, it can
-be added through the same structured `period_index` invariant used by OddsPapi.
+Phase 17.8 owns that cross-transport completion.
+
+Official references:
+
+- https://the-odds-api.com/sports-odds-data/betting-markets.html
+- https://the-odds-api.com/sports/tennis-odds.html
 
 See [tennis indexed set winner](../markets/tennis-set-winner.md) and ADR-0018.
+
+## Phase 17.7 tennis game-winner scope
+
+The Phase 17.7 revalidation did **not** identify a fixed individual numbered
+`Set N / Game M Winner` market key in the provider's current documented market list.
+
+ArbiScan therefore adds no The Odds API `GAME_WINNER` mapping:
+
+- set/game identity is never inferred from labels;
+- `h2h_s1` / `h2h_s2` are set markets, not game markets;
+- match `h2h`, spreads, and totals are not reinterpreted as individual game winner;
+- no mutable "current game" state is reconstructed from score text.
+
+See [tennis game-market identity](../markets/tennis-game-identity.md) and ADR-0019.
 
 ## CI and fixtures
 
