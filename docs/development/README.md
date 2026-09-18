@@ -41,21 +41,24 @@ This directory contains the reproducible engineering setup plus formal completio
 - [`phase-17.7-completion.md`](phase-17.7-completion.md) — Phase 17.7 nested tennis game identity and fail-closed score-state/provider feasibility gate.
 - [`phase-17.8-completion.md`](phase-17.8-completion.md) — Phase 17.8 The Odds API + OddsPapi tennis Set 1/Set 2 cross-transport completion.
 - [`phase-17.9-completion.md`](phase-17.9-completion.md) — Phase 17.9 basketball full-event spreads/totals with overtime-period and push-free settlement gates.
+- [`phase-17.10-completion.md`](phase-17.10-completion.md) — Phase 17.10 motorsport/F1 canonical semantics and fail-closed provider/settlement feasibility gate.
 
 ## Current hand-off
 
-Phases 0 through 16 and **Phases 17.1–17.9** are the completed technical baseline.
-The next roadmap dependency is **Phase 17.10 — motorsport/F1 winner, podium, and
-head-to-head semantics**.
+Phases 0 through 16 and **Phases 17.1–17.10** are the completed technical baseline.
+The next roadmap dependency is **Phase 17.11 — broader outright
+tournament/championship markets**.
 
-Phase 17.9 adds canonical basketball and enables only full-event, push-free half-point
-totals and spreads. OddsPapi contributes only its explicit overtime-inclusive market
-families; The Odds API featured markets remain separate from documented quarter/half
-keys. Integer/quarter lines and sub-period/live markets remain fail-closed.
+Phase 17.10 defines race/qualifying/session/championship identity, full-grid race
+winner completeness, subject-specific podium identity, and exact two-driver H2H
+identity. No motorsport market is runtime-enabled because the two real transports do
+not yet provide a publicly verified equivalent F1 market contract plus explicit
+DNS/DNF/disqualification/dead-heat settlement semantics.
 
-The cross-transport regression overlaps Pinnacle through both transports and proves
-ADR-0012 consolidation while preserving independent Bet365/Betfair price origins.
-OddsPapi's production/legal blocker remains unchanged.
+The Odds API motorsport path now fails before binary home/away parsing. OddsPapi
+continues to leave an unverified motorsport sport record unmapped rather than guessing
+a sport ID/slug or market IDs. The existing OddsPapi production/legal blocker remains
+unchanged.
 
-Phase 17.10 must define motorsport/F1 participant and race/session identity plus
-dead-heat/DNS/DNF settlement behavior before enabling any new market family.
+Phase 17.11 should generalize complete multi-participant outright candidate sets and
+settlement behavior before any broader tournament/championship outright is enabled.
