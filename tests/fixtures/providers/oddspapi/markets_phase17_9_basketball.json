@@ -1,0 +1,44 @@
+[
+  {
+    "marketId": 5401,
+    "marketLength": 2,
+    "marketName": "Over Under (incl. overtime)",
+    "playerProp": false,
+    "sportId": 11,
+    "handicap": 215.5,
+    "period": "fulltime",
+    "marketType": "totals",
+    "outcomes": [
+      {"outcomeId": 5401, "outcomeName": "Over"},
+      {"outcomeId": 5402, "outcomeName": "Under"}
+    ]
+  },
+  {
+    "marketId": 6401,
+    "marketLength": 2,
+    "marketName": "Handicap (incl. overtime)",
+    "playerProp": false,
+    "sportId": 11,
+    "handicap": -3.5,
+    "period": "fulltime",
+    "marketType": "handicap",
+    "outcomes": [
+      {"outcomeId": 6401, "outcomeName": "1"},
+      {"outcomeId": 6402, "outcomeName": "2"}
+    ]
+  },
+  {
+    "marketId": 7401,
+    "marketLength": 2,
+    "marketName": "Over Under First Quarter",
+    "playerProp": false,
+    "sportId": 11,
+    "handicap": 54.5,
+    "period": "q1",
+    "marketType": "totals",
+    "outcomes": [
+      {"outcomeId": 7401, "outcomeName": "Over"},
+      {"outcomeId": 7402, "outcomeName": "Under"}
+    ]
+  }
+]
