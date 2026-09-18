@@ -936,6 +936,7 @@ class OddsPapiProvider(ProviderAdapter):
             source_timestamp=market.source_timestamp,
             line=market.line,
             period_index=market.period_index,
+            set_index=market.set_index,
         )
 
     def stream_odds(self, external_event_ids: tuple[str, ...]) -> AsyncIterator[OddsSnapshot]:
