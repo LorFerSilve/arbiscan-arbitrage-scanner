@@ -336,3 +336,80 @@ def test_phase17_4_btts_rejects_unexpected_point_semantics() -> None:
         assert "must not carry point" in str(error)
     else:
         raise AssertionError("BTTS point parameters must fail closed")
+
+
+def test_phase17_5_draw_no_bet_maps_to_handicap_zero_semantics() -> None:
+    transport = FixtureHttpTransport(
+        fixture_overrides={
+            "events": "events_soccer_epl_phase16_5.json",
+            "odds": "odds_event_phase17_5_dnb.json",
+        }
+    )
+    provider = TheOddsApiProvider(
+        config=TheOddsApiConfig(api_key=FIXTURE_KEY, markets=("draw_no_bet",)),
+        transport=transport,
+        clock=lambda: NOW,
+    )
+
+    event = asyncio.run(provider.discover_events("soccer_epl"))[0]
+    snapshot = asyncio.run(provider.fetch_odds(event.external_id))
+
+    assert snapshot is not None
+    assert len(snapshot.markets) == 2
+    assert {market.line for market in snapshot.markets} == {Decimal("0")}
+    assert all(
+        {selection.label for selection in market.selections}
+        == {"Liverpool FC", "Manchester United"}
+        for market in snapshot.markets
+    )
+    assert all(
+        {selection.handicap for selection in market.selections} == {Decimal("0")}
+        for market in snapshot.markets
+    )
+    assert transport.requests[-1].query["markets"] == "draw_no_bet"
+
+
+def test_phase17_5_draw_no_bet_requires_exact_event_participants() -> None:
+    transport = FixtureHttpTransport(
+        fixture_overrides={
+            "events": "events_soccer_epl_phase16_5.json",
+            "odds": "odds_event_phase17_5_bad_dnb_participants.json",
+        }
+    )
+    provider = TheOddsApiProvider(
+        config=TheOddsApiConfig(api_key=FIXTURE_KEY, markets=("draw_no_bet",)),
+        transport=transport,
+        clock=lambda: NOW,
+    )
+
+    event = asyncio.run(provider.discover_events("soccer_epl"))[0]
+    try:
+        asyncio.run(provider.fetch_odds(event.external_id))
+    except ProviderError as error:
+        assert error.kind is ProviderErrorKind.MALFORMED_RESPONSE
+        assert "home and away participants" in str(error)
+    else:
+        raise AssertionError("Draw No Bet participant drift must fail closed")
+
+
+def test_phase17_5_draw_no_bet_rejects_unexpected_point_semantics() -> None:
+    transport = FixtureHttpTransport(
+        fixture_overrides={
+            "events": "events_soccer_epl_phase16_5.json",
+            "odds": "odds_event_phase17_5_bad_dnb_point.json",
+        }
+    )
+    provider = TheOddsApiProvider(
+        config=TheOddsApiConfig(api_key=FIXTURE_KEY, markets=("draw_no_bet",)),
+        transport=transport,
+        clock=lambda: NOW,
+    )
+
+    event = asyncio.run(provider.discover_events("soccer_epl"))[0]
+    try:
+        asyncio.run(provider.fetch_odds(event.external_id))
+    except ProviderError as error:
+        assert error.kind is ProviderErrorKind.MALFORMED_RESPONSE
+        assert "must not carry point" in str(error)
+    else:
+        raise AssertionError("Draw No Bet point parameters must fail closed")
