@@ -62,6 +62,14 @@ def _normalizer() -> MarketNormalizer:
                 requires_period_index=True,
             ),
             MarketAlias(
+                "Game Winner",
+                Sport.TENNIS,
+                MarketKind.GAME_WINNER,
+                MarketPeriod.GAME,
+                requires_period_index=True,
+                requires_set_index=True,
+            ),
+            MarketAlias(
                 "h2h",
                 Sport.FOOTBALL,
                 MarketKind.MATCH_WINNER_3_WAY,
@@ -135,6 +143,26 @@ def test_parameterized_and_indexed_markets_require_structured_context() -> None:
     assert set_one is not None
     assert set_one.period is MarketPeriod.SET
     assert set_one.period_index == 1
+
+    assert (
+        normalizer.resolve(
+            "Game Winner",
+            sport=Sport.TENNIS,
+            period_index=3,
+        ).status
+        is ResolutionStatus.UNKNOWN
+    )
+    game = normalizer.resolve(
+        "Game Winner",
+        sport=Sport.TENNIS,
+        period_index=3,
+        set_index=2,
+    ).value
+    assert game is not None
+    assert game.kind is MarketKind.GAME_WINNER
+    assert game.period is MarketPeriod.GAME
+    assert game.period_index == 3
+    assert game.set_index == 2
 
 
 def test_provider_specific_market_alias_needs_provider_context() -> None:
