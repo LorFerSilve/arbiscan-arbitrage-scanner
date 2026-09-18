@@ -101,6 +101,7 @@ What evidence or change should cause this decision to be reconsidered?
 - [`0015-football-asian-handicap-identity-and-settlement.md`](0015-football-asian-handicap-identity-and-settlement.md) — anchors signed handicap identity to ordered participant 1, models Asian settlement states, and gates complex settlement from the generic engine.
 - [`0016-football-btts-provider-equivalence.md`](0016-football-btts-provider-equivalence.md) — defines regulation-time BTTS through exact provider market identity and canonical YES/NO completeness.
 - [`0017-draw-no-bet-refund-aware-evaluation.md`](0017-draw-no-bet-refund-aware-evaluation.md) — reuses Asian Handicap 0 for DNB and separates decisive-state edge from the shared draw-refund state.
+- [`0018-tennis-indexed-set-winner-provider-scope.md`](0018-tennis-indexed-set-winner-provider-scope.md) — makes tennis set index structural, enables only demonstrated set-winner mappings, and rejects provider-capability guessing.
 
 ## Initial ADR topics
 
