@@ -7,6 +7,7 @@ class Sport(StrEnum):
     """Sports currently representable by the canonical model."""
 
     FOOTBALL = "football"
+    BASKETBALL = "basketball"
     TENNIS = "tennis"
     MOTORSPORT = "motorsport"
 
