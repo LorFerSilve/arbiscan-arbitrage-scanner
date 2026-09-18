@@ -9,6 +9,12 @@ from arbiscan.normalization.aliases import (
     SportNormalizer,
 )
 from arbiscan.normalization.event_identity import EventEvidencePreparation, prepare_event_evidence
+from arbiscan.normalization.market_support import (
+    MarketSupportDecision,
+    MarketSupportStatus,
+    assess_market_support,
+    is_push_free_football_total_line,
+)
 from arbiscan.normalization.markets import MarketAlias, MarketNormalizer, MarketSemantic
 from arbiscan.normalization.odds import OddsNormalizationError, normalize_odds
 from arbiscan.normalization.resolution import Resolution, ResolutionStatus
@@ -27,6 +33,8 @@ __all__ = [
     "MarketAlias",
     "MarketNormalizer",
     "MarketSemantic",
+    "MarketSupportDecision",
+    "MarketSupportStatus",
     "NormalizationIssue",
     "NormalizationIssueCode",
     "NormalizationResult",
@@ -37,6 +45,8 @@ __all__ = [
     "ResolutionStatus",
     "SportAlias",
     "SportNormalizer",
+    "assess_market_support",
+    "is_push_free_football_total_line",
     "normalize_alias_key",
     "normalize_odds",
     "normalize_source_snapshot",
