@@ -92,7 +92,7 @@ Phase 17.7 extends indexed tennis identity one hierarchy level deeper. A game is
 
 Phase 17.8 completes Set 1 / Set 2 winner across both real transport schemas. Same-bookmaker Pinnacle observations remain independently auditable by transport but consolidate to one executable price origin, while strict `period_index` equality prevents cross-set comparison. The existing retirement/walkover/incomplete-set limitation remains separate and mitigating.
 
-Phase 17.9 makes basketball period and line settlement explicit. Only full-event half-point totals and spreads may use the ordinary two-outcome arbitrage/stake engine. Integer lines can PUSH and quarter lines can require split settlement, so both remain fail-closed. Quarter, half, alternate, and live provider families are not promoted to the full-event canonical identity. OddsPapi's explicit overtime-inclusive labels are preserved, while The Odds API period-specific keys remain distinct from its featured game markets.
+Phase 17.9 makes basketball period and line settlement explicit. Only full-event half-point totals and spreads may use the ordinary two-outcome arbitrage/stake engine. Integer lines can PUSH and quarter lines can require split settlement, so both remain fail-closed. Quarter, half, alternate, and live provider families are not promoted to the full-event canonical identity. OddsPapi's explicit overtime-inclusive labels are preserved. The Odds API does not expose an overtime-settlement flag for featured bookmaker markets, so basketball spreads/totals from that transport are additionally gated by an explicit per-bookmaker full-event allowlist that defaults to empty.
 
 ### 2. Temporal correctness
 
