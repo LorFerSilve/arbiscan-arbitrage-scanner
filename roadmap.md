@@ -944,8 +944,8 @@ Expand beyond simple winner markets after the canonical market model has proven 
 
 ## Status
 
-In progress. **Phases 17.1 through 17.4 are technically complete.** The next
-dependency is **Phase 17.5 — football draw-no-bet settlement semantics**.
+In progress. **Phases 17.1 through 17.5 are technically complete.** The next
+dependency is **Phase 17.6 — tennis set-winner and indexed-set semantics**.
 
 ### 17.1 — Structured advanced-market parameter foundation
 
@@ -1006,23 +1006,46 @@ core math.
 
 ### 17.5 — Football draw-no-bet settlement semantics
 
-The next dependency is regulation-time football draw-no-bet (DNB).
+Status: **Complete**.
+
+Phase 17.5 represents Draw No Bet as the already canonical football regulation
+`HANDICAP / line 0` market rather than creating a duplicate market family.
+
+The reciprocal two-price formula remains valid for the two decisive team-win states,
+but a regulation-time draw returns both stakes. The resulting draw return multiplier
+is exactly `1`, so a positive decisive-state edge has worst-case profit exactly zero
+rather than strictly positive guaranteed profit.
+
+The generic arbitrage normalization path therefore remains fail-closed for handicap
+zero. An explicit settlement-aware path admits only this exact DNB case and feeds the
+new provider-independent refundable two-way evaluator. Ordinary
+`Opportunity` / `StakePlan` materialization remains prohibited because those
+schemas mean strictly positive guaranteed profit.
+
+The Odds API `draw_no_bet` market and OddsPapi full-time Asian Handicap 0 are proven
+equivalent through schema-faithful fixtures and a two-real-transport integration
+regression. Other integer/quarter handicap variants remain unsupported by the
+Phase 17.5 settlement-aware gate.
+
+### 17.6 — Tennis set-winner and indexed-set semantics
+
+The next dependency is tennis pre-match set-winner support.
 
 Before enablement it must establish:
 
-- canonical participant-side outcome completeness;
-- exact regulation-time provider identity;
-- draw-as-refund/PUSH settlement semantics;
-- the payout matrix for both participant selections when the match is drawn;
-- whether reciprocal-odds arbitrage remains a sound detection prefilter;
-- whether the current `StakePlan` can guarantee profit across win/loss/draw-refund
-  terminal states or needs the settlement-aware path anticipated by Phase 17.3;
-- provider-specific mappings and schema-faithful fixtures;
-- cross-source equivalence and fail-closed period/settlement variants;
-- end-to-end regressions that distinguish theoretical price shape from truly
-  guaranteed post-settlement return.
+- `MarketPeriod.SET` plus a positive `period_index` as mandatory market identity;
+- exact two-participant selection completeness for each set;
+- provider-specific source mappings for individual set winner markets;
+- whether both real transports expose equivalent pre-match set markets through their
+  current API surfaces;
+- exact rejection of set 1 versus set 2/3 cross-comparison;
+- retirement, withdrawal, walkover, and incomplete-set settlement behavior where
+  provider rules expose relevant distinctions;
+- schema-faithful provider fixtures;
+- end-to-end same-set market-book/arbitrage regressions without parsing the set index
+  from labels as canonical identity.
 
-Later Phase 17 dependencies should address tennis set/game markets and the remaining
+Later Phase 17 dependencies should address tennis game markets and the remaining
 roadmap candidates only after their own semantic specifications exist.
 
 ## Candidate markets
