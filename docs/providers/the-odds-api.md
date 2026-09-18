@@ -297,6 +297,34 @@ ArbiScan therefore adds no The Odds API `GAME_WINNER` mapping:
 
 See [tennis game-market identity](../markets/tennis-game-identity.md) and ADR-0019.
 
+## Phase 17.9 basketball full-event spreads and totals
+
+The provider currently exposes Basketball as a sport group, including NBA under
+`basketball_nba`. Its featured `spreads` and `totals` markets are documented
+separately from quarter and half variants such as `spreads_q1`, `totals_q1`,
+`spreads_h1`, and `totals_h1`.
+
+Phase 17.9 therefore:
+
+- maps the Basketball sport group to `Sport.BASKETBALL`;
+- preserves the exact featured spread/total point line;
+- anchors a spread line to the event home participant and requires the away point to
+  be its exact negation;
+- requires an exact Over/Under pair for totals;
+- maps the featured basketball path to canonical `FULL_EVENT` identity;
+- keeps quarter/half and alternate keys outside that path;
+- allows only half-point lines through the generic arbitrage/stake support gate.
+
+The default provider request remains `h2h`; basketball spreads/totals are opt-in.
+
+Official references:
+
+- https://the-odds-api.com/sports/nba-odds.html
+- https://the-odds-api.com/sports-odds-data/betting-markets.html
+
+See [basketball full-event spreads and totals](../markets/basketball-full-event-spreads-totals.md)
+and ADR-0020.
+
 ## CI and fixtures
 
 CI never calls the live API. Sanitized fixtures under `tests/fixtures/providers/the_odds_api/` reproduce the documented V4 shapes for:
