@@ -101,7 +101,6 @@ class ArbitrageEvaluation:
             raise ArbitrageMathError("evaluation arbitrage flag is inconsistent with its metrics")
 
 
-
 @dataclass(frozen=True, slots=True)
 class RefundableTwoWayEvaluation:
     """Settlement-aware evaluation for a two-way market with a shared refund state."""
@@ -150,9 +149,7 @@ class RefundableTwoWayEvaluation:
         if len({quote.id for quote in quotes}) != 2:
             raise ArbitrageMathError("refundable evaluation quote IDs must be unique")
         if {quote.selection_id for quote in quotes} != set(expected):
-            raise ArbitrageMathError(
-                "refundable quotes must cover exactly the expected selections"
-            )
+            raise ArbitrageMathError("refundable quotes must cover exactly the expected selections")
 
         implied_sum = _require_decimal(
             self.implied_probability_sum,
