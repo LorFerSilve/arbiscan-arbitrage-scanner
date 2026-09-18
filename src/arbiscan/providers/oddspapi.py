@@ -287,7 +287,13 @@ def _source_event(
 
 def _market_records(payload: object) -> Mapping[str, _MarketRecord]:
     records: dict[str, _MarketRecord] = {}
-    target_names = {"full time result", "match winner", "winner", "over under full time"}
+    target_names = {
+        "full time result",
+        "match winner",
+        "winner",
+        "over under full time",
+        "asian handicap",
+    }
     for index, raw in enumerate(_sequence(payload, path="markets")):
         item = _mapping(raw, path=f"markets[{index}]")
         market_id = str(_integer(item.get("marketId"), path=f"markets[{index}].marketId"))
@@ -357,7 +363,13 @@ def _is_supported_market(record: _MarketRecord, sport: Sport) -> bool:
             and len(record.outcomes) == 2
             and {value.casefold() for value in record.outcomes.values()} == {"over", "under"}
         )
-        return winner or total
+        asian_handicap = (
+            name == "asian handicap"
+            and record.period == "fulltime"
+            and len(record.outcomes) == 2
+            and {value.casefold() for value in record.outcomes.values()} == {"1", "2"}
+        )
+        return winner or total or asian_handicap
     if sport is Sport.TENNIS:
         return (
             name in {"match winner", "winner"}
@@ -512,6 +524,23 @@ def _source_markets(
                                 price=str(price),
                                 odds_format=SourceOddsFormat.DECIMAL,
                                 source_status=source_status,
+                                handicap=(
+                                    record.handicap
+                                    if (
+                                        sport is Sport.FOOTBALL
+                                        and record.name.casefold() == "asian handicap"
+                                        and record.outcomes[outcome_id].casefold() == "1"
+                                    )
+                                    else (
+                                        -record.handicap
+                                        if (
+                                            sport is Sport.FOOTBALL
+                                            and record.name.casefold() == "asian handicap"
+                                            and record.outcomes[outcome_id].casefold() == "2"
+                                        )
+                                        else None
+                                    )
+                                ),
                             ),
                         ),
                         source_status=source_status,
@@ -521,7 +550,8 @@ def _source_markets(
                             record.handicap
                             if (
                                 sport is Sport.FOOTBALL
-                                and record.name.casefold() == "over under full time"
+                                and record.name.casefold()
+                                in {"over under full time", "asian handicap"}
                             )
                             else None
                         ),
