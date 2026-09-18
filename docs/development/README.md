@@ -33,18 +33,20 @@ This directory contains the reproducible engineering setup plus formal completio
 - [`phase-16.7-completion.md`](phase-16.7-completion.md) — Phase 16.7 observability and operational tuning for the second real source.
 - [`phase-16.8-completion.md`](phase-16.8-completion.md) — Phase 16.8 staged enablement and formal Phase 16 technical closure.
 - [`phase-17.1-completion.md`](phase-17.1-completion.md) — Phase 17.1 structured advanced-market semantic foundation.
+- [`phase-17.2-completion.md`](phase-17.2-completion.md) — Phase 17.2 football pre-match regulation totals on push-free half-goal lines.
 
 ## Current hand-off
 
-Phases 0 through 16 and **Phase 17.1** are the completed technical baseline.
-The next roadmap dependency is **Phase 17.2 — football pre-match regulation totals**.
+Phases 0 through 16 and **Phases 17.1–17.2** are the completed technical baseline.
+The next roadmap dependency is **Phase 17.3 — football Asian handicap settlement
+semantics**.
 
-Before Phase 17.2 implementation, read
-[`phase-17.1-completion.md`](phase-17.1-completion.md), ADR-0013, and the Phase 16
-completion material. Football totals must preserve exact source/canonical line
-identity and define settlement scope, outcome completeness, cross-provider same-line
-equivalence, different-line rejection, and integer-line push/void behavior before
-enablement.
+Before Phase 17.3 implementation, read
+[`phase-17.1-completion.md`](phase-17.1-completion.md),
+[`phase-17.2-completion.md`](phase-17.2-completion.md), ADR-0013 and ADR-0014.
+Signed source handicaps already survive the provider boundary, but no handicap market
+may enter the generic arbitrage engine until line anchoring, push behavior, quarter-line
+split settlement, outcome completeness and payout semantics are explicit.
 
 Phase 16 technical completion still does not override unresolved provider-specific
 production/legal blockers. OddsPapi remains production-blocked as documented in
