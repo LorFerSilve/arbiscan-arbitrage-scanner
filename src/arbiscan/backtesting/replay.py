@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from datetime import timedelta
+from datetime import datetime, timedelta
 from decimal import ROUND_HALF_EVEN, Context, Decimal, localcontext
 
 from arbiscan.arbitrage import build_opportunity, evaluate_market
@@ -21,7 +21,7 @@ from arbiscan.backtesting.models import (
     StaleFalsePositive,
     _OpenOpportunityInterval,
 )
-from arbiscan.domain import MarketId, OpportunityId, ProviderId, StakePlanId
+from arbiscan.domain import MarketId, OddsQuote, OpportunityId, ProviderId, StakePlanId
 from arbiscan.ingestion.realtime import QuoteKey
 from arbiscan.lifecycle import LifecycleState, revalidate_opportunity
 from arbiscan.marketbook import ProviderBookPolicy, build_market_books, quote_effective_timestamp
@@ -49,11 +49,11 @@ def _market_scope(
     return config.market_ids
 
 
-def _opportunity_id(market_id: MarketId, detected_at: object) -> OpportunityId:
+def _opportunity_id(market_id: MarketId, detected_at: str) -> OpportunityId:
     return OpportunityId(f"backtest|{market_id.value}|{detected_at}")
 
 
-def _stake_plan_id(market_id: MarketId, detected_at: object) -> StakePlanId:
+def _stake_plan_id(market_id: MarketId, detected_at: str) -> StakePlanId:
     return StakePlanId(f"backtest-plan|{market_id.value}|{detected_at}")
 
 
@@ -67,19 +67,16 @@ def _allowed_provider_ids(
 
 
 def _counterfactual_freshness_window(
-    current_quotes: tuple[object, ...],
+    current_quotes: tuple[OddsQuote, ...],
     *,
-    detected_at: object,
+    detected_at: datetime,
     minimum_window: timedelta,
 ) -> timedelta:
-    # Types are intentionally checked by callers; this helper only derives a wide
-    # enough finite window to include every currently available latest quote.
     available_ages: list[timedelta] = []
-    for raw_quote in current_quotes:
-        quote = raw_quote
-        effective = quote_effective_timestamp(quote)  # type: ignore[arg-type]
-        if effective <= detected_at and quote.ingested_at <= detected_at:  # type: ignore[attr-defined,operator]
-            available_ages.append(detected_at - effective)  # type: ignore[operator]
+    for quote in current_quotes:
+        effective = quote_effective_timestamp(quote)
+        if effective <= detected_at and quote.ingested_at <= detected_at:
+            available_ages.append(detected_at - effective)
     if not available_ages:
         return minimum_window
     oldest_age = max(available_ages)
@@ -93,14 +90,14 @@ def _provider_only_policy(provider_id: ProviderId) -> ProviderBookPolicy:
 def _close_interval(
     state: _OpenOpportunityInterval,
     *,
-    ended_at: object,
+    ended_at: datetime,
     closed_by_end_of_stream: bool,
 ) -> OpportunityInterval:
     return OpportunityInterval(
         event_id=state.event_id,
         market_id=state.market_id,
         started_at=state.started_at,
-        ended_at=ended_at,  # type: ignore[arg-type]
+        ended_at=ended_at,
         detection_count=state.detection_count,
         max_theoretical_profit_margin=state.max_margin,
         ever_actionable=state.ever_actionable,
@@ -132,7 +129,7 @@ def run_backtest(
         sorted({batch.observed_at + config.detection_latency for batch in corpus.batches})
     )
 
-    current_by_key: dict[QuoteKey, object] = {}
+    current_by_key: dict[QuoteKey, OddsQuote] = {}
     next_batch = 0
     detections: list[ReplayDetection] = []
     stale_false_positives: list[StaleFalsePositive] = []
