@@ -49,9 +49,7 @@ class AsianHandicapComponent:
                 "Asian handicap component stake_fraction must be finite Decimal"
             )
         if self.stake_fraction <= _ZERO or self.stake_fraction > _ONE:
-            raise DomainValidationError(
-                "Asian handicap component stake_fraction must be in (0, 1]"
-            )
+            raise DomainValidationError("Asian handicap component stake_fraction must be in (0, 1]")
 
 
 @dataclass(frozen=True, slots=True)
@@ -74,7 +72,9 @@ class AsianHandicapLineProfile:
             )
         if self.line_class is AsianHandicapLineClass.UNSUPPORTED:
             if components:
-                raise DomainValidationError("unsupported Asian handicap line cannot have components")
+                raise DomainValidationError(
+                    "unsupported Asian handicap line cannot have components"
+                )
         else:
             total = sum((value.stake_fraction for value in components), _ZERO)
             if total != _ONE:
