@@ -21,9 +21,21 @@ OVER and one UNDER selection.
 
 The featured `spreads` and `totals` keys are distinct from documented quarter and
 half keys such as `spreads_q1`, `totals_q1`, `spreads_h1`, and `totals_h1`.
-The Phase 17.9 adapter continues to parse only the exact featured keys for this
-full-event path. Period-specific point-bearing keys fail closed rather than being
-relabelled.
+The transport describes those as each bookmaker's featured game markets, but it does
+not expose a machine-readable overtime-settlement flag. Consequently
+`TheOddsApiConfig.basketball_full_event_bookmakers` defaults to empty and the adapter
+drops featured basketball `spreads`/`totals` from unverified price origins. A
+bookmaker is opted in only after its own rules prove full-game/overtime equivalence.
+
+The Phase 17.9 deterministic corpus opts in Pinnacle and bet365. Pinnacle's basketball
+rules state that Game-period bets include overtime; bet365's basketball rules state
+that pre-game bets include overtime unless otherwise stated. Period-specific
+point-bearing keys still fail closed rather than being relabelled.
+
+References:
+
+- https://www.pinnacle.com/en/future/betting-rules
+- https://help.bet365.com/s/en/sportsrules/basketball
 
 ### OddsPapi
 
