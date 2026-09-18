@@ -230,10 +230,7 @@ def assess_market_support(
             if market.line is None or not is_push_free_basketball_handicap_line(market.line):
                 return MarketSupportDecision(
                     MarketSupportStatus.UNSUPPORTED,
-                    (
-                        "Phase 17.9 basketball spreads require a push-free half-point "
-                        "line (x.5)"
-                    ),
+                    ("Phase 17.9 basketball spreads require a push-free half-point line (x.5)"),
                 )
             return MarketSupportDecision(
                 MarketSupportStatus.SUPPORTED,
