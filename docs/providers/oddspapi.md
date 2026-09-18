@@ -480,3 +480,35 @@ The unresolved items in the Production blockers section remain external prerequi
 Until they are resolved and recorded, production-like composition should keep OddsPapi
 out of the enabled transport set. This is intentionally stricter than technical
 integration readiness.
+
+
+## Phase 17.11 broader outright feasibility gate
+
+OddsPapi's public REST contract exposes the current market catalogue dynamically
+through `GET /v4/markets`. ArbiScan therefore does not promote a generic
+`Tournament Winner` label into canonical `OUTRIGHT_WINNER` semantics without a
+verified sport/market contract and complete candidate identity.
+
+A deterministic synthetic Phase 17.11 catalogue record containing a tournament
+winner family and a Field outcome remains outside `_market_records()` target
+families and cannot emit source markets.
+
+This is intentional. Before a broader OddsPapi outright can be enabled, ArbiScan
+needs evidence for:
+
+- stable market identity;
+- complete/static candidate membership;
+- participant-kind consistency;
+- explicit Field/Other semantics if present;
+- tie/dead-heat behavior;
+- withdrawal/void behavior;
+- cross-transport equivalence for the same underlying outright.
+
+Official reference reviewed on 2026-09-18:
+
+- https://oddspapi.io/us/docs/get-markets
+
+The provider's independent production-rights blocker remains unchanged.
+
+See [tournament/championship outright semantics](../markets/outright-tournament-championship.md)
+and ADR-0022.
