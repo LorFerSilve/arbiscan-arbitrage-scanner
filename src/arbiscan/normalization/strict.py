@@ -18,6 +18,7 @@ from arbiscan.domain import (
 )
 from arbiscan.matching.catalog import CanonicalRegistry
 from arbiscan.matching.hooks import MatchedCanonicalIdHooks
+from arbiscan.normalization.market_support import assess_market_support
 from arbiscan.normalization.odds import OddsNormalizationError, normalize_odds
 from arbiscan.providers.models import (
     CanonicalIdHooks,
@@ -37,6 +38,7 @@ class NormalizationIssueCode(StrEnum):
     UNMAPPED_MARKET = "unmapped_market"
     MARKET_EVENT_MISMATCH = "market_event_mismatch"
     MARKET_PARAMETER_MISMATCH = "market_parameter_mismatch"
+    UNSUPPORTED_MARKET_VARIANT = "unsupported_market_variant"
     UNMAPPED_SELECTION = "unmapped_selection"
     SELECTION_MARKET_MISMATCH = "selection_market_mismatch"
     SELECTION_PARAMETER_MISMATCH = "selection_parameter_mismatch"
@@ -291,6 +293,21 @@ def normalize_source_snapshot(
                         f"source period_index={market.period_index!s}, "
                         f"canonical period_index={canonical_market.period_index!s})"
                     ),
+                    market=market,
+                )
+            )
+            continue
+        support = assess_market_support(
+            sport=canonical_event.sport,
+            market=canonical_market,
+        )
+        if not support.supported:
+            issues.append(
+                _issue(
+                    NormalizationIssueCode.UNSUPPORTED_MARKET_VARIANT,
+                    provider,
+                    event,
+                    support.detail,
                     market=market,
                 )
             )
