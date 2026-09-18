@@ -9,6 +9,19 @@ Provider integrations are isolated behind the canonical `ProviderAdapter` bounda
 - [`phase-16.1-provider-selection.md`](phase-16.1-provider-selection.md) — completed candidate review and selection of the first second-source development target.
 - [`oddspapi.md`](oddspapi.md) — OddsPapi onboarding record, technical mapping notes, and unresolved production blockers.
 
-Phase 16.1 is complete. OddsPapi is the selected development target for the second real source; production enablement remains blocked until its unresolved data-rights questions and the remaining Phase 16 correctness gates are closed. The next implementation dependency is **Phase 16.2 — multi-source provenance hardening**.
+Phase 16.1 through Phase 16.8 are technically complete. OddsPapi is the validated
+second real transport source for the Phase 16 architecture, including provenance,
+normalization/matching, overlap-safe coexistence, persistence, observability, and
+staged enablement/rollback.
 
-Before enabling any real source, complete [`../product/provider-integration-checklist.md`](../product/provider-integration-checklist.md). Multi-source work must also follow ADR-0012 under [`../adr/`](../adr/).
+OddsPapi is **not approved for production activation yet**. Its provider-specific
+data-rights, retention, display, fixture, and geographic-use questions remain external
+blockers documented in [`oddspapi.md`](oddspapi.md). The explicit transport-source
+enablement gate ensures those unresolved questions cannot be treated as equivalent to
+technical readiness.
+
+The next roadmap dependency is **Phase 17 — advanced market support**.
+
+Before enabling any real source in a production-like environment, complete
+[`../product/provider-integration-checklist.md`](../product/provider-integration-checklist.md).
+Multi-source work must also follow ADR-0012 under [`../adr/`](../adr/).
