@@ -378,12 +378,8 @@ def test_opposite_anchored_lines_are_distinct_markets_and_cannot_complete_each_o
     assert minus_issues == ()
     assert plus_issues == ()
 
-    home_minus = next(
-        quote for quote in minus_quotes if quote.selection_id == _home_id(minus)
-    )
-    away_plus = next(
-        quote for quote in plus_quotes if quote.selection_id == _away_id(plus)
-    )
+    home_minus = next(quote for quote in minus_quotes if quote.selection_id == _home_id(minus))
+    away_plus = next(quote for quote in plus_quotes if quote.selection_id == _away_id(plus))
 
     batch = build_market_books(
         (home_minus, away_plus),
