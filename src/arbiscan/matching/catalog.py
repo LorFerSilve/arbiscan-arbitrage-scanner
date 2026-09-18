@@ -147,8 +147,7 @@ class CanonicalRegistry:
                 selection for selection in selections if selection.market_id == market.id
             )
             if len(market_selections) != 2 or any(
-                selection.kind is not SelectionKind.PARTICIPANT
-                for selection in market_selections
+                selection.kind is not SelectionKind.PARTICIPANT for selection in market_selections
             ):
                 raise ValueError("set-winner markets require exactly two participant selections")
             participant_ids = {participant.id for participant in event.participants}
