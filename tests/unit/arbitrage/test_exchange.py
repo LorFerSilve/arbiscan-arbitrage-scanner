@@ -87,6 +87,7 @@ def _bookmaker_quote(*, selection_id: SelectionId, odds: str = "3.2") -> OddsQuo
         source_selection_id=selection_id.value,
         ingested_at=NOW,
         status=QuoteStatus.ACTIVE,
+        trace_id="trace:phase17-12:bookmaker",
     )
 
 
