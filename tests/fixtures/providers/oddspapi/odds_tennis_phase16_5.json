@@ -1,0 +1,69 @@
+{
+  "fixtureId": "id1000001761301777",
+  "participant1Id": 501,
+  "participant2Id": 502,
+  "sportId": 12,
+  "tournamentId": 77,
+  "seasonId": 130299,
+  "statusId": 0,
+  "hasOdds": true,
+  "startTime": "2026-09-18T15:00:00.000Z",
+  "updatedAt": "2026-09-18T14:57:00.000Z",
+  "statusName": "Pre-Game",
+  "participant1Name": "Carlos Alcaraz",
+  "participant2Name": "Jannik Sinner",
+  "sportName": "Tennis",
+  "tournamentName": "US Open",
+  "bookmakerOdds": {
+    "pinnacle": {
+      "bookmakerIsActive": true,
+      "bookmakerFixtureId": "tennis-1626291706",
+      "fixturePath": "https://example.invalid/tennis-fixture",
+      "suspended": false,
+      "markets": {
+        "121": {
+          "bookmakerMarketId": "match-winner",
+          "marketActive": true,
+          "outcomes": {
+            "121": {
+              "players": {
+                "0": {
+                  "active": true,
+                  "betslip": null,
+                  "bookmakerOutcomeId": "alcaraz",
+                  "bookmakerChangedAt": "2026-09-18T14:58:01Z",
+                  "changedAt": "2026-09-18T14:58:02Z",
+                  "limit": 100,
+                  "playerName": null,
+                  "price": 2.04,
+                  "priceAmerican": "104",
+                  "priceFractional": "26/25",
+                  "mainLine": true,
+                  "exchangeMeta": null
+                }
+              }
+            },
+            "122": {
+              "players": {
+                "0": {
+                  "active": true,
+                  "betslip": null,
+                  "bookmakerOutcomeId": "sinner",
+                  "bookmakerChangedAt": null,
+                  "changedAt": "2026-09-18T14:58:03Z",
+                  "limit": 100,
+                  "playerName": null,
+                  "price": 1.89,
+                  "priceAmerican": "-112",
+                  "priceFractional": "8/9",
+                  "mainLine": true,
+                  "exchangeMeta": null
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

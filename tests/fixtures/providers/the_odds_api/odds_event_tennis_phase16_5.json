@@ -1,0 +1,25 @@
+{
+  "id": "us-open-sinner-alcaraz-20260918",
+  "sport_key": "tennis_atp_us_open",
+  "sport_title": "ATP US Open",
+  "commence_time": "2026-09-18T15:00:00Z",
+  "home_team": "Jannik Sinner",
+  "away_team": "Carlos Alcaraz",
+  "bookmakers": [
+    {
+      "key": "pinnacle",
+      "title": "Pinnacle",
+      "markets": [
+        {
+          "key": "h2h",
+          "sid": "phase16-5-tennis-h2h",
+          "last_update": "2026-09-18T14:58:04Z",
+          "outcomes": [
+            {"name": "Jannik Sinner", "price": 1.91, "sid": "phase16-5-sinner"},
+            {"name": "Carlos Alcaraz", "price": 2.02, "sid": "phase16-5-alcaraz"}
+          ]
+        }
+      ]
+    }
+  ]
+}

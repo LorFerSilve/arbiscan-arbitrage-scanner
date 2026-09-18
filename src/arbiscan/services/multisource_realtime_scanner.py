@@ -4,15 +4,21 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 from arbiscan.domain import MarketId, OddsQuote, ProviderId, SelectionId, Sport
 from arbiscan.ingestion.collector import IngestedSnapshot
-from arbiscan.ingestion.multisource import ConsolidationDiagnostic, SourceObservationKey
+from arbiscan.ingestion.multisource import (
+    ConsolidationDiagnostic,
+    ConsolidationDiagnosticCode,
+    SourceObservationKey,
+)
 from arbiscan.ingestion.multisource_state import MultiSourceLiveQuoteStore
 from arbiscan.ingestion.realtime import (
     LiveQuoteStore,
+    ProviderIngestionHealth,
+    ProviderPollMetrics,
     QuoteKey,
     RealtimeIngestionPolicy,
     RealtimeIngestionRuntime,
@@ -20,10 +26,12 @@ from arbiscan.ingestion.realtime import (
 from arbiscan.marketbook import ProviderBookPolicy
 from arbiscan.matching.catalog import CanonicalRegistry
 from arbiscan.providers.contract import ProviderAdapter
+from arbiscan.providers.models import ProviderHealthState
 from arbiscan.services.observable_realtime_scanner import (
     RealtimeScanner as ObservableRealtimeScanner,
 )
 from arbiscan.services.realtime_scanner import RealtimeScanCycle
+from arbiscan.services.source_enablement import TransportSourceEnablementPolicy
 
 Clock = Callable[[], datetime]
 
@@ -48,6 +56,41 @@ class MultiSourceTelemetrySnapshot:
     last_diagnostics: tuple[ConsolidationDiagnostic, ...]
 
 
+@dataclass(frozen=True, slots=True)
+class SourceOperationalSnapshot:
+    """Latest cumulative/current operational view for one transport source."""
+
+    provider_id: ProviderId
+    health_state: ProviderHealthState
+    available: bool
+    request_count: int
+    error_count: int
+    rate_limit_event_count: int
+    rate_limit_remaining: int | None
+    last_attempt_at: datetime | None
+    last_success_at: datetime | None
+    last_update_at: datetime | None
+    update_interval: timedelta | None
+    consecutive_failures: int
+    last_issue_count: int
+    fresh_observation_count: int
+    fresh_observation_age_seconds: tuple[float, ...]
+    normalization_failure_count: int
+    matching_failure_count: int
+    overlap_diagnostic_count: int
+    material_conflict_count: int
+
+
+@dataclass(frozen=True, slots=True)
+class MultiSourceOperationalSnapshot:
+    """Operational state exposed after each completed multi-source scan cycle."""
+
+    observed_at: datetime
+    poll_interval: timedelta
+    max_concurrency: int
+    sources: tuple[SourceOperationalSnapshot, ...]
+
+
 class RealtimeScanner(ObservableRealtimeScanner):
     """Application scanner that keeps transport and executable provider identity separate."""
 
@@ -61,15 +104,22 @@ class RealtimeScanner(ObservableRealtimeScanner):
         runtime: RealtimeIngestionRuntime | None = None,
         store: LiveQuoteStore | None = None,
         book_provider_policy: ProviderBookPolicy | None = None,
+        source_enablement_policy: TransportSourceEnablementPolicy | None = None,
         minimum_profit_margin: Decimal = Decimal("0"),
         clock: Clock = _utc_now,
     ) -> None:
+        configured_adapters = tuple(adapters)
+        enabled_adapters = (
+            configured_adapters
+            if source_enablement_policy is None
+            else source_enablement_policy.select(configured_adapters)
+        )
         resolved_policy = policy
         if resolved_policy is None:
             resolved_policy = runtime.policy if runtime is not None else RealtimeIngestionPolicy()
         resolved_store = store if store is not None else MultiSourceLiveQuoteStore(resolved_policy)
         super().__init__(
-            adapters=adapters,
+            adapters=enabled_adapters,
             registry=registry,
             sport=sport,
             policy=resolved_policy,
@@ -79,6 +129,13 @@ class RealtimeScanner(ObservableRealtimeScanner):
             minimum_profit_margin=minimum_profit_margin,
             clock=clock,
         )
+        self._configured_transport_provider_ids = tuple(
+            sorted(
+                (adapter.provider.id for adapter in configured_adapters),
+                key=lambda value: value.value,
+            )
+        )
+        self._source_enablement_policy = source_enablement_policy
         self._phase16_store = (
             resolved_store if isinstance(resolved_store, MultiSourceLiveQuoteStore) else None
         )
@@ -88,6 +145,24 @@ class RealtimeScanner(ObservableRealtimeScanner):
         self._phase16_last_diagnostics: tuple[ConsolidationDiagnostic, ...] = ()
         self._phase16_last_equivalent_overlap_count = 0
         self._phase16_last_material_conflict_count = 0
+        self._phase16_overlap_diagnostics_by_provider: dict[ProviderId, int] = {}
+        self._phase16_material_conflicts_by_provider: dict[ProviderId, int] = {}
+        self._phase16_operational_snapshot: MultiSourceOperationalSnapshot | None = None
+
+    @property
+    def configured_transport_provider_ids(self) -> tuple[ProviderId, ...]:
+        """Return every transport supplied to the scanner before enablement filtering."""
+        return self._configured_transport_provider_ids
+
+    @property
+    def enabled_transport_provider_ids(self) -> tuple[ProviderId, ...]:
+        """Return the transport sources that are actually eligible to be polled."""
+        return tuple(adapter.provider.id for adapter in self.adapters)
+
+    @property
+    def source_enablement_policy(self) -> TransportSourceEnablementPolicy | None:
+        """Return the explicit staged-enable policy, when one was supplied."""
+        return self._source_enablement_policy
 
     @property
     def multisource_store(self) -> MultiSourceLiveQuoteStore | None:
@@ -104,6 +179,11 @@ class RealtimeScanner(ObservableRealtimeScanner):
             last_material_conflict_count=self._phase16_last_material_conflict_count,
             last_diagnostics=self._phase16_last_diagnostics,
         )
+
+    @property
+    def operational_snapshot(self) -> MultiSourceOperationalSnapshot | None:
+        """Return the latest per-source operational snapshot, if a cycle has completed."""
+        return self._phase16_operational_snapshot
 
     def _explicit_inactive_quote_keys(self, ingested: IngestedSnapshot) -> set[QuoteKey]:
         """Invalidate the reporting transport while preserving Phase-10 cycle compatibility."""
@@ -240,6 +320,96 @@ class RealtimeScanner(ObservableRealtimeScanner):
         )
         return fields
 
+    @staticmethod
+    def _health_by_provider(
+        values: tuple[ProviderIngestionHealth, ...],
+    ) -> dict[ProviderId, ProviderIngestionHealth]:
+        return {value.provider_id: value for value in values}
+
+    @staticmethod
+    def _poll_by_provider(
+        values: tuple[ProviderPollMetrics, ...],
+    ) -> dict[ProviderId, ProviderPollMetrics]:
+        return {value.provider_id: value for value in values}
+
+    def _build_operational_snapshot(
+        self,
+        cycle: RealtimeScanCycle,
+    ) -> MultiSourceOperationalSnapshot:
+        store = self._phase16_store
+        if store is None:
+            raise RuntimeError("multi-source operational snapshot requires multi-source store")
+
+        metrics = self.metrics_registry.snapshot()
+        health_by_provider = self._health_by_provider(cycle.ingestion.provider_health)
+        poll_by_provider = self._poll_by_provider(cycle.metrics.provider_metrics)
+
+        ages_by_provider: dict[ProviderId, list[float]] = {}
+        for quote in store.fresh_observations(as_of=cycle.metrics.detected_at):
+            provider_id = quote.transport_provider_id or quote.provider_id
+            effective_at = quote.source_timestamp or quote.ingested_at
+            age_seconds = (cycle.metrics.detected_at - effective_at).total_seconds()
+            ages_by_provider.setdefault(provider_id, []).append(age_seconds)
+
+        provider_ids = (
+            {adapter.provider.id for adapter in self.adapters}
+            | set(health_by_provider)
+            | set(poll_by_provider)
+            | set(ages_by_provider)
+        )
+
+        sources: list[SourceOperationalSnapshot] = []
+        for provider_id in sorted(provider_ids, key=lambda value: value.value):
+            health = health_by_provider.get(provider_id)
+            poll = poll_by_provider.get(provider_id)
+            health_state = ProviderHealthState.UNAVAILABLE if health is None else health.state
+            ages = tuple(sorted(ages_by_provider.get(provider_id, [])))
+            sources.append(
+                SourceOperationalSnapshot(
+                    provider_id=provider_id,
+                    health_state=health_state,
+                    available=metrics.provider_available.get(
+                        provider_id,
+                        health_state is not ProviderHealthState.UNAVAILABLE,
+                    ),
+                    request_count=metrics.provider_requests.get(provider_id, 0),
+                    error_count=metrics.provider_errors.get(provider_id, 0),
+                    rate_limit_event_count=metrics.rate_limit_events.get(provider_id, 0),
+                    rate_limit_remaining=None if poll is None else poll.rate_limit_remaining,
+                    last_attempt_at=None if health is None else health.last_attempt_at,
+                    last_success_at=None if health is None else health.last_success_at,
+                    last_update_at=None if health is None else health.last_update_at,
+                    update_interval=None if poll is None else poll.update_interval,
+                    consecutive_failures=0 if health is None else health.consecutive_failures,
+                    last_issue_count=0 if health is None else health.last_issue_count,
+                    fresh_observation_count=len(ages),
+                    fresh_observation_age_seconds=ages,
+                    normalization_failure_count=metrics.provider_normalization_failures.get(
+                        provider_id,
+                        0,
+                    ),
+                    matching_failure_count=metrics.provider_matching_failures.get(
+                        provider_id,
+                        0,
+                    ),
+                    overlap_diagnostic_count=self._phase16_overlap_diagnostics_by_provider.get(
+                        provider_id,
+                        0,
+                    ),
+                    material_conflict_count=self._phase16_material_conflicts_by_provider.get(
+                        provider_id,
+                        0,
+                    ),
+                )
+            )
+
+        return MultiSourceOperationalSnapshot(
+            observed_at=cycle.metrics.detected_at,
+            poll_interval=self.policy.poll_interval,
+            max_concurrency=self.policy.max_concurrency,
+            sources=tuple(sources),
+        )
+
     async def run_cycle(self) -> RealtimeScanCycle:
         cycle = await super().run_cycle()
         store = self._phase16_store
@@ -253,4 +423,16 @@ class RealtimeScanner(ObservableRealtimeScanner):
         self._phase16_last_equivalent_overlap_count = consolidation.equivalent_overlap_count
         self._phase16_last_material_conflict_count = consolidation.conflict_count
         self._phase16_last_diagnostics = consolidation.diagnostics
+
+        for diagnostic in consolidation.diagnostics:
+            for provider_id in diagnostic.transport_provider_ids:
+                self._phase16_overlap_diagnostics_by_provider[provider_id] = (
+                    self._phase16_overlap_diagnostics_by_provider.get(provider_id, 0) + 1
+                )
+                if diagnostic.code is ConsolidationDiagnosticCode.MATERIAL_CONFLICT:
+                    self._phase16_material_conflicts_by_provider[provider_id] = (
+                        self._phase16_material_conflicts_by_provider.get(provider_id, 0) + 1
+                    )
+
+        self._phase16_operational_snapshot = self._build_operational_snapshot(cycle)
         return cycle

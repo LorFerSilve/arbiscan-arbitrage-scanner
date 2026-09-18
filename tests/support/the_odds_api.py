@@ -21,9 +21,16 @@ class RecordedRequest:
 class FixtureHttpTransport:
     """Route requests to local JSON fixtures while recording request metadata."""
 
-    def __init__(self, *, status_code: int = 200, retry_after: str | None = None) -> None:
+    def __init__(
+        self,
+        *,
+        status_code: int = 200,
+        retry_after: str | None = None,
+        fixture_overrides: Mapping[str, str] | None = None,
+    ) -> None:
         self.status_code = status_code
         self.retry_after = retry_after
+        self.fixture_overrides = dict(fixture_overrides or {})
         self.requests: list[RecordedRequest] = []
 
     async def get(
@@ -56,14 +63,14 @@ class FixtureHttpTransport:
             )
 
         if url.endswith("/sports"):
-            body = _fixture_bytes("sports.json")
-        elif url.endswith("/sports/soccer_epl/events"):
-            body = _fixture_bytes("events_soccer_epl.json")
-        elif url.endswith("/sports/soccer_epl/events/epl-arsenal-chelsea-20260920/odds"):
-            body = _fixture_bytes("odds_event.json")
+            fixture_name = self.fixture_overrides.get("sports", "sports.json")
+        elif url.endswith("/events") and "/sports/" in url:
+            fixture_name = self.fixture_overrides.get("events", "events_soccer_epl.json")
+        elif url.endswith("/odds") and "/sports/" in url and "/events/" in url:
+            fixture_name = self.fixture_overrides.get("odds", "odds_event.json")
         else:
             raise AssertionError(f"unexpected fixture request route: {url}")
-        return HttpResponse(status_code=200, headers=headers, body=body)
+        return HttpResponse(status_code=200, headers=headers, body=_fixture_bytes(fixture_name))
 
 
 def _fixture_bytes(name: str) -> bytes:

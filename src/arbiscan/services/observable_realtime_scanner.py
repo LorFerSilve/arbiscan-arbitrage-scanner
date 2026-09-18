@@ -6,10 +6,19 @@ Phase-10 scanner remains responsible for ingestion and arbitrage semantics.
 
 from __future__ import annotations
 
+from arbiscan.normalization import NormalizationIssueCode
 from arbiscan.observability import InMemoryLogSink, MetricsRegistry, StructuredLogRecord
 from arbiscan.services.realtime_scanner import RealtimeScanCycle
 from arbiscan.services.realtime_scanner import (
     RealtimeScanner as CoreRealtimeScanner,
+)
+
+_EVENT_IDENTITY_FAILURE_CODES = frozenset(
+    {
+        NormalizationIssueCode.MISSING_IDENTITY_HOOKS,
+        NormalizationIssueCode.UNMAPPED_EVENT,
+        NormalizationIssueCode.IDENTITY_MISMATCH,
+    }
 )
 
 
@@ -64,6 +73,11 @@ class RealtimeScanner(CoreRealtimeScanner):
             )
             if metric.throttled:
                 registry.rate_limited(metric.provider_id)
+
+        for issue in cycle.normalization_issues:
+            registry.provider_normalization_failure(issue.provider_id)
+            if issue.code in _EVENT_IDENTITY_FAILURE_CODES:
+                registry.provider_matching_failure(issue.provider_id)
 
         registry.increment("canonicalization_failures", cycle.metrics.normalization_issue_count)
         registry.increment("opportunities_detected", cycle.metrics.opportunity_count)

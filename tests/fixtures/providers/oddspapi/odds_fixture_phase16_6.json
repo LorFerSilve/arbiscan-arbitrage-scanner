@@ -1,0 +1,155 @@
+{
+  "fixtureId": "id1000001761301153",
+  "participant1Id": 35,
+  "participant2Id": 34,
+  "sportId": 10,
+  "tournamentId": 17,
+  "seasonId": 130281,
+  "statusId": 0,
+  "hasOdds": true,
+  "startTime": "2026-09-17T18:00:00.000Z",
+  "updatedAt": "2026-09-17T10:15:00.000Z",
+  "statusName": "Pre-Game",
+  "participant1Name": "Liverpool FC",
+  "participant2Name": "Manchester United",
+  "sportName": "Soccer",
+  "tournamentName": "Premier League",
+  "bookmakerOdds": {
+    "pinnacle": {
+      "bookmakerIsActive": true,
+      "bookmakerFixtureId": "1626291706",
+      "fixturePath": "https://example.invalid/fixture",
+      "suspended": false,
+      "markets": {
+        "101": {
+          "bookmakerMarketId": "ft-result",
+          "marketActive": true,
+          "outcomes": {
+            "101": {
+              "players": {
+                "0": {
+                  "active": true,
+                  "betslip": null,
+                  "bookmakerOutcomeId": "home",
+                  "bookmakerChangedAt": "2026-09-17T10:20:00Z",
+                  "changedAt": "2026-09-17T10:20:01Z",
+                  "limit": 100,
+                  "playerName": null,
+                  "price": 2.4,
+                  "priceAmerican": "100",
+                  "priceFractional": "1/1",
+                  "mainLine": true,
+                  "exchangeMeta": null
+                }
+              }
+            },
+            "102": {
+              "players": {
+                "0": {
+                  "active": true,
+                  "betslip": null,
+                  "bookmakerOutcomeId": "draw",
+                  "bookmakerChangedAt": null,
+                  "changedAt": "2026-09-17T10:20:02Z",
+                  "limit": 100,
+                  "playerName": null,
+                  "price": 3.2,
+                  "priceAmerican": "100",
+                  "priceFractional": "1/1",
+                  "mainLine": true,
+                  "exchangeMeta": null
+                }
+              }
+            },
+            "103": {
+              "players": {
+                "0": {
+                  "active": true,
+                  "betslip": null,
+                  "bookmakerOutcomeId": "away",
+                  "bookmakerChangedAt": null,
+                  "changedAt": "2026-09-17T10:20:03Z",
+                  "limit": 100,
+                  "playerName": null,
+                  "price": 3.1,
+                  "priceAmerican": "100",
+                  "priceFractional": "1/1",
+                  "mainLine": true,
+                  "exchangeMeta": null
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "betfair": {
+      "bookmakerIsActive": true,
+      "bookmakerFixtureId": "bf-1626291706",
+      "fixturePath": "https://example.invalid/fixture",
+      "suspended": false,
+      "markets": {
+        "101": {
+          "bookmakerMarketId": "bf-ft-result",
+          "marketActive": true,
+          "outcomes": {
+            "101": {
+              "players": {
+                "0": {
+                  "active": true,
+                  "betslip": null,
+                  "bookmakerOutcomeId": "bf-home",
+                  "bookmakerChangedAt": "2026-09-17T10:20:05Z",
+                  "changedAt": "2026-09-17T10:20:05Z",
+                  "limit": 100,
+                  "playerName": null,
+                  "price": 2.3,
+                  "priceAmerican": "100",
+                  "priceFractional": "1/1",
+                  "mainLine": true,
+                  "exchangeMeta": null
+                }
+              }
+            },
+            "102": {
+              "players": {
+                "0": {
+                  "active": true,
+                  "betslip": null,
+                  "bookmakerOutcomeId": "bf-draw",
+                  "bookmakerChangedAt": "2026-09-17T10:20:06Z",
+                  "changedAt": "2026-09-17T10:20:06Z",
+                  "limit": 100,
+                  "playerName": null,
+                  "price": 3.0,
+                  "priceAmerican": "100",
+                  "priceFractional": "1/1",
+                  "mainLine": true,
+                  "exchangeMeta": null
+                }
+              }
+            },
+            "103": {
+              "players": {
+                "0": {
+                  "active": true,
+                  "betslip": null,
+                  "bookmakerOutcomeId": "bf-away",
+                  "bookmakerChangedAt": "2026-09-17T10:20:07Z",
+                  "changedAt": "2026-09-17T10:20:07Z",
+                  "limit": 100,
+                  "playerName": null,
+                  "price": 3.4,
+                  "priceAmerican": "100",
+                  "priceFractional": "1/1",
+                  "mainLine": true,
+                  "exchangeMeta": null
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

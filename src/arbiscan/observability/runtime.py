@@ -83,6 +83,8 @@ class MetricsSnapshot:
     provider_requests: dict[ProviderId, int] = field(default_factory=dict)
     provider_errors: dict[ProviderId, int] = field(default_factory=dict)
     rate_limit_events: dict[ProviderId, int] = field(default_factory=dict)
+    provider_normalization_failures: dict[ProviderId, int] = field(default_factory=dict)
+    provider_matching_failures: dict[ProviderId, int] = field(default_factory=dict)
     canonicalization_failures: int = 0
     unmatched_events: int = 0
     ambiguous_events: int = 0
@@ -101,6 +103,8 @@ class MetricsRegistry:
         self._provider_requests: dict[ProviderId, int] = {}
         self._provider_errors: dict[ProviderId, int] = {}
         self._rate_limit_events: dict[ProviderId, int] = {}
+        self._provider_normalization_failures: dict[ProviderId, int] = {}
+        self._provider_matching_failures: dict[ProviderId, int] = {}
         self._counters: dict[str, int] = {}
         self._active_quotes = 0
         self._stale_quotes = 0
@@ -116,6 +120,42 @@ class MetricsRegistry:
 
     def rate_limited(self, provider_id: ProviderId) -> None:
         self._rate_limit_events[provider_id] = self._rate_limit_events.get(provider_id, 0) + 1
+
+    @staticmethod
+    def _provider_counter_update(
+        values: dict[ProviderId, int],
+        provider_id: ProviderId,
+        amount: int,
+    ) -> None:
+        if not isinstance(provider_id, ProviderId):
+            raise ValueError("provider_id must be ProviderId")
+        if type(amount) is not int or amount < 0:
+            raise ValueError("provider metric amount must be a non-negative integer")
+        values[provider_id] = values.get(provider_id, 0) + amount
+
+    def provider_normalization_failure(
+        self,
+        provider_id: ProviderId,
+        amount: int = 1,
+    ) -> None:
+        """Count source-specific strict-normalization failures."""
+        self._provider_counter_update(
+            self._provider_normalization_failures,
+            provider_id,
+            amount,
+        )
+
+    def provider_matching_failure(
+        self,
+        provider_id: ProviderId,
+        amount: int = 1,
+    ) -> None:
+        """Count source-specific failures at the canonical event-identity boundary."""
+        self._provider_counter_update(
+            self._provider_matching_failures,
+            provider_id,
+            amount,
+        )
 
     def increment(self, name: str, amount: int = 1) -> None:
         allowed = {
@@ -150,6 +190,8 @@ class MetricsRegistry:
             provider_requests=dict(self._provider_requests),
             provider_errors=dict(self._provider_errors),
             rate_limit_events=dict(self._rate_limit_events),
+            provider_normalization_failures=dict(self._provider_normalization_failures),
+            provider_matching_failures=dict(self._provider_matching_failures),
             canonicalization_failures=self._counters.get("canonicalization_failures", 0),
             unmatched_events=self._counters.get("unmatched_events", 0),
             ambiguous_events=self._counters.get("ambiguous_events", 0),

@@ -1,0 +1,12 @@
+[
+  {
+    "tournamentId": 77,
+    "tournamentSlug": "us-open",
+    "tournamentName": "US Open",
+    "categorySlug": "usa",
+    "categoryName": "USA",
+    "futureFixtures": 8,
+    "upcomingFixtures": 1,
+    "liveFixtures": 0
+  }
+]

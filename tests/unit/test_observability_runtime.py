@@ -107,6 +107,8 @@ def test_metrics_cover_phase_14_minimum_surface() -> None:
     metrics.provider_request(provider, success=True)
     metrics.provider_request(provider, success=False)
     metrics.rate_limited(provider)
+    metrics.provider_normalization_failure(provider, 2)
+    metrics.provider_matching_failure(provider)
     metrics.increment("canonicalization_failures")
     metrics.increment("unmatched_events", 2)
     metrics.increment("ambiguous_events")
@@ -120,6 +122,8 @@ def test_metrics_cover_phase_14_minimum_surface() -> None:
     assert snapshot.provider_requests[provider] == 2
     assert snapshot.provider_errors[provider] == 1
     assert snapshot.rate_limit_events[provider] == 1
+    assert snapshot.provider_normalization_failures[provider] == 2
+    assert snapshot.provider_matching_failures[provider] == 1
     assert snapshot.canonicalization_failures == 1
     assert snapshot.unmatched_events == 2
     assert snapshot.ambiguous_events == 1
@@ -128,3 +132,17 @@ def test_metrics_cover_phase_14_minimum_surface() -> None:
     assert snapshot.opportunities_detected == 3
     assert snapshot.opportunities_invalidated == 1
     assert snapshot.detection_latency_seconds == (0.125,)
+
+
+def test_provider_failure_metrics_validate_provider_and_amount() -> None:
+    metrics = MetricsRegistry()
+    provider = ProviderId("provider-a")
+
+    _assert_value_error(
+        lambda: metrics.provider_normalization_failure(provider, -1),
+        "non-negative integer",
+    )
+    _assert_value_error(
+        lambda: metrics.provider_matching_failure("provider-a"),  # type: ignore[arg-type]
+        "provider_id must be ProviderId",
+    )
