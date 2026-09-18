@@ -140,10 +140,7 @@ def assess_market_support(
                 MarketSupportStatus.SUPPORTED,
                 "football regulation handicap uses a push-free half-goal line",
             )
-        if (
-            purpose is MarketSupportPurpose.SETTLEMENT_AWARE
-            and market.line == Decimal("0")
-        ):
+        if purpose is MarketSupportPurpose.SETTLEMENT_AWARE and market.line == Decimal("0"):
             return MarketSupportDecision(
                 MarketSupportStatus.SUPPORTED,
                 (
