@@ -46,7 +46,7 @@ def test_discovery_maps_only_supported_canonical_sports() -> None:
     football = asyncio.run(provider.discover_competitions(Sport.FOOTBALL))
     tennis = asyncio.run(provider.discover_competitions(Sport.TENNIS))
 
-    assert sports == (Sport.FOOTBALL, Sport.TENNIS)
+    assert sports == (Sport.BASKETBALL, Sport.FOOTBALL, Sport.TENNIS)
     assert tuple(value.external_id for value in football) == ("soccer_epl",)
     assert tuple(value.external_id for value in tennis) == ("tennis_atp_us_open",)
 
