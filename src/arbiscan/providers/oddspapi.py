@@ -293,6 +293,7 @@ def _market_records(payload: object) -> Mapping[str, _MarketRecord]:
         "winner",
         "over under full time",
         "asian handicap",
+        "both teams to score",
     }
     for index, raw in enumerate(_sequence(payload, path="markets")):
         item = _mapping(raw, path=f"markets[{index}]")
@@ -369,7 +370,15 @@ def _is_supported_market(record: _MarketRecord, sport: Sport) -> bool:
             and len(record.outcomes) == 2
             and {value.casefold() for value in record.outcomes.values()} == {"1", "2"}
         )
-        return winner or total or asian_handicap
+        both_teams_to_score = (
+            name == "both teams to score"
+            and record.period == "fulltime"
+            and record.market_type == "totals"
+            and record.handicap == Decimal(0)
+            and len(record.outcomes) == 2
+            and {value.casefold() for value in record.outcomes.values()} == {"yes", "no"}
+        )
+        return winner or total or asian_handicap or both_teams_to_score
     if sport is Sport.TENNIS:
         return (
             name in {"match winner", "winner"}
