@@ -9,6 +9,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from arbiscan.domain.errors import DomainValidationError
+from arbiscan.domain import ProviderId
 from arbiscan.domain.models import OddsQuote, Opportunity, StakePlan
 from arbiscan.domain.serialization import dumps, loads
 
@@ -52,6 +53,13 @@ _MIGRATIONS: tuple[tuple[int, str], ...] = (
         );
         CREATE INDEX idx_audit_entity_time
             ON audit_events(entity_type, entity_id, recorded_at);
+        """,
+    ),
+    (
+        2,
+        """
+        CREATE INDEX idx_snapshots_type_time
+            ON canonical_snapshots(entity_type, occurred_at, entity_id);
         """,
     ),
 )
@@ -218,6 +226,48 @@ class SqliteAuditStore:
         if tuple(quote.id for quote in quotes) != opportunity.quote_ids:
             raise PersistenceError("persisted opportunity evidence is incomplete or inconsistent")
         return OpportunityEvidence(opportunity, quotes, stake_plan)
+
+    def load_quotes(
+        self,
+        *,
+        start_at: datetime | None = None,
+        end_at: datetime | None = None,
+        provider_ids: Iterable[ProviderId] = (),
+    ) -> tuple[OddsQuote, ...]:
+        """Load canonical quote history deterministically for offline replay."""
+
+        providers = tuple(provider_ids)
+        if any(not isinstance(provider_id, ProviderId) for provider_id in providers):
+            raise PersistenceError("provider_ids must contain ProviderId values")
+        if len(set(providers)) != len(providers):
+            raise PersistenceError("provider_ids must be unique")
+        if start_at is not None and end_at is not None and start_at > end_at:
+            raise PersistenceError("start_at cannot be after end_at")
+
+        clauses = ["entity_type = 'odds_quote'"]
+        parameters: list[str] = []
+        if start_at is not None:
+            clauses.append("occurred_at >= ?")
+            parameters.append(_utc_text(start_at))
+        if end_at is not None:
+            clauses.append("occurred_at <= ?")
+            parameters.append(_utc_text(end_at))
+        if providers:
+            placeholders = ", ".join("?" for _ in providers)
+            clauses.append(f"provider_id IN ({placeholders})")
+            parameters.extend(provider_id.value for provider_id in providers)
+
+        query = (
+            "SELECT payload FROM canonical_snapshots WHERE "
+            + " AND ".join(clauses)
+            + " ORDER BY occurred_at, entity_id"
+        )
+        try:
+            with self._connect() as connection:
+                rows = connection.execute(query, tuple(parameters)).fetchall()
+                return tuple(loads(row[0], OddsQuote) for row in rows)
+        except (sqlite3.Error, DomainValidationError) as exc:
+            raise PersistenceError("failed to load historical quote evidence") from exc
 
     def purge_quotes_before(self, cutoff: datetime) -> int:
         """Delete old unreferenced quotes while preserving opportunity evidence."""
