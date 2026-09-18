@@ -18,8 +18,10 @@ from arbiscan.arbitrage.errors import (
 from arbiscan.arbitrage.models import (
     ArbitrageEvaluation,
     CurrencyRoundingPolicy,
+    RefundableTwoWayEvaluation,
     StakeConstraint,
 )
+from arbiscan.arbitrage.refundable import evaluate_refundable_two_way_market
 from arbiscan.arbitrage.staking import allocate_stakes
 
 __all__ = [
@@ -27,12 +29,14 @@ __all__ = [
     "ArbitrageEvaluation",
     "ArbitrageMathError",
     "CurrencyRoundingPolicy",
+    "RefundableTwoWayEvaluation",
     "IncompleteMarketError",
     "StakeConstraint",
     "StakeConstraintError",
     "allocate_stakes",
     "build_opportunity",
     "evaluate_market",
+    "evaluate_refundable_two_way_market",
     "gross_return_multiplier",
     "implied_probability",
     "implied_probability_sum",
