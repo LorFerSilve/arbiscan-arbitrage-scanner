@@ -250,3 +250,22 @@ def test_exchange_transport_provenance_does_not_change_price_origin_identity() -
 
     assert first.exchange_provider.id == second.exchange_provider.id
     assert first.transport_provider_id != second.transport_provider_id
+
+
+def test_portfolio_aggregates_duplicate_consumption_of_one_liquidity_pool() -> None:
+    price = _exchange_price(
+        selection_id=A,
+        side=ExchangeSide.LAY,
+        odds="2.0",
+        available="100",
+    )
+    first = ExchangeStake(price=price, stake=Decimal("60"))
+    second = ExchangeStake(price=price, stake=Decimal("60"))
+
+    _expect_math_error(
+        lambda: evaluate_exchange_portfolio(
+            exchange_stakes=(first, second),
+            expected_selection_ids=(A, B),
+        ),
+        contains="shared available liquidity",
+    )
