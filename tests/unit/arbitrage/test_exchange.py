@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import replace
 from datetime import UTC, datetime
 from decimal import Decimal
@@ -84,9 +85,9 @@ def _bookmaker_quote(*, selection_id: SelectionId, odds: str = "3.2") -> OddsQuo
     )
 
 
-def _expect_math_error(action: object, *, contains: str) -> None:
+def _expect_math_error(action: Callable[[], object], *, contains: str) -> None:
     try:
-        action()  # type: ignore[operator]
+        action()
     except ArbitrageMathError as error:
         assert contains in str(error)
     else:
