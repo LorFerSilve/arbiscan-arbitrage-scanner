@@ -40,6 +40,7 @@ class MarketKind(StrEnum):
     QUALIFICATION_WINNER = "qualification_winner"
     TOTAL_POINTS = "total_points"
     HANDICAP = "handicap"
+    BOTH_TEAMS_TO_SCORE = "both_teams_to_score"
     SET_WINNER = "set_winner"
     OUTRIGHT_WINNER = "outright_winner"
 
