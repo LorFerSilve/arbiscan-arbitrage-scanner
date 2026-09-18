@@ -223,6 +223,31 @@ matrices and staking semantics are implemented.
 
 See [football Draw No Bet](../markets/football-draw-no-bet.md) and ADR-0017.
 
+## Phase 17.6 indexed tennis set-winner identity
+
+Tennis `SET_WINNER` is enabled only with `MarketPeriod.SET` and an explicit
+`period_index` of 1 or 2.
+
+The set index is structured source data, not a label-parsing result. OddsPapi uses
+the exact provider market identities and periods:
+
+- market 123 + `p1` -> set index 1;
+- market 125 + `p2` -> set index 2.
+
+The adapter emits `SourceMarket.period_index`. Strict normalization already requires
+exact equality between source and canonical period indexes, so a Set 1 source
+observation explicitly mapped to canonical Set 2 fails with
+`MARKET_PARAMETER_MISMATCH` before quote creation.
+
+The canonical registry also requires exactly two participant selections covering the
+event participants.
+
+Phase 17.6 deliberately does not manufacture a The Odds API mapping because an exact
+documented tennis set-winner market key was not established. Provider capability
+asymmetry is allowed; semantic guessing is not.
+
+See [tennis indexed set winner](../markets/tennis-set-winner.md) and ADR-0018.
+
 ## Strict quote bridge integration
 
 `normalize_source_snapshot()` still requires explicit canonical ID hooks for event, market, and selection identity. Phase 7 changes its price behavior: all currently supported `SourceOddsFormat` values are passed through `normalize_odds()` before an `OddsQuote` is created.
