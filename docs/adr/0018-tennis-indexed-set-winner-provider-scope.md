@@ -132,6 +132,20 @@ multiple bookmaker price origins within that transport.
 Rejected. Those rules are bookmaker/execution semantics, not required to establish
 indexed canonical market identity. They remain an explicit operational risk.
 
+## Phase 17.7 provider revalidation note
+
+During Phase 17.7, the current official The Odds API market list was found to
+document tennis `h2h_s1` and `h2h_s2` set moneylines.
+
+This satisfies one of this ADR's revisit triggers: provider evidence has changed.
+The Phase 17.6 implementation and its original fail-closed decision remain valid for
+their time and code state, but the transport is no longer considered semantically
+infeasible for Set 1 / Set 2 winner.
+
+Phase 17.8 will perform the required adapter, fixture, parameter, and cross-transport
+validation before The Odds API is marked supported for this family. Until that work
+lands, the runtime remains provider-narrowed exactly as implemented in Phase 17.6.
+
 ## Revisit triggers
 
 Revisit this decision when:
