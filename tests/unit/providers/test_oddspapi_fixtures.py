@@ -364,3 +364,27 @@ def test_phase17_6_wrong_catalog_period_is_not_promoted_to_second_set() -> None:
         assert snapshot.markets == ()
 
     asyncio.run(scenario())
+
+
+def test_phase17_7_general_tennis_game_family_is_not_promoted_to_numbered_game_winner() -> None:
+    async def scenario() -> None:
+        transport = FixtureHttpTransport(
+            fixture_overrides={
+                "/tournaments": "tournaments_tennis_phase16_5.json",
+                "/fixtures": "fixtures_tournament_77_phase16_5.json",
+                "/markets": "markets_phase17_7_unsupported_game_family.json",
+                "/odds": "odds_fixture_phase17_7_unsupported_game_family.json",
+            }
+        )
+        provider = _provider(transport)
+        competitions = await provider.discover_competitions(Sport.TENNIS)
+        assert tuple(value.external_id for value in competitions) == ("77",)
+        events = await provider.discover_events("77")
+        assert tuple(value.external_id for value in events) == ("id1000001761301777",)
+
+        snapshot = await provider.fetch_odds("id1000001761301777")
+
+        assert snapshot is not None
+        assert snapshot.markets == ()
+
+    asyncio.run(scenario())
