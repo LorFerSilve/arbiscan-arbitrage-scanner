@@ -942,6 +942,44 @@ A provider is not considered supported merely because data can be downloaded. It
 
 Expand beyond simple winner markets after the canonical market model has proven itself.
 
+## Status
+
+In progress. Phase 17 starts with a semantic-safety dependency before any additional
+market family is enabled.
+
+### 17.1 — Structured advanced-market parameter foundation
+
+Before totals, handicaps, or indexed-period markets can enter canonical detection:
+
+- preserve market lines as exact structured `Decimal` values at the source boundary;
+- preserve indexed-period identity explicitly;
+- preserve signed participant handicaps explicitly;
+- reject source/canonical parameter mismatches before quote construction;
+- prohibit label parsing from becoming canonical parameter identity;
+- add provider parser fixtures proving structured parameter preservation.
+
+ADR-0013 owns this invariant.
+
+### 17.2 — Football totals
+
+The first market-family enablement should be football pre-match regulation totals
+because the canonical model already has explicit `TOTAL_POINTS`, `OVER`, `UNDER`,
+and exact line semantics.
+
+Before enablement it must define:
+
+- regulation/full-event settlement scope per provider;
+- exact line equivalence;
+- Over/Under completeness;
+- push/void behavior for integer lines;
+- provider mappings and fixtures;
+- multi-source same-line comparison;
+- different-line non-comparison regressions.
+
+Later Phase 17 dependencies should address Asian handicap, both-teams-to-score,
+draw-no-bet, tennis set/game markets, and the remaining roadmap candidates only after
+their own semantic specifications exist.
+
 ## Candidate markets
 
 - football totals;
