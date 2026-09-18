@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import math
-from collections.abc import AsyncIterator, Callable, Mapping
+from collections.abc import AsyncIterator, Callable, Collection, Mapping
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
@@ -296,7 +296,7 @@ def _source_markets(
     payload: Mapping[str, object],
     *,
     event_id: str,
-    basketball_full_event_bookmakers: frozenset[str] = frozenset(),
+    basketball_full_event_bookmakers: Collection[str] = (),
 ) -> tuple[SourceMarket, ...]:
     markets: list[SourceMarket] = []
     sport_key = _text(payload.get("sport_key"), path="event.sport_key")
