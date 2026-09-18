@@ -180,6 +180,27 @@ payout states require a settlement-aware guaranteed-return model.
 
 See [football Asian handicap](../markets/football-asian-handicap.md) and ADR-0015.
 
+## Phase 17.4 football BTTS identity
+
+Phase 17.4 adds canonical `BOTH_TEAMS_TO_SCORE` as a non-parameterized
+regulation-time football market with exactly one `YES` and one `NO` selection.
+
+Provider identity is deliberately stronger than generic outcome labels:
+
+- The Odds API mapping is the exact `btts` source market key;
+- OddsPapi mapping requires `Both Teams To Score`, `period=fulltime`,
+  `marketType=totals`, `handicap=0`, and exact Yes/No outcomes.
+
+Period variants are not aliases of the regulation market. In particular, OddsPapi
+first-half records are filtered before source quotes are emitted, and The Odds API
+period-specific keys such as `btts_h1` are not part of the regulation BTTS alias set.
+
+The generic market-support gate accepts only football `REGULATION` BTTS. After
+canonical YES/NO completeness is established, the ordinary two-way arbitrage and
+stake-allocation path is reused unchanged.
+
+See [football BTTS](../markets/football-btts.md) and ADR-0016.
+
 ## Strict quote bridge integration
 
 `normalize_source_snapshot()` still requires explicit canonical ID hooks for event, market, and selection identity. Phase 7 changes its price behavior: all currently supported `SourceOddsFormat` values are passed through `normalize_odds()` before an `OddsQuote` is created.
