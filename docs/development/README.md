@@ -43,20 +43,21 @@ This directory contains the reproducible engineering setup plus formal completio
 - [`phase-17.9-completion.md`](phase-17.9-completion.md) — Phase 17.9 basketball full-event spreads/totals with overtime-period and push-free settlement gates.
 - [`phase-17.10-completion.md`](phase-17.10-completion.md) — Phase 17.10 motorsport/F1 canonical semantics and fail-closed provider/settlement feasibility gate.
 - [`phase-17.11-completion.md`](phase-17.11-completion.md) — Phase 17.11 broader outright candidate-set and settlement-safety gate.
+- [`phase-17.12-completion.md`](phase-17.12-completion.md) — Phase 17.12 exchange BACK/LAY, liability, liquidity, and commission-aware settlement foundation.
 
 ## Current hand-off
 
-Phases 0 through 16 and **Phases 17.1–17.11** are the completed technical baseline.
-The next roadmap dependency is **Phase 17.12 — exchange-backed outcomes, back/lay
-identity and commission-aware arbitrage semantics**.
+Phases 0 through 16 and **Phases 17.1–17.12** are the completed technical baseline.
+Phase 17 expansion is now closed at the semantic-foundation level.
 
-Phase 17.11 generalizes outright-winner completeness to tournament/championship scope,
-requires one homogeneous candidate type and exact one-selection-per-candidate
-coverage, and rejects Field/Other or incomplete/dynamic fields from canonical runtime
-support. A provider-independent settlement profile now states exactly when the
-existing arbitrary-N reciprocal-odds engine would be mathematically sufficient.
+Phase 17.12 introduces a separate exchange settlement path with explicit BACK/LAY
+identity, lay liability, visible liquidity, exchange/transport provenance, commission
+scope, and net-market commission. Existing aggregator Betfair-labelled observations
+remain ordinary bookmaker price origins because neither current transport exposes the
+required exchange-order contract.
 
-No broader outright is runtime-enabled yet. The Odds API preserves and honors
-`has_outrights` by stopping these competitions before the binary event parser;
-OddsPapi continues to ignore unverified tournament-winner catalogue families. The
-existing OddsPapi production/legal blocker remains unchanged.
+No live exchange adapter or automated wagering path is enabled. The existing
+OddsPapi production/legal blocker remains unchanged.
+
+The next roadmap dependency is **Phase 18 — historical analysis, replay, and
+backtesting**.
