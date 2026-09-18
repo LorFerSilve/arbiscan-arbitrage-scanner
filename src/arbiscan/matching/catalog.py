@@ -151,7 +151,9 @@ class CanonicalRegistry:
             ):
                 raise ValueError("set-winner markets require exactly two participant selections")
             event_participant_ids = {participant.id for participant in event.participants}
-            if {selection.participant_id for selection in market_selections} != event_participant_ids:
+            if {
+                selection.participant_id for selection in market_selections
+            } != event_participant_ids:
                 raise ValueError(
                     "set-winner selections must cover exactly the two event participants"
                 )
