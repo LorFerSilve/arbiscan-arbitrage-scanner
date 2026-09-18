@@ -121,6 +121,7 @@ class _SportRecord:
     group: str
     title: str
     active: bool
+    has_outrights: bool
 
 
 _GROUP_TO_SPORT: Mapping[str, Sport] = MappingProxyType(
@@ -242,6 +243,10 @@ def _sport_records(payload: object) -> tuple[_SportRecord, ...]:
                 group=_text(item.get("group"), path=f"sports[{index}].group"),
                 title=_text(item.get("title"), path=f"sports[{index}].title"),
                 active=_boolean(item.get("active"), path=f"sports[{index}].active"),
+                has_outrights=_boolean(
+                    item.get("has_outrights"),
+                    path=f"sports[{index}].has_outrights",
+                ),
             )
         )
     return tuple(records)
@@ -479,7 +484,10 @@ def _source_markets(
 class TheOddsApiProvider(ProviderAdapter):
     """Strict adapter for The Odds API V4.
 
-    The adapter still requests decimal ``h2h`` data by default. Phase 17 preserves
+    The adapter still requests decimal ``h2h`` data by default. Sports metadata
+    preserves the provider's explicit ``has_outrights`` flag; outright competitions
+    fail before the binary event parser until a dedicated multi-participant identity
+    path can prove complete candidate sets and settlement equivalence. Phase 17 preserves
     structured ``point`` parameters for explicitly configured totals/spreads.
     Basketball is discovered as a canonical sport; featured ``spreads`` and
     ``totals`` remain distinct from the provider's quarter/half market keys.
@@ -615,14 +623,15 @@ class TheOddsApiProvider(ProviderAdapter):
                 ProviderErrorKind.UNSUPPORTED,
                 "competition is not available as a supported canonical sport",
             )
-        if canonical_sport is Sport.MOTORSPORT:
+        if competition.has_outrights:
             raise self._error(
                 operation,
                 ProviderErrorKind.UNSUPPORTED,
                 (
-                    "Phase 17.10 does not promote The Odds API motorsport outrights "
-                    "into binary event identity; documented outright schemas may omit "
-                    "home/away participants and require a dedicated multi-participant parser"
+                    "Phase 17.11 does not promote The Odds API outright competitions "
+                    "through binary home/away event identity; documented outright "
+                    "schemas can omit home/away participants and require a dedicated "
+                    "multi-participant parser with complete candidate-set proof"
                 ),
             )
 
