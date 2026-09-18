@@ -240,3 +240,19 @@ The Phase 3 core has no provider-specific schema dependency and performs no I/O.
 - currency policy;
 - stake constraints;
 - caller-supplied canonical IDs/timestamps.
+
+
+## Phase 17.11 arbitrary-N outright applicability
+
+The core reciprocal-odds formula is already valid for arbitrary N mutually-exclusive
+and exhaustive outcomes. Phase 17.11 therefore does not add a new outright formula.
+
+Instead, `OutrightEvaluationProfile` defines the semantic preconditions under which
+that existing formula describes the actual settlement partition. Generic math is
+eligible only for a complete/static candidate set with no Field/Other bucket, no
+tie/dead-heat split settlement, and equivalent withdrawal/void rules across compared
+price origins.
+
+If any condition fails, mathematical reciprocal-sum correctness is insufficient to
+claim guaranteed outright profit. The runtime market-support gate remains closed until
+a provider path can prove those conditions.
