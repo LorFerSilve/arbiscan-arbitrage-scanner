@@ -45,6 +45,8 @@ class MarketKind(StrEnum):
     SET_WINNER = "set_winner"
     GAME_WINNER = "game_winner"
     OUTRIGHT_WINNER = "outright_winner"
+    PODIUM_FINISH = "podium_finish"
+    HEAD_TO_HEAD = "head_to_head"
 
 
 class MarketPeriod(StrEnum):
@@ -59,6 +61,8 @@ class MarketPeriod(StrEnum):
     PERIOD = "period"
     QUARTER = "quarter"
     RACE = "race"
+    QUALIFYING = "qualifying"
+    SESSION = "session"
     TOURNAMENT = "tournament"
 
 
