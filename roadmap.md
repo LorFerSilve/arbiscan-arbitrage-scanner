@@ -944,8 +944,9 @@ Expand beyond simple winner markets after the canonical market model has proven 
 
 ## Status
 
-In progress. **Phases 17.1 and 17.2 are technically complete.** The next dependency
-is **Phase 17.3 — football Asian handicap settlement semantics**.
+In progress. **Phases 17.1 through 17.3 are technically complete.** The next
+dependency is **Phase 17.4 — football both-teams-to-score semantics and provider
+feasibility**.
 
 ### 17.1 — Structured advanced-market parameter foundation
 
@@ -975,24 +976,41 @@ PUSH or split settlement.
 
 ### 17.3 — Football Asian handicap settlement semantics
 
-The next dependency must define the settlement model before any handicap market is
-enabled.
+Status: **Complete**.
 
-Required work includes:
+Phase 17.3 anchors `Market.line` to ordered canonical participant 1, requires the
+second participant selection to carry the exact negated handicap, and models
+half-goal, integer, quarter and unsupported line geometry with WIN, HALF_WIN, PUSH,
+HALF_LOSS and LOSS settlement states.
 
-- canonical market-line anchoring and sign convention;
-- participant-side handicap identity;
-- exact cross-provider line equivalence;
-- integer-line push semantics;
-- quarter-line half-win/half-loss split settlement;
-- outcome completeness and payout representation;
-- provider mapping fixtures;
-- a decision on whether generic `ArbitrageEvaluation` / `StakePlan` can represent
-  the required payouts or need a settlement-aware extension.
+The generic `ArbitrageEvaluation` and `StakePlan` are proven sufficient for
+regulation-time half-goal handicaps, which are enabled end to end across both real
+adapter schemas. Integer and quarter lines remain fail-closed for generic opportunity
+generation because their PUSH/split-settlement payout matrices require a future
+scenario-aware guaranteed-return/stake engine.
 
-Later Phase 17 dependencies should address both-teams-to-score, draw-no-bet, tennis
-set/game markets, and the remaining roadmap candidates only after their own semantic
-specifications exist.
+### 17.4 — Football both-teams-to-score semantics and provider feasibility
+
+The next market-family dependency is football pre-match regulation
+both-teams-to-score (BTTS).
+
+Before enablement it must establish:
+
+- exact regulation-time settlement scope;
+- canonical YES/NO completeness;
+- provider-specific market identity without label-only guessing;
+- whether The Odds API and OddsPapi expose equivalent BTTS through the currently
+  supported API surfaces;
+- fixture-backed mappings and malformed/unsupported regressions;
+- multi-source same-market comparison;
+- end-to-end market-book and arbitrage evaluation using only provider-independent core
+  math.
+
+If equivalent semantics cannot be demonstrated for both real transports, the phase
+must fail closed or narrow the provider scope rather than manufacture equivalence.
+
+Later Phase 17 dependencies should address draw-no-bet, tennis set/game markets, and
+the remaining roadmap candidates only after their own semantic specifications exist.
 
 ## Candidate markets
 
