@@ -160,7 +160,9 @@ class BacktestConfig:
     market_ids: tuple[MarketId, ...] | None = None
 
     def __post_init__(self) -> None:
-        if not isinstance(self.freshness_window, timedelta) or self.freshness_window <= timedelta(0):
+        if not isinstance(self.freshness_window, timedelta) or self.freshness_window <= timedelta(
+            0
+        ):
             raise ValueError("freshness_window must be a positive timedelta")
         _non_negative_timedelta(self.detection_latency, field="detection_latency")
         _finite_decimal(self.minimum_profit_margin, field="minimum_profit_margin")
