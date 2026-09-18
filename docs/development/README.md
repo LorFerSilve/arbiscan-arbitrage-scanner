@@ -40,27 +40,22 @@ This directory contains the reproducible engineering setup plus formal completio
 - [`phase-17.6-completion.md`](phase-17.6-completion.md) — Phase 17.6 indexed tennis Set 1/Set 2 winner semantics with provider-narrowed support.
 - [`phase-17.7-completion.md`](phase-17.7-completion.md) — Phase 17.7 nested tennis game identity and fail-closed score-state/provider feasibility gate.
 - [`phase-17.8-completion.md`](phase-17.8-completion.md) — Phase 17.8 The Odds API + OddsPapi tennis Set 1/Set 2 cross-transport completion.
+- [`phase-17.9-completion.md`](phase-17.9-completion.md) — Phase 17.9 basketball full-event spreads/totals with overtime-period and push-free settlement gates.
 
 ## Current hand-off
 
-Phases 0 through 16 and **Phases 17.1–17.8** are the completed technical baseline.
-The next roadmap dependency is **Phase 17.9 — basketball spreads/totals and
-overtime-period semantics**.
+Phases 0 through 16 and **Phases 17.1–17.9** are the completed technical baseline.
+The next roadmap dependency is **Phase 17.10 — motorsport/F1 winner, podium, and
+head-to-head semantics**.
 
-Phase 17.8 completes tennis Set 1 / Set 2 winner across both real transport schemas.
-The Odds API's documented `h2h_s1` / `h2h_s2` keys now map to the same canonical
-indexed markets as OddsPapi market 123 / 125. The default The Odds API request remains
-`h2h`; set markets are still opt-in.
+Phase 17.9 adds canonical basketball and enables only full-event, push-free half-point
+totals and spreads. OddsPapi contributes only its explicit overtime-inclusive market
+families; The Odds API featured markets remain separate from documented quarter/half
+keys. Integer/quarter lines and sub-period/live markets remain fail-closed.
 
-The cross-transport regression deliberately overlaps Pinnacle on both feeds. Four
-equal-time/equal-price observations consolidate under ADR-0012 to one executable
-price origin per set/selection, while Bet365 and Betfair remain independent price
-origins. Set 1 and Set 2 remain isolated by strict structured `period_index`.
+The cross-transport regression overlaps Pinnacle through both transports and proves
+ADR-0012 consolidation while preserving independent Bet365/Betfair price origins.
+OddsPapi's production/legal blocker remains unchanged.
 
-Individual tennis `GAME_WINNER` remains runtime-disabled under Phase 17.7.
-The tennis retirement/walkover/incomplete-set limitation also remains explicit, and
-OddsPapi's production/legal blocker is unchanged.
-
-Phase 17.9 should move to basketball only after defining regulation versus
-overtime-inclusive settlement semantics and the safe line subset for generic
-arbitrage/stake evaluation.
+Phase 17.10 must define motorsport/F1 participant and race/session identity plus
+dead-heat/DNS/DNF settlement behavior before enabling any new market family.
