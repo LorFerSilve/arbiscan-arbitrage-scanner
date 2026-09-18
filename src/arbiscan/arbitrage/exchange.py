@@ -310,12 +310,18 @@ def evaluate_exchange_portfolio(
     expected_set = set(expected)
 
     for exchange_leg in exchange_values:
-        if exchange_leg.price.event_id != first_event or exchange_leg.price.market_id != first_market:
+        if (
+            exchange_leg.price.event_id != first_event
+            or exchange_leg.price.market_id != first_market
+        ):
             raise ArbitrageMathError("all exchange legs must belong to one event and market")
         if exchange_leg.price.selection_id not in expected_set:
             raise ArbitrageMathError("exchange leg selection is outside the expected market")
     for bookmaker_leg in bookmaker_values:
-        if bookmaker_leg.quote.event_id != first_event or bookmaker_leg.quote.market_id != first_market:
+        if (
+            bookmaker_leg.quote.event_id != first_event
+            or bookmaker_leg.quote.market_id != first_market
+        ):
             raise ArbitrageMathError(
                 "bookmaker and exchange legs must belong to one canonical event and market"
             )
