@@ -108,6 +108,31 @@ parameters instead of discarding the line while changing eligibility state.
 This technical extension does **not** change the production decision below. OddsPapi
 remains production-blocked until the provider-specific rights questions are resolved.
 
+## Phase 17.3 football Asian handicap
+
+Phase 17.3 recognizes the development catalog family `Asian Handicap` for football
+when the market is non-player, uses `period=fulltime`, and exposes exactly outcomes
+`1` and `2`.
+
+The catalog handicap is interpreted as the participant-1 line:
+
+- outcome `1` receives `handicap`;
+- outcome `2` receives `-handicap`;
+- `SourceMarket.line` receives the catalog handicap.
+
+This matches ArbiScan's canonical participant-1 anchor and lets strict normalization
+verify market direction and each participant-side handicap independently.
+
+The adapter preserves integer and quarter lines as structured source semantics, but
+the canonical support policy permits only regulation-time half-goal lines into the
+generic arbitrage/stake pipeline. OddsPapi's documented settlement vocabulary
+includes PUSH, HALF-WIN and HALF-LOSS, so those richer variants are deliberately not
+flattened into ordinary two-outcome payout math.
+
+This market-family extension does **not** change the provider's production status.
+OddsPapi remains production-blocked until the independent rights/licensing questions
+below are resolved.
+
 ## Relevant source fields
 
 The adapter preserves or validates at least:
