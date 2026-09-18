@@ -259,5 +259,6 @@ def test_matching_precision_recall_counts_wrong_identity_as_fp_and_fn() -> None:
     assert metrics.true_positive == 1
     assert metrics.false_positive == 2
     assert metrics.false_negative == 2
-    assert metrics.precision == Decimal(1) / Decimal(3)
-    assert metrics.recall == Decimal(1) / Decimal(3)
+    expected_third = Decimal("0." + ("3" * 60))
+    assert metrics.precision == expected_third
+    assert metrics.recall == expected_third
