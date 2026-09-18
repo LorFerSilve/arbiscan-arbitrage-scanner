@@ -32,19 +32,20 @@ This directory contains the reproducible engineering setup plus formal completio
 - [`phase-16.6-completion.md`](phase-16.6-completion.md) — Phase 16.6 real multi-source coexistence regressions.
 - [`phase-16.7-completion.md`](phase-16.7-completion.md) — Phase 16.7 observability and operational tuning for the second real source.
 - [`phase-16.8-completion.md`](phase-16.8-completion.md) — Phase 16.8 staged enablement and formal Phase 16 technical closure.
+- [`phase-17.1-completion.md`](phase-17.1-completion.md) — Phase 17.1 structured advanced-market semantic foundation.
 
 ## Current hand-off
 
-Phases 0 through 16 are the completed technical baseline. The next roadmap
-dependency is **Phase 17 — Advanced market support**.
+Phases 0 through 16 and **Phase 17.1** are the completed technical baseline.
+The next roadmap dependency is **Phase 17.2 — football pre-match regulation totals**.
 
-Before Phase 17 implementation, read
-[`phase-16.8-completion.md`](phase-16.8-completion.md),
-[`../providers/phase-16-readiness.md`](../providers/phase-16-readiness.md), ADR-0012,
-and the Phase 16.2 through Phase 16.7 completion records so every new market family
-preserves the established provenance, matching, freshness, overlap, observability,
-staged-enablement, and fail-closed invariants.
+Before Phase 17.2 implementation, read
+[`phase-17.1-completion.md`](phase-17.1-completion.md), ADR-0013, and the Phase 16
+completion material. Football totals must preserve exact source/canonical line
+identity and define settlement scope, outcome completeness, cross-provider same-line
+equivalence, different-line rejection, and integer-line push/void behavior before
+enablement.
 
-Phase 16 technical completion does not override unresolved provider-specific
+Phase 16 technical completion still does not override unresolved provider-specific
 production/legal blockers. OddsPapi remains production-blocked as documented in
 [`../providers/oddspapi.md`](../providers/oddspapi.md).
