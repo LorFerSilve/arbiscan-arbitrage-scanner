@@ -944,10 +944,12 @@ Expand beyond simple winner markets after the canonical market model has proven 
 
 ## Status
 
-In progress. Phase 17 starts with a semantic-safety dependency before any additional
-market family is enabled.
+In progress. **Phase 17.1 is technically complete.** The next dependency is
+**Phase 17.2 — football pre-match regulation totals**.
 
 ### 17.1 — Structured advanced-market parameter foundation
+
+Status: **Complete**.
 
 Before totals, handicaps, or indexed-period markets can enter canonical detection:
 
