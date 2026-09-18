@@ -57,6 +57,7 @@ A risk with high correctness or security impact must not be dismissed merely bec
 | R-039 | Two transport sources report conflicting same-time prices/status for one bookmaker and selection | Medium | High | Preserve both observations; exclude conflicting slot unless an explicit trust policy resolves it | Closed |
 | R-040 | A technically integrated second transport is activated in an environment before its provider-specific legal/data-rights review is complete | Low-Medium | Critical | Explicit transport-source enablement policy, primary-only rollback path, provider production blockers, and release/deployment gates | Mitigating |
 | R-041 | Advanced markets with different lines, indexed periods, or selection handicaps are mapped to one canonical identity | Medium | Critical | ADR-0013 structured source parameters plus exact fail-closed parameter matching before quote construction | Mitigating |
+| R-042 | Football totals with PUSH or split-settlement semantics enter the ordinary two-outcome guaranteed-return calculation | Medium | Critical | ADR-0014 canonical support gate: enable only regulation positive x.5 totals until push/half-win/half-loss payouts are modeled | Closed |
 
 ## Critical risk themes
 
@@ -68,6 +69,8 @@ Phase 17 extends this rule to structured market parameters. Numeric lines, perio
 indexes, and signed selection handicaps are semantic identity, not presentation
 metadata. Parameter mismatches must be rejected before any quote can reach the market
 book.
+
+Phase 17.2 also treats settlement shape as semantic correctness. Football totals are currently enabled only on positive regulation-time half-goal lines, where Over/Under is a true two-outcome win/lose partition. Integer and quarter-line totals fail closed before quote construction rather than being evaluated with incomplete PUSH or split-settlement assumptions.
 
 ### 2. Temporal correctness
 
