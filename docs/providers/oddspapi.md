@@ -371,6 +371,32 @@ For mixed-source activation, Phases 16.2 through 16.8 now enforce and test:
 These guarantees satisfy the Phase 16 technical coexistence gate. They do not resolve
 the independent production-rights questions below.
 
+## Phase 17.9 basketball full-event spreads and totals
+
+OddsPapi exposes Basketball as `sportId=11`. Its current basketball catalogue
+distinguishes regulation-time result from overtime-inclusive winner semantics and
+names the main line families explicitly:
+
+- `Over Under (incl. overtime)`;
+- `Handicap (incl. overtime)`.
+
+Phase 17.9 maps only those exact total/handicap families to the canonical full-event
+basketball path. The adapter requires non-player match markets, exact Over/Under or
+participant-1/participant-2 outcomes, and preserves the catalogue handicap as the
+structured market line. Spread outcome 1 receives that line and outcome 2 its exact
+negation.
+
+Quarter/half families are not promoted to full-event identity. Integer and quarter
+lines are structurally preserved when present but remain blocked by the canonical
+support gate because the generic engine does not model PUSH or split settlement.
+
+Official reference:
+
+- https://oddspapi.io/sports/basketball
+
+See [basketball full-event spreads and totals](../markets/basketball-full-event-spreads-totals.md)
+and ADR-0020.
+
 ## Fixture policy
 
 Until provider rights are clarified:
