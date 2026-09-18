@@ -26,6 +26,16 @@ The only newly enabled advanced basketball markets are:
 - `TOTAL_POINTS / FULL_EVENT` on positive half-point lines;
 - `HANDICAP / FULL_EVENT` on half-point lines.
 
+For OddsPapi, the source catalog itself explicitly identifies these families as
+including overtime. The Odds API exposes each bookmaker's featured `spreads` and
+`totals` but does not itself encode an overtime-settlement flag. Therefore its
+basketball full-event path is additionally gated by an explicit normalized bookmaker
+allowlist in `TheOddsApiConfig.basketball_full_event_bookmakers`. A bookmaker may
+enter that allowlist only after its own current basketball rules establish equivalent
+full-game/overtime settlement. The Phase 17.9 fixtures use Pinnacle and bet365, whose
+official rules both state that the relevant game/pre-game basketball bets include
+overtime.
+
 `FULL_EVENT` means the complete provider game market, including overtime where the
 source family explicitly carries that semantics. Basketball regulation-time markets
 remain a separate canonical period and are not interchangeable.
@@ -43,7 +53,8 @@ alternate, and live market families are not promoted to the full-event family.
 ### Positive
 
 - overtime-inclusive and regulation-only markets cannot share canonical identity;
-- same-line full-event observations from independent transports can consolidate safely;
+- same-line full-event observations from independent transports can consolidate safely
+  only after transport and price-origin settlement equivalence is established;
 - half-point totals/spreads can reuse the existing deterministic two-outcome math;
 - unsupported settlement geometry fails before opportunity construction.
 
