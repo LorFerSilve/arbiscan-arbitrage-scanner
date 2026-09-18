@@ -311,9 +311,15 @@ Phase 17.9 therefore:
 - anchors a spread line to the event home participant and requires the away point to
   be its exact negation;
 - requires an exact Over/Under pair for totals;
-- maps the featured basketball path to canonical `FULL_EVENT` identity;
+- does not infer overtime settlement from the transport key alone;
+- requires an explicit `basketball_full_event_bookmakers` allowlist before featured
+  basketball spread/total observations can enter the full-event path;
 - keeps quarter/half and alternate keys outside that path;
 - allows only half-point lines through the generic arbitrage/stake support gate.
+
+The allowlist defaults to empty. Phase 17.9 opts in only Pinnacle and bet365 in its
+deterministic test composition after verifying their current official basketball
+settlement rules. Any other bookmaker remains fail-closed until separately verified.
 
 The default provider request remains `h2h`; basketball spreads/totals are opt-in.
 
