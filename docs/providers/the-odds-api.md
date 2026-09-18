@@ -203,6 +203,26 @@ The default adapter request remains `h2h`; spreads are opt-in.
 
 See [football Asian handicap](../markets/football-asian-handicap.md) and ADR-0015.
 
+## Phase 17.4 football both teams to score
+
+The provider's documented soccer additional market key `btts` is available through
+the event-odds endpoint already used by ArbiScan. The documented outcomes are
+`Yes` and `No`.
+
+When `btts` is explicitly configured, the adapter requires:
+
+- exactly two outcomes;
+- exactly one `Yes` and one `No`;
+- no numeric `point` semantics.
+
+The provider separately documents period-specific variants such as `btts_h1`.
+Phase 17.4 therefore treats the exact source market key as part of market identity and
+does not infer full-time settlement from a generic BTTS label.
+
+The default request remains `h2h`; BTTS remains opt-in.
+
+See [football BTTS](../markets/football-btts.md) and ADR-0016.
+
 ## CI and fixtures
 
 CI never calls the live API. Sanitized fixtures under `tests/fixtures/providers/the_odds_api/` reproduce the documented V4 shapes for:
