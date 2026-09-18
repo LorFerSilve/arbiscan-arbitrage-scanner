@@ -1,0 +1,25 @@
+{
+  "id": "epl-arsenal-chelsea-20260920",
+  "sport_key": "soccer_epl",
+  "sport_title": "EPL",
+  "commence_time": "2026-09-20T14:00:00Z",
+  "home_team": "Arsenal",
+  "away_team": "Chelsea",
+  "bookmakers": [
+    {
+      "key": "pinnacle",
+      "title": "Pinnacle",
+      "markets": [
+        {
+          "key": "spreads",
+          "sid": "bad-spread-points",
+          "last_update": "2026-09-20T11:04:05Z",
+          "outcomes": [
+            {"name": "Arsenal", "price": 1.95, "point": -0.5, "sid": "bad-home"},
+            {"name": "Chelsea", "price": 1.95, "point": 1.0, "sid": "bad-away"}
+          ]
+        }
+      ]
+    }
+  ]
+}
