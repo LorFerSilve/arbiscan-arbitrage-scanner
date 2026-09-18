@@ -321,17 +321,18 @@ class RealtimeScanner(ObservableRealtimeScanner):
             age_seconds = (cycle.metrics.detected_at - effective_at).total_seconds()
             ages_by_provider.setdefault(provider_id, []).append(age_seconds)
 
-        provider_ids = {
-            adapter.provider.id for adapter in self.adapters
-        } | set(health_by_provider) | set(poll_by_provider) | set(ages_by_provider)
+        provider_ids = (
+            {adapter.provider.id for adapter in self.adapters}
+            | set(health_by_provider)
+            | set(poll_by_provider)
+            | set(ages_by_provider)
+        )
 
         sources: list[SourceOperationalSnapshot] = []
         for provider_id in sorted(provider_ids, key=lambda value: value.value):
             health = health_by_provider.get(provider_id)
             poll = poll_by_provider.get(provider_id)
-            health_state = (
-                ProviderHealthState.UNAVAILABLE if health is None else health.state
-            )
+            health_state = ProviderHealthState.UNAVAILABLE if health is None else health.state
             ages = tuple(sorted(ages_by_provider.get(provider_id, [])))
             sources.append(
                 SourceOperationalSnapshot(
