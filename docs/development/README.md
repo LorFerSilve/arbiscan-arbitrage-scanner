@@ -34,19 +34,22 @@ This directory contains the reproducible engineering setup plus formal completio
 - [`phase-16.8-completion.md`](phase-16.8-completion.md) — Phase 16.8 staged enablement and formal Phase 16 technical closure.
 - [`phase-17.1-completion.md`](phase-17.1-completion.md) — Phase 17.1 structured advanced-market semantic foundation.
 - [`phase-17.2-completion.md`](phase-17.2-completion.md) — Phase 17.2 football pre-match regulation totals on push-free half-goal lines.
+- [`phase-17.3-completion.md`](phase-17.3-completion.md) — Phase 17.3 football Asian handicap identity, settlement semantics, and half-goal enablement.
 
 ## Current hand-off
 
-Phases 0 through 16 and **Phases 17.1–17.2** are the completed technical baseline.
-The next roadmap dependency is **Phase 17.3 — football Asian handicap settlement
-semantics**.
+Phases 0 through 16 and **Phases 17.1–17.3** are the completed technical baseline.
+The next roadmap dependency is **Phase 17.4 — football both-teams-to-score semantics
+and provider feasibility**.
 
-Before Phase 17.3 implementation, read
-[`phase-17.1-completion.md`](phase-17.1-completion.md),
-[`phase-17.2-completion.md`](phase-17.2-completion.md), ADR-0013 and ADR-0014.
-Signed source handicaps already survive the provider boundary, but no handicap market
-may enter the generic arbitrage engine until line anchoring, push behavior, quarter-line
-split settlement, outcome completeness and payout semantics are explicit.
+Before Phase 17.4 implementation, verify the provider API surfaces rather than
+assuming that a shared YES/NO label implies equivalent settlement scope. The phase
+must prove regulation-time identity, exact YES/NO completeness, source mappings for
+each real transport, and end-to-end same-market comparison.
+
+Phase 17.3 deliberately does not enable integer or quarter Asian handicap lines in
+generic arbitrage/staking. Their settlement states are represented, but enabling them
+requires a future scenario-aware guaranteed-return and stake-allocation model.
 
 Phase 16 technical completion still does not override unresolved provider-specific
 production/legal blockers. OddsPapi remains production-blocked as documented in
