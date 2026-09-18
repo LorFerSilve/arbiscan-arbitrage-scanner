@@ -223,9 +223,7 @@ class ExchangePortfolioEvaluation:
         if liability < _ZERO:
             raise ArbitrageMathError("total lay liability cannot be negative")
         if guaranteed != min(value.net_profit for value in scenarios):
-            raise ArbitrageMathError(
-                "guaranteed profit must equal the minimum scenario net profit"
-            )
+            raise ArbitrageMathError("guaranteed profit must equal the minimum scenario net profit")
         if self.is_arbitrage is not (guaranteed > _ZERO):
             raise ArbitrageMathError(
                 "exchange arbitrage flag must reflect strictly positive guaranteed profit"
@@ -395,11 +393,7 @@ def evaluate_exchange_portfolio(
         )
 
     total_lay_liability = sum(
-        (
-            leg.liability
-            for leg in exchange_values
-            if leg.price.side is ExchangeSide.LAY
-        ),
+        (leg.liability for leg in exchange_values if leg.price.side is ExchangeSide.LAY),
         _ZERO,
     )
     guaranteed_profit = min(value.net_profit for value in scenarios)
