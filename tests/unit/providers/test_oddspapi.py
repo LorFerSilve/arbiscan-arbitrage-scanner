@@ -300,14 +300,14 @@ def test_config_repr_hides_credential() -> None:
     assert FIXTURE_KEY not in repr(config)
 
 
-def test_discovery_maps_only_phase16_supported_sports() -> None:
+def test_discovery_maps_supported_canonical_sports() -> None:
     provider, _transport, _telemetry = _build()
 
     sports = asyncio.run(provider.supported_sports())
     football = asyncio.run(provider.discover_competitions(Sport.FOOTBALL))
     events = asyncio.run(provider.discover_events("17"))
 
-    assert sports == (Sport.FOOTBALL, Sport.TENNIS)
+    assert sports == (Sport.BASKETBALL, Sport.FOOTBALL, Sport.TENNIS)
     assert tuple(value.name for value in football) == ("Premier League",)
     assert len(events) == 1
     assert events[0].sport is Sport.FOOTBALL
