@@ -1,0 +1,63 @@
+{
+  "fixtureId": "id1100048668099001",
+  "participant1Id": 7001,
+  "participant2Id": 7002,
+  "sportId": 11,
+  "tournamentId": 132,
+  "seasonId": 140001,
+  "statusId": 0,
+  "hasOdds": true,
+  "startTime": "2026-09-18T19:00:00.000Z",
+  "updatedAt": "2026-09-18T12:59:00.000Z",
+  "statusName": "Pre-Game",
+  "participant1Name": "Boston Celtics",
+  "participant2Name": "New York Knicks",
+  "bookmakerOdds": {
+    "pinnacle": {
+      "bookmakerIsActive": true,
+      "bookmakerFixtureId": "pinnacle-nba-fixture",
+      "suspended": false,
+      "markets": {
+        "5401": {
+          "bookmakerMarketId": "pinnacle-total-215-5",
+          "marketActive": true,
+          "outcomes": {
+            "5401": {"players": {"0": {"active": true, "bookmakerOutcomeId": "over-215-5", "bookmakerChangedAt": "2026-09-18T12:58:00Z", "changedAt": "2026-09-18T12:58:00Z", "price": 1.95, "mainLine": true}}},
+            "5402": {"players": {"0": {"active": true, "bookmakerOutcomeId": "under-215-5", "bookmakerChangedAt": "2026-09-18T12:58:00Z", "changedAt": "2026-09-18T12:58:00Z", "price": 1.95, "mainLine": true}}}
+          }
+        },
+        "6401": {
+          "bookmakerMarketId": "pinnacle-spread-minus-3-5",
+          "marketActive": true,
+          "outcomes": {
+            "6401": {"players": {"0": {"active": true, "bookmakerOutcomeId": "bos-minus-3-5", "bookmakerChangedAt": "2026-09-18T12:58:30Z", "changedAt": "2026-09-18T12:58:30Z", "price": 1.94, "mainLine": true}}},
+            "6402": {"players": {"0": {"active": true, "bookmakerOutcomeId": "nyk-plus-3-5", "bookmakerChangedAt": "2026-09-18T12:58:30Z", "changedAt": "2026-09-18T12:58:30Z", "price": 1.94, "mainLine": true}}}
+          }
+        }
+      }
+    },
+    "betfair": {
+      "bookmakerIsActive": true,
+      "bookmakerFixtureId": "betfair-nba-fixture",
+      "suspended": false,
+      "markets": {
+        "5401": {
+          "bookmakerMarketId": "betfair-total-215-5",
+          "marketActive": true,
+          "outcomes": {
+            "5401": {"players": {"0": {"active": true, "bookmakerOutcomeId": "bf-over-215-5", "bookmakerChangedAt": "2026-09-18T12:59:20Z", "changedAt": "2026-09-18T12:59:20Z", "price": 1.90, "mainLine": true}}},
+            "5402": {"players": {"0": {"active": true, "bookmakerOutcomeId": "bf-under-215-5", "bookmakerChangedAt": "2026-09-18T12:59:20Z", "changedAt": "2026-09-18T12:59:20Z", "price": 2.05, "mainLine": true}}}
+          }
+        },
+        "6401": {
+          "bookmakerMarketId": "betfair-spread-minus-3-5",
+          "marketActive": true,
+          "outcomes": {
+            "6401": {"players": {"0": {"active": true, "bookmakerOutcomeId": "bf-bos-minus-3-5", "bookmakerChangedAt": "2026-09-18T12:59:30Z", "changedAt": "2026-09-18T12:59:30Z", "price": 1.90, "mainLine": true}}},
+            "6402": {"players": {"0": {"active": true, "bookmakerOutcomeId": "bf-nyk-plus-3-5", "bookmakerChangedAt": "2026-09-18T12:59:30Z", "changedAt": "2026-09-18T12:59:30Z", "price": 2.05, "mainLine": true}}}
+          }
+        }
+      }
+    }
+  }
+}
