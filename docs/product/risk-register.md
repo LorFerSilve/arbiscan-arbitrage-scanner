@@ -66,6 +66,7 @@ A risk with high correctness or security impact must not be dismissed merely bec
 | R-048 | Tennis individual-game quotes from different sets or game numbers are conflated because their participants and labels are identical | Medium | Critical | ADR-0019 nested `set_index` + game `period_index`, exact source/canonical parameter matching, and game-winner completeness | Closed |
 | R-049 | Mutable current/next-game, tiebreak, or service-relative tennis markets are inferred from labels/score state and treated as a fixed numbered game | Medium | Critical | ADR-0019 keeps GAME_WINNER runtime support closed; no label/score/service-rotation inference before explicit provider score-state semantics | Closed |
 | R-050 | Tennis Set 1/Set 2 observations of the same bookmaker through The Odds API and OddsPapi are counted twice or conflict silently | Medium | Critical | ADR-0012 price-origin consolidation plus Phase 17.8 equal-time equivalent-overlap and strict set-index regressions | Closed |
+| R-051 | F1 winner/podium/H2H prices are compared despite incomplete driver grids, session mismatch, or different DNS/DNF/disqualification/dead-heat rules | High | Critical | ADR-0021 models explicit motorsport identity/completeness and keeps all Phase 17.10 motorsport runtime support closed until provider and settlement equivalence is proven | Closed |
 
 ## Critical risk themes
 
@@ -93,6 +94,13 @@ Phase 17.7 extends indexed tennis identity one hierarchy level deeper. A game is
 Phase 17.8 completes Set 1 / Set 2 winner across both real transport schemas. Same-bookmaker Pinnacle observations remain independently auditable by transport but consolidate to one executable price origin, while strict `period_index` equality prevents cross-set comparison. The existing retirement/walkover/incomplete-set limitation remains separate and mitigating.
 
 Phase 17.9 makes basketball period and line settlement explicit. Only full-event half-point totals and spreads may use the ordinary two-outcome arbitrage/stake engine. Integer lines can PUSH and quarter lines can require split settlement, so both remain fail-closed. Quarter, half, alternate, and live provider families are not promoted to the full-event canonical identity. OddsPapi's explicit overtime-inclusive labels are preserved. The Odds API does not expose an overtime-settlement flag for featured bookmaker markets, so basketball spreads/totals from that transport are additionally gated by an explicit per-bookmaker full-event allowlist that defaults to empty.
+
+Phase 17.10 separates motorsport race, qualifying, session, and championship scope and
+adds explicit full-grid winner, subject-specific podium, and pairwise H2H
+completeness. All three remain runtime-disabled because incomplete outright candidate
+sets and bookmaker-specific DNS/DNF/disqualification/dead-heat/void behavior can
+invalidate ordinary reciprocal-odds guarantees. Provider labels or advertised sport
+coverage are not sufficient to unlock F1 markets.
 
 ### 2. Temporal correctness
 
