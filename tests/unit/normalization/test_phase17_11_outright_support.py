@@ -36,7 +36,7 @@ def test_strict_complete_outright_subset_can_reuse_generic_n_outcome_math() -> N
     assert is_theoretical_arbitrage(tuple(Decimal("6") for _ in range(5)))
 
 
-def test_outfight_safety_gate_reports_each_semantic_blocker_fail_closed() -> None:
+def test_outright_safety_gate_reports_each_semantic_blocker_fail_closed() -> None:
     safe = _safe_profile()
     cases = (
         (replace(safe, candidate_set_complete=False), "candidate set is incomplete"),
