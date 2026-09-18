@@ -184,6 +184,41 @@ are resolved.
 
 See [football Draw No Bet](../markets/football-draw-no-bet.md) and ADR-0017.
 
+## Phase 17.6 tennis indexed set winner
+
+OddsPapi's tennis market catalog provides exact indexed set-winner identities used by
+Phase 17.6:
+
+- market 123, `First Set Winner`, `period=p1` -> canonical set index 1;
+- market 125, `Second Set Winner`, `period=p2` -> canonical set index 2.
+
+Both mappings additionally require:
+
+- tennis sport;
+- non-player market;
+- `marketType=winner`;
+- `handicap=0`;
+- exactly outcomes `1` and `2`.
+
+The adapter emits the canonical-relevant index as structured
+`SourceMarket.period_index`; it does not derive the index by parsing the market
+label. A catalog record whose market ID/name and provider period disagree is ignored
+fail-closed.
+
+Outcome `1` and `2` remain provider participant-order identities until the normal
+event/participant matching layer resolves them to canonical participant IDs.
+
+For a normally completed set the two participant outcomes use the ordinary generic
+two-way arbitrage path. Retirement, walkover, abandonment, and incomplete-set
+settlement remain bookmaker/execution-rule concerns and are not treated as
+provider-independent guaranteed settlement.
+
+This technical capability does **not** change OddsPapi's production status. The
+provider remains production-blocked until the independent rights/licensing questions
+are resolved.
+
+See [tennis indexed set winner](../markets/tennis-set-winner.md) and ADR-0018.
+
 ## Relevant source fields
 
 The adapter preserves or validates at least:
