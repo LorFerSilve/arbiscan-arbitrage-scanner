@@ -264,3 +264,60 @@ def test_registry_requires_exact_yes_no_completeness_for_btts() -> None:
         ),
         "exactly one YES and one NO",
     )
+
+
+def test_registry_requires_exact_participant_completeness_for_set_winner() -> None:
+    scenario = build_phase5_synthetic_scenario()
+    event = scenario.registry.events[0]
+    assert len(event.participants) == 2
+    market = Market(
+        id=MarketId("market:test:set-winner:1"),
+        event_id=event.id,
+        kind=MarketKind.SET_WINNER,
+        period=MarketPeriod.SET,
+        period_index=1,
+    )
+    first = Selection(
+        id=SelectionId("selection:test:set-winner:first"),
+        market_id=market.id,
+        kind=SelectionKind.PARTICIPANT,
+        participant_id=event.participants[0].id,
+    )
+    second = Selection(
+        id=SelectionId("selection:test:set-winner:second"),
+        market_id=market.id,
+        kind=SelectionKind.PARTICIPANT,
+        participant_id=event.participants[1].id,
+    )
+
+    valid = CanonicalRegistry(
+        competitions=scenario.registry.competitions,
+        participants=scenario.registry.participants,
+        events=scenario.registry.events,
+        markets=(*scenario.registry.markets, market),
+        selections=(*scenario.registry.selections, first, second),
+    )
+    assert set(valid.selection_ids_for_market(market.id)) == {first.id, second.id}
+
+    _assert_registry_error(
+        lambda: CanonicalRegistry(
+            competitions=scenario.registry.competitions,
+            participants=scenario.registry.participants,
+            events=scenario.registry.events,
+            markets=(*scenario.registry.markets, market),
+            selections=(*scenario.registry.selections, first),
+        ),
+        "exactly two participant selections",
+    )
+
+    outsider = replace(second, participant_id=ParticipantId("participant:everton"))
+    _assert_registry_error(
+        lambda: CanonicalRegistry(
+            competitions=scenario.registry.competitions,
+            participants=scenario.registry.participants,
+            events=scenario.registry.events,
+            markets=(*scenario.registry.markets, market),
+            selections=(*scenario.registry.selections, first, outsider),
+        ),
+        "outside its event",
+    )
