@@ -15,7 +15,7 @@ Official resources:
 
 The Odds API is a documented odds aggregator with a low-friction starter tier and broad sports/bookmaker coverage. Its V4 API exposes stable event IDs, ISO timestamps, decimal odds, source IDs where available, usage headers, and a documented European bookmaker region. That makes it suitable for validating ArbiScan's Phase 4 provider boundary against real-world aggregator payloads before adding direct bookmaker integrations.
 
-The Phase 6 adapter intentionally defaults to:
+The adapter still defaults to:
 
 ```text
 regions=eu
@@ -24,7 +24,9 @@ oddsFormat=decimal
 includeSids=true
 ```
 
-This matches the current MVP focus on football 1X2 and two-way match-winner data while avoiding premature implementation of Phase 7's general market/odds normalization.
+This preserves the validated winner-market baseline. Phase 17.1 adds structured
+parameter preservation for explicitly configured `totals` and `spreads` responses,
+but does not enable those families for canonical arbitrage detection by default.
 
 ## Credential
 
@@ -133,6 +135,30 @@ Provider-specific exceptions and source-model validation exceptions do not escap
 
 Telemetry is operation-level rather than raw HTTP-success telemetry: a `2xx` response is not recorded as `SUCCESS` until the response has passed the relevant schema and source-model validation. Preparatory calls inside a larger provider operation do not emit a premature operation success.
 
+## Phase 17.1 structured market parameters
+
+ADR-0013 extends the provider-neutral source contract so advanced-market parameters do
+not have to be recovered from labels.
+
+When the adapter is explicitly configured for additional market keys:
+
+- `totals`: every outcome must contain a numeric `point`; all outcomes must agree
+  on exactly one point, which is preserved as `SourceMarket.line`;
+- `spreads`: every outcome must contain a numeric signed `point`, preserved as
+  `SourceSelectionQuote.handicap`;
+- unexpected point-bearing market keys fail closed as malformed rather than being
+  guessed.
+
+All values cross the adapter boundary as exact finite `Decimal` values. A totals
+payload whose Over and Under outcomes disagree on the point is rejected.
+
+This is a **semantic-foundation change**, not a market enablement decision. The default
+request remains `h2h`. Football totals require a dedicated Phase 17 market-family
+specification covering settlement scope, selection completeness, canonical mappings,
+cross-provider equivalence, and end-to-end detection before they can be enabled.
+Spreads/Asian handicaps additionally require a documented canonical market-line
+anchoring policy before activation.
+
 ## CI and fixtures
 
 CI never calls the live API. Sanitized fixtures under `tests/fixtures/providers/the_odds_api/` reproduce the documented V4 shapes for:
@@ -151,7 +177,7 @@ Phase 6 does **not** add:
 - generic cross-provider event matching;
 - broad market-semantic normalization;
 - fractional/American odds conversion;
-- totals or handicaps;
+- canonical totals or handicap arbitrage enablement (structured source parameters begin in Phase 17.1);
 - production market-book policy;
 - persistence;
 - WebSocket/streaming ingestion;
