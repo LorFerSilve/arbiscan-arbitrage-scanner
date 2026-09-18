@@ -1,0 +1,12 @@
+[
+  {
+    "tournamentId": 132,
+    "tournamentSlug": "nba",
+    "tournamentName": "NBA",
+    "categorySlug": "usa",
+    "categoryName": "USA",
+    "futureFixtures": 10,
+    "upcomingFixtures": 1,
+    "liveFixtures": 0
+  }
+]
