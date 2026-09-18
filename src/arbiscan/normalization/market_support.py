@@ -143,6 +143,16 @@ def assess_market_support(
             ("tennis set winner uses an exact indexed set identity and two participant outcomes"),
         )
 
+    if market.kind is MarketKind.GAME_WINNER:
+        return MarketSupportDecision(
+            MarketSupportStatus.UNSUPPORTED,
+            (
+                "Phase 17.7 defines nested tennis game identity but enables no "
+                "game-winner provider mapping until stable machine-readable set/game "
+                "identity and settlement semantics are demonstrated"
+            ),
+        )
+
     if market.kind is MarketKind.HANDICAP:
         if sport is not Sport.FOOTBALL:
             return MarketSupportDecision(
