@@ -273,6 +273,7 @@ def _selection_id(
 
 def _source_markets(payload: Mapping[str, object], *, event_id: str) -> tuple[SourceMarket, ...]:
     markets: list[SourceMarket] = []
+    sport_key = _text(payload.get("sport_key"), path="event.sport_key")
     home_team = _text(payload.get("home_team"), path="event.home_team")
     away_team = _text(payload.get("away_team"), path="event.away_team")
     if home_team == away_team:
@@ -357,6 +358,7 @@ def _source_markets(payload: Mapping[str, object], *, event_id: str) -> tuple[So
                 )
 
             market_line: Decimal | None = None
+            period_index: int | None = None
             if market_key == "totals":
                 if any(point is None for point in points):
                     raise _SchemaError("totals market outcomes require point")
@@ -369,6 +371,27 @@ def _source_markets(payload: Mapping[str, object], *, event_id: str) -> tuple[So
                         "totals market must contain exactly one Over and one Under outcome"
                     )
                 market_line = next(iter(total_points))
+            elif market_key in {"h2h_s1", "h2h_s2"}:
+                if not sport_key.startswith("tennis_"):
+                    raise _SchemaError(
+                        f"{market_key} is only supported for tennis events"
+                    )
+                if any(point is not None for point in points):
+                    raise _SchemaError(
+                        f"{market_key} market outcomes must not carry point"
+                    )
+                if len(selections) != 2:
+                    raise _SchemaError(
+                        f"{market_key} market must contain exactly two outcomes"
+                    )
+                if {selection.label for selection in selections} != {
+                    home_team,
+                    away_team,
+                }:
+                    raise _SchemaError(
+                        f"{market_key} market outcomes must match the event home and away participants"
+                    )
+                period_index = 1 if market_key == "h2h_s1" else 2
             elif market_key == "btts":
                 if any(point is not None for point in points):
                     raise _SchemaError("btts market outcomes must not carry point")
@@ -418,6 +441,7 @@ def _source_markets(payload: Mapping[str, object], *, event_id: str) -> tuple[So
                     price_provider=price_provider,
                     source_timestamp=last_update,
                     line=market_line,
+                    period_index=period_index,
                 )
             )
     return tuple(markets)
@@ -432,6 +456,9 @@ class TheOddsApiProvider(ProviderAdapter):
     pair with opposite points and anchor ``SourceMarket.line`` to the home participant.
     Draw No Bet requires the exact event participant pair, carries no source point, and
     is represented canonically as the existing Asian-handicap-zero settlement shape.
+    Tennis set moneylines use only the documented ``h2h_s1`` and ``h2h_s2``
+    keys, require the event participant pair without point semantics, and preserve the
+    set number as structured ``SourceMarket.period_index``.
     """
 
     def __init__(
