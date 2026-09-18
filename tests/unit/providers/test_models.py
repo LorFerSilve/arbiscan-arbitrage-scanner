@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 
 from arbiscan.domain import ProviderId, Sport
 from arbiscan.providers import (
@@ -120,4 +121,78 @@ def test_rate_limit_metadata_is_consistent() -> None:
             remaining=11,
         ),
         contains="cannot exceed",
+    )
+
+
+def test_source_records_preserve_exact_advanced_market_parameters() -> None:
+    over = SourceSelectionQuote(
+        external_selection_id="selection:over",
+        label="Over",
+        price="1.91",
+        odds_format=SourceOddsFormat.DECIMAL,
+    )
+    home = SourceSelectionQuote(
+        external_selection_id="selection:home",
+        label="Home",
+        price="2.02",
+        odds_format=SourceOddsFormat.DECIMAL,
+        handicap=Decimal("-1.5"),
+    )
+    totals = SourceMarket(
+        external_event_id="event:1",
+        external_market_id="market:totals:2.5",
+        label="Totals",
+        selections=(over,),
+        line=Decimal("2.5"),
+    )
+    indexed = SourceMarket(
+        external_event_id="event:1",
+        external_market_id="market:set:2",
+        label="Set winner",
+        selections=(home,),
+        period_index=2,
+    )
+
+    assert totals.line == Decimal("2.5")
+    assert over.handicap is None
+    assert home.handicap == Decimal("-1.5")
+    assert indexed.period_index == 2
+
+
+def test_source_advanced_market_parameters_reject_float_nonfinite_and_bad_index() -> None:
+    expect_contract_error(
+        lambda: SourceSelectionQuote(
+            external_selection_id="selection:float",
+            label="Home",
+            price="2.00",
+            odds_format=SourceOddsFormat.DECIMAL,
+            handicap=-1.5,  # type: ignore[arg-type]
+        ),
+        contains="must be Decimal",
+    )
+    selection = SourceSelectionQuote(
+        external_selection_id="selection:1",
+        label="Over",
+        price="2.00",
+        odds_format=SourceOddsFormat.DECIMAL,
+    )
+    expect_contract_error(
+        lambda: SourceMarket(
+            external_event_id="event:1",
+            external_market_id="market:nonfinite",
+            label="Totals",
+            selections=(selection,),
+            line=Decimal("NaN"),
+        ),
+        contains="must be finite",
+    )
+    expect_contract_error(
+        lambda: SourceMarket(
+            external_event_id="event:1",
+            external_market_id="market:index-zero",
+            label="Set winner",
+            selections=(selection,),
+            period_index=0,
+        ),
+        contains="positive integer",
     )
