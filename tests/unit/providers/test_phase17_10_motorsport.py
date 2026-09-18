@@ -24,9 +24,7 @@ def test_the_odds_api_discovers_motorsport_group_but_rejects_binary_event_promot
     competitions = asyncio.run(provider.discover_competitions(Sport.MOTORSPORT))
 
     assert Sport.MOTORSPORT in sports
-    assert tuple(value.external_id for value in competitions) == (
-        "fixture_formula1_outright",
-    )
+    assert tuple(value.external_id for value in competitions) == ("fixture_formula1_outright",)
 
     try:
         asyncio.run(provider.discover_events("fixture_formula1_outright"))
@@ -37,7 +35,9 @@ def test_the_odds_api_discovers_motorsport_group_but_rejects_binary_event_promot
         raise AssertionError("motorsport outright event must not use binary home/away identity")
 
 
-def test_oddspapi_advertised_motorsport_record_remains_unmapped_without_verified_identifier() -> None:
+def test_oddspapi_advertised_motorsport_record_remains_unmapped_without_verified_identifier() -> (
+    None
+):
     provider = OddsPapiProvider(
         config=OddsPapiConfig(api_key="fixture"),
         transport=OddsPapiFixtureTransport(
