@@ -99,6 +99,7 @@ What evidence or change should cause this decision to be reconsidered?
 - [`0013-structured-advanced-market-parameters.md`](0013-structured-advanced-market-parameters.md) — requires exact structured lines, period indexes, and selection handicaps before Phase 17 market families can enter canonical arbitrage detection.
 - [`0014-football-totals-push-free-settlement-policy.md`](0014-football-totals-push-free-settlement-policy.md) — limits Phase 17.2 football totals to push-free half-goal lines until richer settlement algebra exists.
 - [`0015-football-asian-handicap-identity-and-settlement.md`](0015-football-asian-handicap-identity-and-settlement.md) — anchors signed handicap identity to ordered participant 1, models Asian settlement states, and gates complex settlement from the generic engine.
+- [`0016-football-btts-provider-equivalence.md`](0016-football-btts-provider-equivalence.md) — defines regulation-time BTTS through exact provider market identity and canonical YES/NO completeness.
 
 ## Initial ADR topics
 
