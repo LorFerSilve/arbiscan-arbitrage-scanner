@@ -331,6 +331,31 @@ Official references:
 See [basketball full-event spreads and totals](../markets/basketball-full-event-spreads-totals.md)
 and ADR-0020.
 
+## Phase 17.10 motorsport/F1 feasibility gate
+
+The adapter already recognizes provider sport groups `Motor Sports` and
+`Motorsports` as canonical `Sport.MOTORSPORT`.
+
+That does **not** make current F1 outrights executable. ArbiScan's normal event parser
+requires binary `home_team` / `away_team` identity, while the provider documents
+outright/futures schemas separately and its historical outright schema documentation
+notes that ordinary team/home fields can be absent.
+
+Phase 17.10 therefore stops motorsport in `discover_events()` with a structured
+`UNSUPPORTED` provider error before binary event parsing. No `outrights`,
+podium, or H2H key is reinterpreted into a canonical F1 market.
+
+A dedicated future parser must first establish the complete participant grid and
+stable race/session identity.
+
+Official references:
+
+- https://the-odds-api.com/liveapi/guides/v4/
+- https://the-odds-api.com/sports-odds-data/betting-markets.html
+- https://the-odds-api.com/releases/outrights.html
+
+See [motorsport/F1 semantics](../markets/motorsport-f1-semantics.md) and ADR-0021.
+
 ## CI and fixtures
 
 CI never calls the live API. Sanitized fixtures under `tests/fixtures/providers/the_odds_api/` reproduce the documented V4 shapes for:
