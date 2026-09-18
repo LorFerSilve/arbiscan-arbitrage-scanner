@@ -150,8 +150,8 @@ class CanonicalRegistry:
                 selection.kind is not SelectionKind.PARTICIPANT for selection in market_selections
             ):
                 raise ValueError("set-winner markets require exactly two participant selections")
-            participant_ids = {participant.id for participant in event.participants}
-            if {selection.participant_id for selection in market_selections} != participant_ids:
+            event_participant_ids = {participant.id for participant in event.participants}
+            if {selection.participant_id for selection in market_selections} != event_participant_ids:
                 raise ValueError(
                     "set-winner selections must cover exactly the two event participants"
                 )
