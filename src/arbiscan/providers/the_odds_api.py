@@ -106,6 +106,7 @@ class _SportRecord:
 _GROUP_TO_SPORT: Mapping[str, Sport] = MappingProxyType(
     {
         "Soccer": Sport.FOOTBALL,
+        "Basketball": Sport.BASKETBALL,
         "Tennis": Sport.TENNIS,
         "Motor Sports": Sport.MOTORSPORT,
         "Motorsports": Sport.MOTORSPORT,
@@ -446,6 +447,8 @@ class TheOddsApiProvider(ProviderAdapter):
 
     The adapter still requests decimal ``h2h`` data by default. Phase 17 preserves
     structured ``point`` parameters for explicitly configured totals/spreads.
+    Basketball is discovered as a canonical sport; featured ``spreads`` and
+    ``totals`` remain distinct from the provider's quarter/half market keys.
     Totals require an exact Over/Under pair; spreads require the event's exact home/away
     pair with opposite points and anchor ``SourceMarket.line`` to the home participant.
     Draw No Bet requires the exact event participant pair, carries no source point, and
