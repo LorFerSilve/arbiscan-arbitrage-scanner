@@ -223,3 +223,44 @@ def test_registry_rejects_incomplete_handicap_outcome_set() -> None:
         ),
         "exactly two participant selections",
     )
+
+
+def test_registry_requires_exact_yes_no_completeness_for_btts() -> None:
+    scenario = build_phase5_synthetic_scenario()
+    event_id = scenario.registry.events[0].id
+    market = Market(
+        id=MarketId("market:test:btts"),
+        event_id=event_id,
+        kind=MarketKind.BOTH_TEAMS_TO_SCORE,
+        period=MarketPeriod.REGULATION,
+    )
+    yes = Selection(
+        id=SelectionId("selection:test:btts:yes"),
+        market_id=market.id,
+        kind=SelectionKind.YES,
+    )
+    no = Selection(
+        id=SelectionId("selection:test:btts:no"),
+        market_id=market.id,
+        kind=SelectionKind.NO,
+    )
+
+    valid = CanonicalRegistry(
+        competitions=scenario.registry.competitions,
+        participants=scenario.registry.participants,
+        events=scenario.registry.events,
+        markets=(*scenario.registry.markets, market),
+        selections=(*scenario.registry.selections, yes, no),
+    )
+    assert set(valid.selection_ids_for_market(market.id)) == {yes.id, no.id}
+
+    _assert_registry_error(
+        lambda: CanonicalRegistry(
+            competitions=scenario.registry.competitions,
+            participants=scenario.registry.participants,
+            events=scenario.registry.events,
+            markets=(*scenario.registry.markets, market),
+            selections=(*scenario.registry.selections, yes),
+        ),
+        "exactly one YES and one NO",
+    )
