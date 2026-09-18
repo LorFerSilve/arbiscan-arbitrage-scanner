@@ -1,0 +1,16 @@
+[
+  {
+    "marketId": 204,
+    "marketLength": 2,
+    "marketName": "Both Teams To Score",
+    "playerProp": false,
+    "sportId": 10,
+    "handicap": 0,
+    "period": "firsthalf",
+    "marketType": "totals",
+    "outcomes": [
+      {"outcomeId": 204, "outcomeName": "Yes"},
+      {"outcomeId": 205, "outcomeName": "No"}
+    ]
+  }
+]
