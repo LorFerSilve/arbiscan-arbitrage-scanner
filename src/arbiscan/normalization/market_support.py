@@ -17,10 +17,17 @@ from arbiscan.domain import (
 
 
 class MarketSupportStatus(StrEnum):
-    """Whether a canonical market may enter generic arbitrage detection."""
+    """Whether a canonical market may enter the selected evaluation path."""
 
     SUPPORTED = "supported"
     UNSUPPORTED = "unsupported"
+
+
+class MarketSupportPurpose(StrEnum):
+    """Evaluation path for which canonical market eligibility is being assessed."""
+
+    GENERIC_ARBITRAGE = "generic_arbitrage"
+    SETTLEMENT_AWARE = "settlement_aware"
 
 
 @dataclass(frozen=True, slots=True)
@@ -57,12 +64,19 @@ def is_push_free_football_handicap_line(line: Decimal) -> bool:
     return asian_handicap_line_profile(line).line_class is AsianHandicapLineClass.HALF_GOAL
 
 
-def assess_market_support(*, sport: Sport, market: Market) -> MarketSupportDecision:
-    """Apply the currently enabled market-family boundary."""
+def assess_market_support(
+    *,
+    sport: Sport,
+    market: Market,
+    purpose: MarketSupportPurpose = MarketSupportPurpose.GENERIC_ARBITRAGE,
+) -> MarketSupportDecision:
+    """Apply the enabled market-family boundary for one evaluation path."""
     if not isinstance(sport, Sport):
         raise ValueError("sport must be Sport")
     if not isinstance(market, Market):
         raise ValueError("market must be Market")
+    if not isinstance(purpose, MarketSupportPurpose):
+        raise ValueError("purpose must be MarketSupportPurpose")
 
     if market.kind in {
         MarketKind.MATCH_WINNER_2_WAY,
@@ -121,18 +135,29 @@ def assess_market_support(*, sport: Sport, market: Market) -> MarketSupportDecis
                 MarketSupportStatus.UNSUPPORTED,
                 "Phase 17.3 football handicaps require regulation-time settlement",
             )
-        if market.line is None or not is_push_free_football_handicap_line(market.line):
+        if market.line is not None and is_push_free_football_handicap_line(market.line):
             return MarketSupportDecision(
-                MarketSupportStatus.UNSUPPORTED,
+                MarketSupportStatus.SUPPORTED,
+                "football regulation handicap uses a push-free half-goal line",
+            )
+        if (
+            purpose is MarketSupportPurpose.SETTLEMENT_AWARE
+            and market.line == Decimal("0")
+        ):
+            return MarketSupportDecision(
+                MarketSupportStatus.SUPPORTED,
                 (
-                    "Phase 17.3 football handicaps require a half-goal line; "
-                    "integer PUSH and quarter-line split settlements need the "
-                    "settlement-aware payout path"
+                    "football regulation handicap 0 is Draw No Bet and uses "
+                    "draw-refund settlement-aware evaluation"
                 ),
             )
         return MarketSupportDecision(
-            MarketSupportStatus.SUPPORTED,
-            "football regulation handicap uses a push-free half-goal line",
+            MarketSupportStatus.UNSUPPORTED,
+            (
+                "football handicap variant is not eligible for this evaluation path; "
+                "generic arbitrage supports half-goal lines only and Phase 17.5 "
+                "settlement-aware support adds only line 0 Draw No Bet"
+            ),
         )
 
     return MarketSupportDecision(
