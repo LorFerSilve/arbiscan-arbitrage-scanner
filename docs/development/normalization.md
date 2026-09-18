@@ -120,6 +120,27 @@ Implied probability is defined as a unit probability strictly between `0` and `1
 
 Non-finite values, non-positive fractional components, American zero, impossible implied probabilities, non-profitable decimal prices (`<= 1`), and Decimal arithmetic range failures are rejected with `OddsNormalizationError`.
 
+## Phase 17 structured parameter identity
+
+ADR-0013 makes advanced-market parameters part of strict source/canonical identity.
+
+Provider-neutral source records may now preserve:
+
+- `SourceMarket.line` as an exact finite `Decimal`;
+- `SourceMarket.period_index` as a positive integer;
+- `SourceSelectionQuote.handicap` as an exact finite signed `Decimal`.
+
+These fields are optional so the existing winner-market path remains backward
+compatible. Once a source record maps to a canonical market/selection, however, the
+structured values must match the canonical values exactly. Missing, unexpected, or
+different values produce `MARKET_PARAMETER_MISMATCH` or
+`SELECTION_PARAMETER_MISMATCH` and the affected quote is rejected before market-book
+construction.
+
+Canonical IDs therefore cannot hide a line mismatch. For example, an explicit hook
+that accidentally maps a source total 3.5 market to canonical total 2.5 still fails
+closed.
+
 ## Strict quote bridge integration
 
 `normalize_source_snapshot()` still requires explicit canonical ID hooks for event, market, and selection identity. Phase 7 changes its price behavior: all currently supported `SourceOddsFormat` values are passed through `normalize_odds()` before an `OddsQuote` is created.
