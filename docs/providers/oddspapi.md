@@ -154,6 +154,36 @@ This technical capability does **not** change OddsPapi's production status. The
 provider remains production-blocked until its independent rights/licensing questions
 are resolved.
 
+## Phase 17.5 football Draw No Bet
+
+OddsPapi exposes Draw No Bet through football Asian Handicap zero. Public provider
+material identifies market 1072 / Asian Handicap 0 as the Draw No Bet settlement
+shape, and the settlement API exposes `PUSH` explicitly.
+
+Phase 17.5 reuses the existing Asian Handicap adapter path and additionally requires
+`marketType=handicap` for that catalog family.
+
+For the supported regulation-time line-zero case:
+
+- `period=fulltime`;
+- `handicap=0`;
+- outcome `1` receives selection handicap `0`;
+- outcome `2` receives selection handicap `0`;
+- `SourceMarket.line = 0`.
+
+A first-half Asian Handicap zero catalog record is ignored rather than promoted to
+regulation Draw No Bet.
+
+The canonical market remains blocked from generic arbitrage normalization and is
+available only through the explicit settlement-aware path. A draw PUSH returns stake,
+so a positive decisive-state edge does not become strictly positive guaranteed profit.
+
+This technical capability does **not** change OddsPapi's production status. The
+provider remains production-blocked until the independent rights/licensing questions
+are resolved.
+
+See [football Draw No Bet](../markets/football-draw-no-bet.md) and ADR-0017.
+
 ## Relevant source fields
 
 The adapter preserves or validates at least:
