@@ -439,18 +439,14 @@ def test_phase17_8_tennis_set_moneylines_preserve_structured_set_index() -> None
     assert {market.period_index for market in snapshot.markets} == {1, 2}
     assert {market.line for market in snapshot.markets} == {None}
     assert all(
-        {selection.label for selection in market.selections}
-        == {"Jannik Sinner", "Carlos Alcaraz"}
+        {selection.label for selection in market.selections} == {"Jannik Sinner", "Carlos Alcaraz"}
         for market in snapshot.markets
     )
     assert all(
         {selection.handicap for selection in market.selections} == {None}
         for market in snapshot.markets
     )
-    by_key = {
-        market.label.rsplit(" ", 1)[1]: market.period_index
-        for market in snapshot.markets
-    }
+    by_key = {market.label.rsplit(" ", 1)[1]: market.period_index for market in snapshot.markets}
     assert by_key == {"h2h_s1": 1, "h2h_s2": 2}
     assert transport.requests[-1].query["markets"] == "h2h_s1,h2h_s2"
 
