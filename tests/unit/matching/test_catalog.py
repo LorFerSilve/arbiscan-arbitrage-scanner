@@ -321,3 +321,49 @@ def test_registry_requires_exact_participant_completeness_for_set_winner() -> No
         ),
         "outside its event",
     )
+
+
+def test_registry_requires_exact_participant_completeness_for_game_winner() -> None:
+    scenario = build_phase5_synthetic_scenario()
+    event = scenario.registry.events[0]
+    assert len(event.participants) == 2
+    market = Market(
+        id=MarketId("market:test:game-winner:set1:game3"),
+        event_id=event.id,
+        kind=MarketKind.GAME_WINNER,
+        period=MarketPeriod.GAME,
+        period_index=3,
+        set_index=1,
+    )
+    first = Selection(
+        id=SelectionId("selection:test:game-winner:first"),
+        market_id=market.id,
+        kind=SelectionKind.PARTICIPANT,
+        participant_id=event.participants[0].id,
+    )
+    second = Selection(
+        id=SelectionId("selection:test:game-winner:second"),
+        market_id=market.id,
+        kind=SelectionKind.PARTICIPANT,
+        participant_id=event.participants[1].id,
+    )
+
+    valid = CanonicalRegistry(
+        competitions=scenario.registry.competitions,
+        participants=scenario.registry.participants,
+        events=scenario.registry.events,
+        markets=(*scenario.registry.markets, market),
+        selections=(*scenario.registry.selections, first, second),
+    )
+    assert set(valid.selection_ids_for_market(market.id)) == {first.id, second.id}
+
+    _assert_registry_error(
+        lambda: CanonicalRegistry(
+            competitions=scenario.registry.competitions,
+            participants=scenario.registry.participants,
+            events=scenario.registry.events,
+            markets=(*scenario.registry.markets, market),
+            selections=(*scenario.registry.selections, first),
+        ),
+        "exactly two participant selections",
+    )
