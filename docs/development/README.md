@@ -37,23 +37,28 @@ This directory contains the reproducible engineering setup plus formal completio
 - [`phase-17.3-completion.md`](phase-17.3-completion.md) — Phase 17.3 football Asian handicap identity, settlement semantics, and half-goal enablement.
 - [`phase-17.4-completion.md`](phase-17.4-completion.md) — Phase 17.4 football regulation-time BTTS provider equivalence and YES/NO enablement.
 - [`phase-17.5-completion.md`](phase-17.5-completion.md) — Phase 17.5 football Draw No Bet / Asian Handicap 0 refund-aware evaluation.
+- [`phase-17.6-completion.md`](phase-17.6-completion.md) — Phase 17.6 indexed tennis Set 1/Set 2 winner semantics with provider-narrowed support.
 
 ## Current hand-off
 
-Phases 0 through 16 and **Phases 17.1–17.5** are the completed technical baseline.
-The next roadmap dependency is **Phase 17.6 — tennis set-winner and indexed-set
-semantics**.
+Phases 0 through 16 and **Phases 17.1–17.6** are the completed technical baseline.
+The next roadmap dependency is **Phase 17.7 — tennis game-market identity and
+score-state semantics**.
 
-Phase 17.5 establishes that Draw No Bet is canonical Asian Handicap 0 and must use an
-explicit refund-aware evaluation path. A positive reciprocal edge in the decisive
-states still has zero worst-case profit because a regulation-time draw refunds both
-stakes. Ordinary `Opportunity` / `StakePlan` materialization therefore remains
-blocked for DNB.
+Phase 17.6 establishes that tennis set number is canonical structured identity:
+Set 1 and Set 2 cannot share one market book even when their selections look
+identical. OddsPapi supplies exact documented Set 1/Set 2 mappings; The Odds API is
+left unsupported for this family rather than receiving a guessed market key.
 
-Before Phase 17.6 enablement, set identity must be structured rather than label-derived:
-set 1 and set 2 must never share a canonical market even when their participants and
-prices otherwise look equivalent. Provider settlement behavior for retirement,
-withdrawal, or incomplete sets must also remain explicit.
+The ordinary two-way evaluator is valid for the modeled normally completed set, but
+bookmaker-specific retirement, walkover, abandonment, and incomplete-set settlement
+rules remain outside the current execution model. Such opportunities remain
+theoretical under those stated assumptions.
+
+Before Phase 17.7 enables any game-level market, the implementation must establish
+stable machine-readable game identity, including any required set index, game index,
+server/receiver context, and tiebreak distinction. Label- or score-string inference
+must not become canonical identity.
 
 Provider-specific production/legal blockers remain independent of Phase 17 technical
 support. OddsPapi remains production-blocked as documented in
