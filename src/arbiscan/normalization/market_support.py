@@ -206,6 +206,18 @@ def assess_market_support(
             ),
         )
 
+    if market.kind is MarketKind.OUTRIGHT_WINNER:
+        return MarketSupportDecision(
+            MarketSupportStatus.UNSUPPORTED,
+            (
+                "Phase 17.11 defines complete/static outright candidate-set and "
+                "settlement-safety requirements but keeps broader tournament/"
+                "championship outrights runtime-disabled until a real provider path "
+                "proves exact candidate identity and equivalent withdrawal/void/"
+                "dead-heat rules"
+            ),
+        )
+
     if market.kind is MarketKind.HANDICAP:
         if sport is Sport.FOOTBALL:
             if market.period is not MarketPeriod.REGULATION:
