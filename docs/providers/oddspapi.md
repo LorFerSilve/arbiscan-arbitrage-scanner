@@ -219,6 +219,38 @@ are resolved.
 
 See [tennis indexed set winner](../markets/tennis-set-winner.md) and ADR-0018.
 
+## Phase 17.7 tennis game-market feasibility
+
+OddsPapi's public tennis coverage includes broad game-related market families such as
+game handicaps, total games, tiebreak propositions, and other set/game derivatives.
+
+Phase 17.7 did not establish a stable documented machine-readable identity for a fixed
+individual `Set N / Game M Winner` wager. Those broader game-derived families are
+not equivalent to a numbered game winner and are not promoted into
+`MarketKind.GAME_WINNER`.
+
+A deterministic negative fixture specifically verifies that a tennis
+`Game Handicap` catalog family remains outside the numbered game-winner path.
+
+Consequently:
+
+- no OddsPapi `GAME_WINNER` mapping is enabled;
+- no set/game indexes are inferred from labels or mutable score state;
+- service-relative and tiebreak propositions remain separate until explicitly
+  modeled.
+
+Official references reviewed:
+
+- https://oddspapi.io/sports/tennis
+- https://oddspapi.io/blog/us-open-odds-api/
+- https://oddspapi.io/en/docs/get-markets
+
+This technical conclusion does **not** change OddsPapi's production status. The
+provider remains production-blocked until the independent rights/licensing questions
+are resolved.
+
+See [tennis game-market identity](../markets/tennis-game-identity.md) and ADR-0019.
+
 ## Relevant source fields
 
 The adapter preserves or validates at least:
