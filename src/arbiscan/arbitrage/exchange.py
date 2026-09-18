@@ -347,7 +347,9 @@ def evaluate_exchange_portfolio(
         with localcontext(_EXCHANGE_CONTEXT):
             for bookmaker_leg in bookmaker_values:
                 if bookmaker_leg.quote.selection_id == winner:
-                    bookmaker_profit += bookmaker_leg.stake * (bookmaker_leg.quote.decimal_price - _ONE)
+                    bookmaker_profit += bookmaker_leg.stake * (
+                        bookmaker_leg.quote.decimal_price - _ONE
+                    )
                 else:
                     bookmaker_profit -= bookmaker_leg.stake
 
@@ -393,7 +395,11 @@ def evaluate_exchange_portfolio(
         )
 
     total_lay_liability = sum(
-        (exchange_leg.liability for exchange_leg in exchange_values if exchange_leg.price.side is ExchangeSide.LAY),
+        (
+            exchange_leg.liability
+            for exchange_leg in exchange_values
+            if exchange_leg.price.side is ExchangeSide.LAY
+        ),
         _ZERO,
     )
     guaranteed_profit = min(value.net_profit for value in scenarios)
