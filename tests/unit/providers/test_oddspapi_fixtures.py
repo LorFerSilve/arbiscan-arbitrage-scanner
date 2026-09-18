@@ -281,9 +281,7 @@ def test_phase17_5_asian_handicap_zero_is_structural_draw_no_bet() -> None:
         assert len(snapshot.markets) == 4
         assert {market.line for market in snapshot.markets} == {Decimal("0")}
         assert {market.selections[0].label for market in snapshot.markets} == {"1", "2"}
-        assert {market.selections[0].handicap for market in snapshot.markets} == {
-            Decimal("0")
-        }
+        assert {market.selections[0].handicap for market in snapshot.markets} == {Decimal("0")}
         assert {
             market.price_provider.id.value
             for market in snapshot.markets
