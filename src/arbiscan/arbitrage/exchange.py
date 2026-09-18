@@ -347,9 +347,9 @@ def evaluate_exchange_portfolio(
         with localcontext(_EXCHANGE_CONTEXT):
             for bookmaker_leg in bookmaker_values:
                 if bookmaker_leg.quote.selection_id == winner:
-                    bookmaker_profit += exchange_bookmaker_leg.stake * (bookmaker_leg.quote.decimal_price - _ONE)
+                    bookmaker_profit += bookmaker_leg.stake * (bookmaker_leg.quote.decimal_price - _ONE)
                 else:
-                    bookmaker_profit -= exchange_bookmaker_leg.stake
+                    bookmaker_profit -= bookmaker_leg.stake
 
             for exchange_leg in exchange_values:
                 price = exchange_leg.price
@@ -360,15 +360,15 @@ def evaluate_exchange_portfolio(
                 key = (price.exchange_provider.id, scope)
                 if side is ExchangeSide.BACK:
                     profit = (
-                        exchange_bookmaker_leg.stake * (price.decimal_price - _ONE)
+                        exchange_leg.stake * (price.decimal_price - _ONE)
                         if price.selection_id == winner
-                        else -exchange_bookmaker_leg.stake
+                        else -exchange_leg.stake
                     )
                 else:
                     profit = (
-                        -lay_liability(exchange_bookmaker_leg.stake, price.decimal_price)
+                        -lay_liability(exchange_leg.stake, price.decimal_price)
                         if price.selection_id == winner
-                        else exchange_bookmaker_leg.stake
+                        else exchange_leg.stake
                     )
                 exchange_gross[key] += profit
 
@@ -393,7 +393,7 @@ def evaluate_exchange_portfolio(
         )
 
     total_lay_liability = sum(
-        (exchange_leg.liability for leg in exchange_values if exchange_leg.price.side is ExchangeSide.LAY),
+        (exchange_leg.liability for exchange_leg in exchange_values if exchange_leg.price.side is ExchangeSide.LAY),
         _ZERO,
     )
     guaranteed_profit = min(value.net_profit for value in scenarios)
