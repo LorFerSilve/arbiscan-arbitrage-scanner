@@ -67,6 +67,7 @@ A risk with high correctness or security impact must not be dismissed merely bec
 | R-049 | Mutable current/next-game, tiebreak, or service-relative tennis markets are inferred from labels/score state and treated as a fixed numbered game | Medium | Critical | ADR-0019 keeps GAME_WINNER runtime support closed; no label/score/service-rotation inference before explicit provider score-state semantics | Closed |
 | R-050 | Tennis Set 1/Set 2 observations of the same bookmaker through The Odds API and OddsPapi are counted twice or conflict silently | Medium | Critical | ADR-0012 price-origin consolidation plus Phase 17.8 equal-time equivalent-overlap and strict set-index regressions | Closed |
 | R-051 | F1 winner/podium/H2H prices are compared despite incomplete driver grids, session mismatch, or different DNS/DNF/disqualification/dead-heat rules | High | Critical | ADR-0021 models explicit motorsport identity/completeness and keeps all Phase 17.10 motorsport runtime support closed until provider and settlement equivalence is proven | Closed |
+| R-052 | Tournament/championship outright prices are compared across incomplete/dynamic candidate fields, synthetic Field/Other buckets, or incompatible tie/dead-heat/withdrawal/void settlement | High | Critical | ADR-0022 exact candidate completeness, homogeneous participant-kind boundary, explicit outright settlement profile, and runtime fail-closed provider gate | Closed |
 
 ## Critical risk themes
 
@@ -101,6 +102,15 @@ completeness. All three remain runtime-disabled because incomplete outright cand
 sets and bookmaker-specific DNS/DNF/disqualification/dead-heat/void behavior can
 invalidate ordinary reciprocal-odds guarantees. Provider labels or advertised sport
 coverage are not sufficient to unlock F1 markets.
+
+
+Phase 17.11 generalizes the same correctness rule to all tournament/championship
+outrights. A canonical outright must cover the exact event candidate set using one
+participant kind. Field/Other buckets, partial or changing candidate lists, ties,
+dead heats, withdrawals and void rules are explicit settlement blockers rather than
+decorative metadata. The generic arbitrary-N formula may be reused only when the
+dedicated outright safety profile proves a complete/static, mutually-exclusive and
+exhaustive settlement partition with equivalent withdrawal/void behavior.
 
 ### 2. Temporal correctness
 
