@@ -63,9 +63,11 @@ B / S
 - `theoretical_profit_margin()`;
 - `is_theoretical_arbitrage()`;
 - `evaluate_market()`;
+- `evaluate_refundable_two_way_market()`;
 - `build_opportunity()`;
 - `allocate_stakes()`;
 - `ArbitrageEvaluation`;
+- `RefundableTwoWayEvaluation`;
 - `StakeConstraint`;
 - `CurrencyRoundingPolicy`.
 
@@ -187,6 +189,45 @@ The final plan may use less than the supplied bankroll when limits or rounding m
 Otherwise it returns `None`.
 
 This is important for small-bankroll or low-margin opportunities. For example, odds `2.01 / 2.01` are theoretically profitable, but a EUR 1.00 bankroll can round both EUR 0.50 payouts down to EUR 1.00. The rounded guaranteed profit is then zero, so no guaranteed `StakePlan` is emitted.
+
+## Refundable two-way markets
+
+Phase 17.5 adds a separate evaluator for two priced outcomes that also share one
+refund terminal state, initially football Draw No Bet / Asian Handicap 0.
+
+For decisive outcomes, the existing reciprocal formula still applies:
+
+```text
+S = 1/o1 + 1/o2
+R_decisive = 1/S
+M_decisive = R_decisive - 1
+```
+
+The shared refund state returns all stake:
+
+```text
+R_refund = 1
+R_worst = min(R_decisive, R_refund)
+M_worst = R_worst - 1
+```
+
+When `S < 1`, the two decisive outcomes have positive equalized margin, but a Draw
+No Bet draw still has zero profit. Therefore:
+
+```text
+M_decisive > 0
+M_refund = 0
+M_worst = 0
+```
+
+`evaluate_refundable_two_way_market()` exposes these states through
+`RefundableTwoWayEvaluation`. It deliberately does not call
+`build_opportunity()` or `allocate_stakes()`.
+
+The existing canonical `Opportunity` and `StakePlan` semantics mean strict
+positive guaranteed profit. A refundable/no-loss edge must not weaken that meaning.
+A future settlement-aware opportunity/stake model may add actionable DNB support
+while retaining the shared refund scenario.
 
 ## Reproducibility
 
