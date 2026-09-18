@@ -159,6 +159,27 @@ families not yet enabled by the roadmap.
 See [football regulation totals](../markets/football-regulation-totals.md) and
 ADR-0014.
 
+## Phase 17.3 Asian handicap identity and settlement gate
+
+Football `HANDICAP` markets use an explicit ordered-participant sign convention:
+`Market.line` is participant 1's signed handicap and participant 2's canonical
+selection must carry its exact negation. Canonical handicap markets require exactly
+those two participant selections.
+
+The provider-neutral source boundary preserves both the market line and each
+selection's signed handicap. Strict normalization therefore checks both layers:
+a matching market ID cannot hide an opposite market line, and a matching selection ID
+cannot hide a wrong-side handicap.
+
+Phase 17.3 classifies Asian lines as half-goal, integer, quarter, or unsupported and
+models WIN, HALF_WIN, PUSH, HALF_LOSS and LOSS settlement semantics. The existing
+generic arbitrage/stake pipeline is enabled only for regulation-time football
+half-goal handicaps. Integer and quarter variants emit
+`UNSUPPORTED_MARKET_VARIANT` before quote construction because their PUSH or split
+payout states require a settlement-aware guaranteed-return model.
+
+See [football Asian handicap](../markets/football-asian-handicap.md) and ADR-0015.
+
 ## Strict quote bridge integration
 
 `normalize_source_snapshot()` still requires explicit canonical ID hooks for event, market, and selection identity. Phase 7 changes its price behavior: all currently supported `SourceOddsFormat` values are passed through `normalize_odds()` before an `OddsQuote` is created.
