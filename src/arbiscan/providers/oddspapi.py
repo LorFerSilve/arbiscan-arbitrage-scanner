@@ -392,11 +392,7 @@ def _is_supported_market(record: _MarketRecord, sport: Sport) -> bool:
             and {value.casefold() for value in record.outcomes.values()} == {"1", "2"}
         )
         set_winner = (
-            (
-                record.external_id == "123"
-                and name == "first set winner"
-                and record.period == "p1"
-            )
+            (record.external_id == "123" and name == "first set winner" and record.period == "p1")
             or (
                 record.external_id == "125"
                 and name == "second set winner"
@@ -585,11 +581,7 @@ def _source_markets(
                         source_status=source_status,
                         price_provider=price_provider,
                         source_timestamp=source_timestamp,
-                        period_index=(
-                            _tennis_set_index(record)
-                            if sport is Sport.TENNIS
-                            else None
-                        ),
+                        period_index=(_tennis_set_index(record) if sport is Sport.TENNIS else None),
                         line=(
                             record.handicap
                             if (
