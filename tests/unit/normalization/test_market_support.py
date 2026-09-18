@@ -6,6 +6,7 @@ from arbiscan.domain import EventId, Market, MarketId, MarketKind, MarketPeriod,
 from arbiscan.normalization import (
     MarketSupportStatus,
     assess_market_support,
+    is_push_free_football_handicap_line,
     is_push_free_football_total_line,
 )
 
@@ -79,15 +80,54 @@ def test_phase17_2_rejects_non_regulation_or_non_football_totals() -> None:
     assert tennis.status is MarketSupportStatus.UNSUPPORTED
 
 
-def test_baseline_winner_markets_remain_supported_and_future_families_stay_closed() -> None:
+def test_phase17_3_supports_only_push_free_regulation_football_handicaps() -> None:
+    for line in (Decimal("-2.5"), Decimal("-0.5"), Decimal("0.5"), Decimal("3.5")):
+        assert is_push_free_football_handicap_line(line)
+        decision = assess_market_support(
+            sport=Sport.FOOTBALL,
+            market=_market(kind=MarketKind.HANDICAP, line=line),
+        )
+        assert decision.status is MarketSupportStatus.SUPPORTED
+
+    for line in (
+        Decimal("-1"),
+        Decimal("0"),
+        Decimal("1"),
+        Decimal("-0.25"),
+        Decimal("0.25"),
+        Decimal("0.75"),
+        Decimal("0.3"),
+    ):
+        assert not is_push_free_football_handicap_line(line)
+        decision = assess_market_support(
+            sport=Sport.FOOTBALL,
+            market=_market(kind=MarketKind.HANDICAP, line=line),
+        )
+        assert decision.status is MarketSupportStatus.UNSUPPORTED
+
+
+def test_phase17_3_rejects_non_regulation_or_non_football_handicaps() -> None:
+    first_half = assess_market_support(
+        sport=Sport.FOOTBALL,
+        market=_market(
+            kind=MarketKind.HANDICAP,
+            period=MarketPeriod.FIRST_HALF,
+            line=Decimal("-0.5"),
+        ),
+    )
+    tennis = assess_market_support(
+        sport=Sport.TENNIS,
+        market=_market(kind=MarketKind.HANDICAP, line=Decimal("-0.5")),
+    )
+
+    assert first_half.status is MarketSupportStatus.UNSUPPORTED
+    assert tennis.status is MarketSupportStatus.UNSUPPORTED
+
+
+def test_baseline_winner_markets_remain_supported() -> None:
     winner = assess_market_support(
         sport=Sport.FOOTBALL,
         market=_market(kind=MarketKind.MATCH_WINNER_3_WAY, line=None),
     )
-    handicap = assess_market_support(
-        sport=Sport.FOOTBALL,
-        market=_market(kind=MarketKind.HANDICAP, line=Decimal("-1.5")),
-    )
 
     assert winner.status is MarketSupportStatus.SUPPORTED
-    assert handicap.status is MarketSupportStatus.UNSUPPORTED
