@@ -294,6 +294,8 @@ def _market_records(payload: object) -> Mapping[str, _MarketRecord]:
         "over under full time",
         "asian handicap",
         "both teams to score",
+        "first set winner",
+        "second set winner",
     }
     for index, raw in enumerate(_sequence(payload, path="markets")):
         item = _mapping(raw, path=f"markets[{index}]")
@@ -381,14 +383,41 @@ def _is_supported_market(record: _MarketRecord, sport: Sport) -> bool:
         )
         return winner or total or asian_handicap or both_teams_to_score
     if sport is Sport.TENNIS:
-        return (
+        match_winner = (
             name in {"match winner", "winner"}
             and record.period in {"fulltime", "match"}
             and record.market_type == "winner"
             and record.handicap == Decimal(0)
             and len(record.outcomes) == 2
+            and {value.casefold() for value in record.outcomes.values()} == {"1", "2"}
         )
+        set_winner = (
+            (
+                record.external_id == "123"
+                and name == "first set winner"
+                and record.period == "p1"
+            )
+            or (
+                record.external_id == "125"
+                and name == "second set winner"
+                and record.period == "p2"
+            )
+        ) and (
+            record.market_type == "winner"
+            and record.handicap == Decimal(0)
+            and len(record.outcomes) == 2
+            and {value.casefold() for value in record.outcomes.values()} == {"1", "2"}
+        )
+        return match_winner or set_winner
     return False
+
+
+def _tennis_set_index(record: _MarketRecord) -> int | None:
+    if record.external_id == "123" and record.name.casefold() == "first set winner":
+        return 1
+    if record.external_id == "125" and record.name.casefold() == "second set winner":
+        return 2
+    return None
 
 
 def _shared_bookmaker_provider(slug: str) -> Provider:
@@ -556,6 +585,11 @@ def _source_markets(
                         source_status=source_status,
                         price_provider=price_provider,
                         source_timestamp=source_timestamp,
+                        period_index=(
+                            _tennis_set_index(record)
+                            if sport is Sport.TENNIS
+                            else None
+                        ),
                         line=(
                             record.handicap
                             if (
