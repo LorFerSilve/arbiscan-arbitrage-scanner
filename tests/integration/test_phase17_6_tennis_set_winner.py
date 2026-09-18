@@ -339,13 +339,13 @@ def test_structured_period_index_mismatch_fails_before_quote_creation() -> None:
     )
 
     set1_issues = [
-        issue
-        for issue in result.issues
-        if issue.external_market_id in source_set1_market_ids
+        issue for issue in result.issues if issue.external_market_id in source_set1_market_ids
     ]
     assert set1_issues
     assert {issue.code for issue in set1_issues} == {
         NormalizationIssueCode.MARKET_PARAMETER_MISMATCH
     }
-    assert all(quote.market_id != SET2_MARKET_ID or quote.source_market_id not in source_set1_market_ids
-               for quote in result.quotes)
+    assert all(
+        quote.market_id != SET2_MARKET_ID or quote.source_market_id not in source_set1_market_ids
+        for quote in result.quotes
+    )
