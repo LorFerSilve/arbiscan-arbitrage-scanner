@@ -36,8 +36,10 @@ class NormalizationIssueCode(StrEnum):
     IDENTITY_MISMATCH = "identity_mismatch"
     UNMAPPED_MARKET = "unmapped_market"
     MARKET_EVENT_MISMATCH = "market_event_mismatch"
+    MARKET_PARAMETER_MISMATCH = "market_parameter_mismatch"
     UNMAPPED_SELECTION = "unmapped_selection"
     SELECTION_MARKET_MISMATCH = "selection_market_mismatch"
+    SELECTION_PARAMETER_MISMATCH = "selection_parameter_mismatch"
     STALE_SNAPSHOT = "stale_snapshot"
     FUTURE_SNAPSHOT = "future_snapshot"
     FUTURE_INGESTION = "future_ingestion"
@@ -274,6 +276,25 @@ def normalize_source_snapshot(
                 )
             )
             continue
+        if (
+            market.line != canonical_market.line
+            or market.period_index != canonical_market.period_index
+        ):
+            issues.append(
+                _issue(
+                    NormalizationIssueCode.MARKET_PARAMETER_MISMATCH,
+                    provider,
+                    event,
+                    (
+                        "source market parameters conflict with canonical market "
+                        f"(source line={market.line!s}, canonical line={canonical_market.line!s}, "
+                        f"source period_index={market.period_index!s}, "
+                        f"canonical period_index={canonical_market.period_index!s})"
+                    ),
+                    market=market,
+                )
+            )
+            continue
         if _status(market.source_status) is not QuoteStatus.ACTIVE:
             issues.append(
                 _issue(
@@ -309,6 +330,22 @@ def normalize_source_snapshot(
                         provider,
                         event,
                         "canonical selection belongs to a different market",
+                        market=market,
+                        selection=selection,
+                    )
+                )
+                continue
+            if selection.handicap != canonical_selection.handicap:
+                issues.append(
+                    _issue(
+                        NormalizationIssueCode.SELECTION_PARAMETER_MISMATCH,
+                        provider,
+                        event,
+                        (
+                            "source selection handicap conflicts with canonical selection "
+                            f"(source handicap={selection.handicap!s}, "
+                            f"canonical handicap={canonical_selection.handicap!s})"
+                        ),
                         market=market,
                         selection=selection,
                     )
