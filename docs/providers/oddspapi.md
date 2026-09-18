@@ -397,6 +397,31 @@ Official reference:
 See [basketball full-event spreads and totals](../markets/basketball-full-event-spreads-totals.md)
 and ADR-0020.
 
+## Phase 17.10 motorsport/F1 feasibility gate
+
+OddsPapi publicly lists Motorsports among its covered sports and exposes exact sport
+records through `GET /v4/sports` plus market records through `GET /v4/markets`.
+
+Phase 17.10 does not infer an F1 identifier from the marketing label. The public API
+documentation defines `sportId` and `slug` as runtime catalogue values but does not
+publish one fixed F1 sport record or stable winner/podium/H2H market IDs as normative
+constants.
+
+The adapter therefore keeps motorsport absent from `_SLUG_TO_SPORT` until a live
+catalogue record is explicitly verified and can be retained under the provider-data
+policy. A deterministic fixture proves that an unverified `motorsports` record
+remains unmapped and cannot enter competition/event discovery.
+
+No F1 market record is accepted by `_is_supported_market()` in Phase 17.10.
+
+Official references:
+
+- https://oddspapi.io/en
+- https://oddspapi.io/en/docs/get-sports
+- https://oddspapi.io/en/docs/get-markets
+
+See [motorsport/F1 semantics](../markets/motorsport-f1-semantics.md) and ADR-0021.
+
 ## Fixture policy
 
 Until provider rights are clarified:
