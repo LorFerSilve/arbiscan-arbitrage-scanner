@@ -223,6 +223,30 @@ The default request remains `h2h`; BTTS remains opt-in.
 
 See [football BTTS](../markets/football-btts.md) and ADR-0016.
 
+## Phase 17.5 football Draw No Bet
+
+The provider documents the soccer additional market key `draw_no_bet` as match
+winner excluding the draw, with a draw returning the bet.
+
+When `draw_no_bet` is explicitly configured, the adapter requires:
+
+- exactly two outcomes;
+- outcome labels exactly matching the event home and away participants;
+- no numeric `point` values.
+
+The source is translated to the existing canonical Asian Handicap zero shape:
+
+- `SourceMarket.line = 0`;
+- both participant source selections carry `handicap = 0`.
+
+Generic normalization still rejects line zero. The market becomes eligible only when
+the caller explicitly selects the Phase 17.5 settlement-aware evaluation path, where
+the shared draw refund is modeled.
+
+The default provider request remains `h2h`; Draw No Bet is opt-in.
+
+See [football Draw No Bet](../markets/football-draw-no-bet.md) and ADR-0017.
+
 ## CI and fixtures
 
 CI never calls the live API. Sanitized fixtures under `tests/fixtures/providers/the_odds_api/` reproduce the documented V4 shapes for:
