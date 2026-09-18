@@ -286,9 +286,11 @@ def test_two_real_transports_build_same_line_total_arbitrage_end_to_end() -> Non
 
     consolidated = store.fresh_quotes(as_of=phase16_5.AS_OF)
     assert len(consolidated) == 6
-    assert {
-        quote.provider_id for quote in consolidated
-    } == {PINNACLE_ID, BET365_ID, BETFAIR_ID}
+    assert {quote.provider_id for quote in consolidated} == {
+        PINNACLE_ID,
+        BET365_ID,
+        BETFAIR_ID,
+    }
 
     batch = build_market_books(
         consolidated,
