@@ -311,3 +311,57 @@ def test_phase17_5_first_half_handicap_zero_is_not_promoted_to_regulation_dnb() 
         assert snapshot.markets == ()
 
     asyncio.run(scenario())
+
+
+def test_phase17_6_tennis_set_winners_preserve_structured_period_index() -> None:
+    async def scenario() -> None:
+        transport = FixtureHttpTransport(
+            fixture_overrides={
+                "/tournaments": "tournaments_tennis_phase16_5.json",
+                "/fixtures": "fixtures_tournament_77_phase16_5.json",
+                "/markets": "markets_phase17_6_tennis_sets.json",
+                "/odds": "odds_fixture_phase17_6_tennis_sets.json",
+            }
+        )
+        provider = _provider(transport)
+        competitions = await provider.discover_competitions(Sport.TENNIS)
+        assert tuple(value.external_id for value in competitions) == ("77",)
+        events = await provider.discover_events("77")
+        assert tuple(value.external_id for value in events) == ("id1000001761301777",)
+
+        snapshot = await provider.fetch_odds("id1000001761301777")
+
+        assert snapshot is not None
+        assert len(snapshot.markets) == 8
+        by_name = {
+            market.label.split(" ", 1)[1]: market.period_index
+            for market in snapshot.markets
+        }
+        assert by_name["First Set Winner"] == 1
+        assert by_name["Second Set Winner"] == 2
+        assert {market.line for market in snapshot.markets} == {None}
+        assert {market.selections[0].label for market in snapshot.markets} == {"1", "2"}
+
+    asyncio.run(scenario())
+
+
+def test_phase17_6_wrong_catalog_period_is_not_promoted_to_second_set() -> None:
+    async def scenario() -> None:
+        transport = FixtureHttpTransport(
+            fixture_overrides={
+                "/tournaments": "tournaments_tennis_phase16_5.json",
+                "/fixtures": "fixtures_tournament_77_phase16_5.json",
+                "/markets": "markets_phase17_6_bad_second_set_period.json",
+                "/odds": "odds_fixture_phase17_6_tennis_sets.json",
+            }
+        )
+        provider = _provider(transport)
+        await provider.discover_competitions(Sport.TENNIS)
+        await provider.discover_events("77")
+
+        snapshot = await provider.fetch_odds("id1000001761301777")
+
+        assert snapshot is not None
+        assert snapshot.markets == ()
+
+    asyncio.run(scenario())
