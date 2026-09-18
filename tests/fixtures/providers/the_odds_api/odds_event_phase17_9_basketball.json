@@ -1,0 +1,58 @@
+{
+  "id": "nba-celtics-knicks-20260918",
+  "sport_key": "basketball_nba",
+  "sport_title": "NBA",
+  "commence_time": "2026-09-18T19:00:00Z",
+  "home_team": "Boston Celtics",
+  "away_team": "New York Knicks",
+  "bookmakers": [
+    {
+      "key": "pinnacle",
+      "title": "Pinnacle",
+      "markets": [
+        {
+          "key": "totals",
+          "sid": "phase17-9-pinnacle-total-215-5",
+          "last_update": "2026-09-18T12:58:00Z",
+          "outcomes": [
+            {"name": "Over", "price": 1.95, "point": 215.5, "sid": "p-over-215-5"},
+            {"name": "Under", "price": 1.95, "point": 215.5, "sid": "p-under-215-5"}
+          ]
+        },
+        {
+          "key": "spreads",
+          "sid": "phase17-9-pinnacle-spread-minus-3-5",
+          "last_update": "2026-09-18T12:58:30Z",
+          "outcomes": [
+            {"name": "Boston Celtics", "price": 1.94, "point": -3.5, "sid": "p-bos-minus-3-5"},
+            {"name": "New York Knicks", "price": 1.94, "point": 3.5, "sid": "p-nyk-plus-3-5"}
+          ]
+        }
+      ]
+    },
+    {
+      "key": "bet365",
+      "title": "Bet365",
+      "markets": [
+        {
+          "key": "totals",
+          "sid": "phase17-9-bet365-total-215-5",
+          "last_update": "2026-09-18T12:59:00Z",
+          "outcomes": [
+            {"name": "Over", "price": 2.10, "point": 215.5, "sid": "b365-over-215-5"},
+            {"name": "Under", "price": 1.82, "point": 215.5, "sid": "b365-under-215-5"}
+          ]
+        },
+        {
+          "key": "spreads",
+          "sid": "phase17-9-bet365-spread-minus-3-5",
+          "last_update": "2026-09-18T12:59:10Z",
+          "outcomes": [
+            {"name": "Boston Celtics", "price": 2.10, "point": -3.5, "sid": "b365-bos-minus-3-5"},
+            {"name": "New York Knicks", "price": 1.84, "point": 3.5, "sid": "b365-nyk-plus-3-5"}
+          ]
+        }
+      ]
+    }
+  ]
+}
