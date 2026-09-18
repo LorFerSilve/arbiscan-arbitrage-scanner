@@ -276,6 +276,36 @@ machine-readable set/game identity and relevant settlement semantics.
 
 See [tennis game-market identity](../markets/tennis-game-identity.md) and ADR-0019.
 
+## Phase 17.8 tennis set-winner cross-transport normalization
+
+The Odds API's exact documented tennis keys `h2h_s1` and `h2h_s2` now enter the
+same canonical Set 1 / Set 2 family already used by OddsPapi.
+
+At the adapter boundary:
+
+- `h2h_s1` emits structured `period_index=1`;
+- `h2h_s2` emits structured `period_index=2`;
+- the source event must be tennis;
+- exactly the event's two participant labels are required;
+- `point` semantics are rejected.
+
+Strict normalization then reuses the Phase 17.1 parameter invariant:
+
+```text
+source.period_index == canonical.period_index
+```
+
+A The Odds API Set 1 source market explicitly mapped to canonical Set 2 fails with
+`MARKET_PARAMETER_MISMATCH` before quote creation.
+
+After normalization, ADR-0012 consolidates observations by price origin rather than
+transport. Phase 17.8 proves four equal-time/equal-price Pinnacle overlaps across
+The Odds API and OddsPapi collapse to one executable quote per set/selection without
+losing transport provenance.
+
+See [tennis indexed set winner](../markets/tennis-set-winner.md), ADR-0012, and
+ADR-0018.
+
 ## Strict quote bridge integration
 
 `normalize_source_snapshot()` still requires explicit canonical ID hooks for event, market, and selection identity. Phase 7 changes its price behavior: all currently supported `SourceOddsFormat` values are passed through `normalize_odds()` before an `OddsQuote` is created.
