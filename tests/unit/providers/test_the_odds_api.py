@@ -200,3 +200,23 @@ def test_inconsistent_totals_points_fail_closed_at_adapter_boundary() -> None:
         assert "must share one point" in str(error)
     else:
         raise AssertionError("inconsistent totals points must fail closed")
+
+
+def test_totals_require_exact_over_under_outcome_pair() -> None:
+    transport = FixtureHttpTransport(
+        fixture_overrides={"odds": "odds_event_phase17_2_bad_total_outcomes.json"}
+    )
+    provider = TheOddsApiProvider(
+        config=TheOddsApiConfig(api_key=FIXTURE_KEY, markets=("totals",)),
+        transport=transport,
+        clock=lambda: NOW,
+    )
+
+    event = asyncio.run(provider.discover_events("soccer_epl"))[0]
+    try:
+        asyncio.run(provider.fetch_odds(event.external_id))
+    except ProviderError as error:
+        assert error.kind is ProviderErrorKind.MALFORMED_RESPONSE
+        assert "exactly one Over and one Under" in str(error)
+    else:
+        raise AssertionError("invalid totals outcomes must fail closed")
