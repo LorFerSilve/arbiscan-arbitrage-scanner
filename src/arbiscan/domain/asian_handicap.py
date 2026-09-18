@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from decimal import ROUND_CEILING, ROUND_FLOOR, Decimal
+from decimal import ROUND_CEILING, ROUND_FLOOR, ROUND_HALF_EVEN, Context, Decimal, localcontext
 from enum import StrEnum
 
 from arbiscan.domain.errors import DomainValidationError
@@ -13,6 +13,7 @@ _HALF = Decimal("0.5")
 _ONE = Decimal("1")
 _TWO = Decimal("2")
 _FOUR = Decimal("4")
+_ASIAN_CONTEXT = Context(prec=60, rounding=ROUND_HALF_EVEN)
 
 
 class AsianHandicapLineClass(StrEnum):
@@ -112,7 +113,8 @@ def asian_handicap_line_profile(line: Decimal) -> AsianHandicapLineProfile:
     if type(line) is not Decimal or not line.is_finite():
         raise DomainValidationError("Asian handicap line must be finite Decimal")
 
-    quarter_units = line * _FOUR
+    with localcontext(_ASIAN_CONTEXT):
+        quarter_units = line * _FOUR
     if quarter_units != quarter_units.to_integral_value():
         return AsianHandicapLineProfile(
             line=line,
@@ -135,9 +137,10 @@ def asian_handicap_line_profile(line: Decimal) -> AsianHandicapLineProfile:
             components=(AsianHandicapComponent(line=line, stake_fraction=_ONE),),
         )
 
-    doubled = line * _TWO
-    lower = doubled.to_integral_value(rounding=ROUND_FLOOR) / _TWO
-    upper = doubled.to_integral_value(rounding=ROUND_CEILING) / _TWO
+    with localcontext(_ASIAN_CONTEXT):
+        doubled = line * _TWO
+        lower = doubled.to_integral_value(rounding=ROUND_FLOOR) / _TWO
+        upper = doubled.to_integral_value(rounding=ROUND_CEILING) / _TWO
     if lower == upper:
         raise DomainValidationError("quarter-line decomposition failed")
     return AsianHandicapLineProfile(
@@ -173,20 +176,21 @@ def settle_asian_handicap(
         raise DomainValidationError("unsupported Asian handicap line granularity")
 
     component_results: list[AsianHandicapSettlementResult] = []
-    gross = _ZERO
-    for component in profile.components:
-        adjusted = Decimal(goal_difference) + component.line
-        if adjusted > _ZERO:
-            component_result = AsianHandicapSettlementResult.WIN
-            component_return = decimal_odds
-        elif adjusted == _ZERO:
-            component_result = AsianHandicapSettlementResult.PUSH
-            component_return = _ONE
-        else:
-            component_result = AsianHandicapSettlementResult.LOSS
-            component_return = _ZERO
-        component_results.append(component_result)
-        gross += component.stake_fraction * component_return
+    with localcontext(_ASIAN_CONTEXT):
+        gross = _ZERO
+        for component in profile.components:
+            adjusted = Decimal(goal_difference) + component.line
+            if adjusted > _ZERO:
+                component_result = AsianHandicapSettlementResult.WIN
+                component_return = decimal_odds
+            elif adjusted == _ZERO:
+                component_result = AsianHandicapSettlementResult.PUSH
+                component_return = _ONE
+            else:
+                component_result = AsianHandicapSettlementResult.LOSS
+                component_return = _ZERO
+            component_results.append(component_result)
+            gross += component.stake_fraction * component_return
 
     states = set(component_results)
     if states == {AsianHandicapSettlementResult.WIN}:
