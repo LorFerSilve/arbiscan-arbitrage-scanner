@@ -1,0 +1,25 @@
+{
+  "id": "nba-celtics-knicks-20260918",
+  "sport_key": "basketball_nba",
+  "sport_title": "NBA",
+  "commence_time": "2026-09-18T19:00:00Z",
+  "home_team": "Boston Celtics",
+  "away_team": "New York Knicks",
+  "bookmakers": [
+    {
+      "key": "pinnacle",
+      "title": "Pinnacle",
+      "markets": [
+        {
+          "key": "totals_q1",
+          "sid": "phase17-9-q1-total",
+          "last_update": "2026-09-18T12:58:00Z",
+          "outcomes": [
+            {"name": "Over", "price": 1.90, "point": 54.5, "sid": "q1-over"},
+            {"name": "Under", "price": 1.90, "point": 54.5, "sid": "q1-under"}
+          ]
+        }
+      ]
+    }
+  ]
+}
