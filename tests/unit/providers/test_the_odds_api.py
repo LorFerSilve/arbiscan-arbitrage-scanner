@@ -174,7 +174,7 @@ def test_configured_advanced_markets_preserve_structured_point_parameters() -> N
     assert totals.period_index is None
     assert {selection.handicap for selection in totals.selections} == {None}
 
-    assert spread.line is None
+    assert spread.line == Decimal("-1.5")
     assert {selection.handicap for selection in spread.selections} == {
         Decimal("-1.5"),
         Decimal("1.5"),
@@ -220,3 +220,43 @@ def test_totals_require_exact_over_under_outcome_pair() -> None:
         assert "exactly one Over and one Under" in str(error)
     else:
         raise AssertionError("invalid totals outcomes must fail closed")
+
+
+def test_spreads_require_exact_opposite_home_away_points() -> None:
+    transport = FixtureHttpTransport(
+        fixture_overrides={"odds": "odds_event_phase17_3_bad_spread_points.json"}
+    )
+    provider = TheOddsApiProvider(
+        config=TheOddsApiConfig(api_key=FIXTURE_KEY, markets=("spreads",)),
+        transport=transport,
+        clock=lambda: NOW,
+    )
+
+    event = asyncio.run(provider.discover_events("soccer_epl"))[0]
+    try:
+        asyncio.run(provider.fetch_odds(event.external_id))
+    except ProviderError as error:
+        assert error.kind is ProviderErrorKind.MALFORMED_RESPONSE
+        assert "exact opposites" in str(error)
+    else:
+        raise AssertionError("non-opposite spread points must fail closed")
+
+
+def test_spreads_require_exact_event_participant_labels() -> None:
+    transport = FixtureHttpTransport(
+        fixture_overrides={"odds": "odds_event_phase17_3_bad_spread_participants.json"}
+    )
+    provider = TheOddsApiProvider(
+        config=TheOddsApiConfig(api_key=FIXTURE_KEY, markets=("spreads",)),
+        transport=transport,
+        clock=lambda: NOW,
+    )
+
+    event = asyncio.run(provider.discover_events("soccer_epl"))[0]
+    try:
+        asyncio.run(provider.fetch_odds(event.external_id))
+    except ProviderError as error:
+        assert error.kind is ProviderErrorKind.MALFORMED_RESPONSE
+        assert "home and away participants" in str(error)
+    else:
+        raise AssertionError("spread participant drift must fail closed")
