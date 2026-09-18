@@ -6,6 +6,7 @@ import asyncio
 from collections.abc import Mapping
 from dataclasses import dataclass, replace
 from datetime import datetime, timedelta
+from decimal import Decimal
 
 from arbiscan.domain import OddsQuote, ProviderId, Sport
 from arbiscan.ingestion import (
@@ -305,7 +306,7 @@ def test_adr0012_conflict_is_attributed_to_both_real_transports() -> None:
         ),
         replace(
             oddspapi,
-            decimal_price=the_odds.decimal_price + phase16_6.Decimal("0.10"),
+            decimal_price=the_odds.decimal_price + Decimal("0.10"),
             source_timestamp=timestamp,
             ingested_at=phase16_5.AS_OF,
         ),
