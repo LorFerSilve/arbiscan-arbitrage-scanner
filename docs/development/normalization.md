@@ -141,6 +141,24 @@ Canonical IDs therefore cannot hide a line mismatch. For example, an explicit ho
 that accidentally maps a source total 3.5 market to canonical total 2.5 still fails
 closed.
 
+## Phase 17.2 supported-market gate
+
+Exact identity alone does not imply that the generic arbitrage engine can model a
+market's settlement outcomes. After source/canonical parameters match, strict
+normalization applies the explicit market-support policy.
+
+Phase 17.2 adds football regulation `TOTAL_POINTS` support only for positive
+half-goal lines (`x.5`). Canonical totals require exactly one `OVER` and one
+`UNDER` selection.
+
+Unsupported variants produce `UNSUPPORTED_MARKET_VARIANT` before quote creation.
+This includes integer totals with possible PUSH settlement, quarter lines with split
+settlement, non-regulation totals, totals in other sports, and advanced market
+families not yet enabled by the roadmap.
+
+See [football regulation totals](../markets/football-regulation-totals.md) and
+ADR-0014.
+
 ## Strict quote bridge integration
 
 `normalize_source_snapshot()` still requires explicit canonical ID hooks for event, market, and selection identity. Phase 7 changes its price behavior: all currently supported `SourceOddsFormat` values are passed through `normalize_odds()` before an `OddsQuote` is created.
