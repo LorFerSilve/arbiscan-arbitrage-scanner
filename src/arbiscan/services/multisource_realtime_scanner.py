@@ -332,7 +332,7 @@ class RealtimeScanner(ObservableRealtimeScanner):
             health_state = (
                 ProviderHealthState.UNAVAILABLE if health is None else health.state
             )
-            ages = tuple(sorted(ages_by_provider.get(provider_id, ())))
+            ages = tuple(sorted(ages_by_provider.get(provider_id, [])))
             sources.append(
                 SourceOperationalSnapshot(
                     provider_id=provider_id,
