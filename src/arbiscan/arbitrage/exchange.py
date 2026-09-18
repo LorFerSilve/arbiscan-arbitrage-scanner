@@ -153,11 +153,20 @@ class BookmakerBackStake:
     """One ordinary fixed-odds BACK stake used in a mixed bookmaker/exchange hedge."""
 
     quote: OddsQuote
+    price_provider: Provider
     stake: Decimal
 
     def __post_init__(self) -> None:
         if not isinstance(self.quote, OddsQuote):
             raise ArbitrageMathError("bookmaker_back.quote must be OddsQuote")
+        if not isinstance(self.price_provider, Provider):
+            raise ArbitrageMathError("bookmaker_back.price_provider must be Provider")
+        if self.price_provider.kind is not ProviderKind.BOOKMAKER:
+            raise ArbitrageMathError("bookmaker back origin must have ProviderKind.BOOKMAKER")
+        if self.price_provider.id != self.quote.provider_id:
+            raise ArbitrageMathError(
+                "bookmaker back provider metadata must match quote.provider_id"
+            )
         if self.quote.status is not QuoteStatus.ACTIVE:
             raise ArbitrageMathError("bookmaker back quote must be active")
         stake = _require_decimal(self.stake, field="bookmaker_back.stake")
