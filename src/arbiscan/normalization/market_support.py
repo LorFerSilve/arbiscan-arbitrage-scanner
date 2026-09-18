@@ -140,10 +140,7 @@ def assess_market_support(
             )
         return MarketSupportDecision(
             MarketSupportStatus.SUPPORTED,
-            (
-                "tennis set winner uses an exact indexed set identity and "
-                "two participant outcomes"
-            ),
+            ("tennis set winner uses an exact indexed set identity and two participant outcomes"),
         )
 
     if market.kind is MarketKind.HANDICAP:
