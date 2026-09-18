@@ -146,6 +146,28 @@ Phase 17.8 will perform the required adapter, fixture, parameter, and cross-tran
 validation before The Odds API is marked supported for this family. Until that work
 lands, the runtime remains provider-narrowed exactly as implemented in Phase 17.6.
 
+## Phase 17.8 cross-transport completion
+
+Phase 17.8 completed the revalidation work triggered in Phase 17.7.
+
+The Odds API now supports the exact documented tennis keys:
+
+- `h2h_s1` -> canonical Set 1 winner;
+- `h2h_s2` -> canonical Set 2 winner.
+
+The adapter requires the exact event participant pair, rejects point semantics, and
+emits the set number as structured `SourceMarket.period_index`.
+
+Cross-transport regression coverage proves equivalence with OddsPapi market 123 /
+125 and applies ADR-0012 when both transports observe Pinnacle. Equal-time equivalent
+Pinnacle observations consolidate deterministically instead of becoming separate
+executable price origins.
+
+The original Phase 17.6 provider-narrowing decision is therefore historical rather
+than the current runtime state. Set 1 / Set 2 winner is now technically supported on
+both transport schemas, subject to each provider's independent operational/legal
+activation rules.
+
 ## Revisit triggers
 
 Revisit this decision when:
