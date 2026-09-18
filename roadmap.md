@@ -1168,20 +1168,29 @@ ADR-0022 owns these invariants.
 
 ### 17.12 — Exchange-backed outcomes, back/lay identity, liability, and commission
 
-The next dependency should model exchange-backed prices without treating lay odds as
-ordinary bookmaker back odds.
+Status: **Complete as an exchange settlement/mathematics foundation; no live exchange transport enabled.**
 
-Before enablement it must establish:
+Phase 17.12 establishes:
 
-- explicit BACK versus LAY side identity;
-- lay liability and return algebra;
-- exchange commission and net-profit semantics;
-- selection identity shared safely with bookmaker-backed outcomes;
-- price-origin/exchange account provenance;
-- partial matching/liquidity constraints where represented;
-- back/lay and lay/lay arbitrage test matrices;
-- fail-closed behavior when commission, liquidity, side identity, or settlement rules
-  are missing.
+- explicit `BACK` versus `LAY` side identity;
+- a dedicated exchange price model separate from ordinary bookmaker `OddsQuote`;
+- strict `ProviderKind.EXCHANGE` price-origin identity plus independent transport provenance;
+- lay liability `stake * (odds - 1)`;
+- visible matched-liquidity limits;
+- explicit commission rate and exchange account/market commission scope;
+- commission on positive net exchange-market winnings rather than per-leg winnings;
+- deterministic terminal-scenario evaluation for bookmaker BACK + exchange BACK/LAY portfolios;
+- positive-guaranteed-profit classification only after commission in every terminal scenario;
+- back/lay and opposing lay/lay regression matrices;
+- fail-closed handling when side, liquidity, commission, commission scope, active status,
+  or settlement-rule verification is missing;
+- explicit prevention of provider-name inference: current aggregator Betfair-labelled
+  prices remain ordinary bookmaker origins unless a real exchange contract supplies
+  side/liquidity/commission semantics.
+
+ADR-0023 owns these invariants.
+
+Phase 17 expansion is now semantically complete through 17.12.
 
 ## Candidate markets
 
