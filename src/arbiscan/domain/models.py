@@ -217,6 +217,7 @@ class Market:
     period: MarketPeriod = MarketPeriod.FULL_EVENT
     line: Decimal | None = None
     period_index: int | None = None
+    set_index: int | None = None
     provider_references: tuple[ProviderMarketReference, ...] = field(default_factory=tuple)
 
     def __post_init__(self) -> None:
@@ -245,15 +246,30 @@ class Market:
 
         if self.period_index is not None and type(self.period_index) is not int:
             raise DomainValidationError("market.period_index must be an integer")
-        indexed_periods = {MarketPeriod.SET, MarketPeriod.PERIOD, MarketPeriod.QUARTER}
+        indexed_periods = {
+            MarketPeriod.SET,
+            MarketPeriod.GAME,
+            MarketPeriod.PERIOD,
+            MarketPeriod.QUARTER,
+        }
         if self.period in indexed_periods:
             if self.period_index is None or self.period_index < 1:
                 raise DomainValidationError("indexed market periods require period_index >= 1")
         elif self.period_index is not None:
             raise DomainValidationError("period_index is only valid for indexed market periods")
 
+        if self.set_index is not None and type(self.set_index) is not int:
+            raise DomainValidationError("market.set_index must be an integer")
+        if self.period is MarketPeriod.GAME:
+            if self.set_index is None or self.set_index < 1:
+                raise DomainValidationError("game markets require set_index >= 1")
+        elif self.set_index is not None:
+            raise DomainValidationError("set_index is only valid for game market periods")
+
         if self.kind is MarketKind.SET_WINNER and self.period is not MarketPeriod.SET:
             raise DomainValidationError("set-winner markets must use MarketPeriod.SET")
+        if self.kind is MarketKind.GAME_WINNER and self.period is not MarketPeriod.GAME:
+            raise DomainValidationError("game-winner markets must use MarketPeriod.GAME")
 
         provider_ids = [reference.provider_id for reference in references]
         if len(set(provider_ids)) != len(provider_ids):
