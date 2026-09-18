@@ -71,9 +71,7 @@ class TransportSourceEnablementPolicy:
         for adapter in adapters:
             provider_id = adapter.provider.id
             if provider_id in by_provider:
-                raise ValueError(
-                    f"duplicate configured transport provider: {provider_id.value}"
-                )
+                raise ValueError(f"duplicate configured transport provider: {provider_id.value}")
             by_provider[provider_id] = adapter
 
         unknown_enabled = self.enabled_provider_ids - set(by_provider)
