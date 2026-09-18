@@ -4,11 +4,11 @@ ArbiScan is a multi-bookmaker sports-odds aggregation and arbitrage-detection en
 
 ## Current status
 
-Phases 0 through 16 and **Phases 17.1 through 17.9** of
+Phases 0 through 16 and **Phases 17.1 through 17.10** of
 [`roadmap.md`](roadmap.md) are technically implemented on the active Phase 17 stack.
 
-The next implementation dependency is **Phase 17.10 — motorsport/F1 winner, podium,
-and head-to-head semantics**.
+The next implementation dependency is **Phase 17.11 — broader outright
+tournament/championship markets**.
 
 The implemented core includes:
 
@@ -25,7 +25,9 @@ The implemented core includes:
 - system/provider observability;
 - read-only dashboard projection and alert deduplication;
 - advanced football totals/handicaps/BTTS/DNB, indexed tennis set winners, and
-  full-event basketball half-point spreads/totals.
+  full-event basketball half-point spreads/totals;
+- canonical motorsport race/qualifying/session identity with race-winner, podium, and
+  H2H completeness gates, while runtime F1 evaluation remains intentionally disabled.
 
 The project remains development software. OddsPapi is technically integrated but
 remains blocked from production activation pending the documented provider-rights
@@ -39,10 +41,13 @@ Enabled advanced semantics remain intentionally narrow:
    and settlement-aware Draw No Bet;
 2. tennis pre-match two-way match winner plus documented Set 1 / Set 2 winner;
 3. basketball full-event half-point totals and spreads, with regulation/sub-period,
-   integer/quarter-line, alternate, and live variants fail-closed.
+   integer/quarter-line, alternate, and live variants fail-closed;
+4. motorsport/F1 canonical winner/podium/H2H identity is modeled, but all such
+   markets remain runtime-disabled until provider and DNS/DNF/disqualification/
+   dead-heat settlement equivalence is proven.
 
-Motorsport/F1, broader outrights, exchange-backed outcomes, and richer settlement
-algebra remain later roadmap work.
+Broader outrights, exchange-backed outcomes, and richer settlement algebra remain
+later roadmap work.
 
 ## Development
 
