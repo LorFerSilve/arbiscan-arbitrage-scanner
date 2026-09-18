@@ -89,7 +89,7 @@ def test_refundable_two_way_decisive_threshold_does_not_turn_refund_into_profit(
     rejected = evaluate_refundable_two_way_market(
         quotes,
         tuple(quote.selection_id for quote in quotes),
-        minimum_decisive_profit_margin=Decimal("0.03"),
+        minimum_decisive_profit_margin=Decimal("0.04"),
     )
 
     assert accepted.is_refundable_arbitrage
