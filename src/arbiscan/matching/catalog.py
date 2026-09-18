@@ -199,9 +199,9 @@ class CanonicalRegistry:
                     raise ValueError(
                         "race-winner markets require one participant selection per event participant"
                     )
-                if {
-                    selection.participant_id for selection in market_selections
-                } != {participant.id for participant in event.participants}:
+                if {selection.participant_id for selection in market_selections} != {
+                    participant.id for participant in event.participants
+                }:
                     raise ValueError(
                         "race-winner selections must cover exactly all event participants"
                     )
@@ -240,15 +240,10 @@ class CanonicalRegistry:
                 selection for selection in selections if selection.market_id == market.id
             )
             if len(market_selections) != 2 or any(
-                selection.kind is not SelectionKind.PARTICIPANT
-                for selection in market_selections
+                selection.kind is not SelectionKind.PARTICIPANT for selection in market_selections
             ):
-                raise ValueError(
-                    "head-to-head markets require exactly two participant selections"
-                )
-            selected_participants = {
-                selection.participant_id for selection in market_selections
-            }
+                raise ValueError("head-to-head markets require exactly two participant selections")
+            selected_participants = {selection.participant_id for selection in market_selections}
             if None in selected_participants or len(selected_participants) != 2:
                 raise ValueError(
                     "head-to-head selections require two distinct participant identities"
