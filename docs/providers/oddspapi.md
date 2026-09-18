@@ -4,11 +4,15 @@
 
 Selected in Phase 16.1 as the first second-source development target.
 
-Phase 16.3 now provides a strict REST adapter behind the shared `ProviderAdapter`
-boundary. The adapter is intentionally **development-only**. Production enablement
-remains blocked pending explicit confirmation of caching, raw/normalized retention,
-display, and public-fixture rights, and pending completion of the remaining Phase 16
-correctness gates.
+Phases 16.3 through 16.8 now provide and validate a strict REST adapter behind the
+shared `ProviderAdapter` boundary, cross-source normalization/matching, overlap-safe
+coexistence, per-source observability, and an explicit staged transport enablement
+gate.
+
+The adapter remains **production-blocked**. The Phase 16 engineering gates are
+complete, but production activation still requires explicit confirmation of caching,
+raw/normalized retention, display, public-fixture, and applicable geographic/data-use
+rights. Technical completion must not be interpreted as provider/legal approval.
 
 Selection rationale and candidate comparison:
 [`phase-16.1-provider-selection.md`](phase-16.1-provider-selection.md).
@@ -165,17 +169,20 @@ comparison output.
 Overlap with The Odds API is expected. This is a deliberate correctness test for
 Phase 16 rather than something to avoid.
 
-Before mixed-source activation:
+For mixed-source activation, Phases 16.2 through 16.8 now enforce and test:
 
-- transport-source provenance must be first-class;
-- source observation IDs must include transport identity;
-- the same bookmaker/selection from two transports must consolidate to one eligible
+- first-class transport-source provenance;
+- collision-safe source observation IDs containing transport identity;
+- consolidation of the same bookmaker/selection across transports into one eligible
   executable price origin;
-- equal-time material conflicts must fail closed;
-- opportunity evidence must record the chosen transport observation.
+- fail-closed equal-time material conflicts;
+- opportunity evidence recording the selected transport observation;
+- source-specific normalization/matching/conflict telemetry;
+- explicit adapter enablement before a transport can be polled;
+- deterministic rollback to a primary-only source set.
 
-Phase 16.3 preserves these invariants at the adapter boundary, but actual cross-source
-normalization and matching verification remains Phase 16.5.
+These guarantees satisfy the Phase 16 technical coexistence gate. They do not resolve
+the independent production-rights questions below.
 
 ## Fixture policy
 
@@ -206,3 +213,32 @@ explicit provider confirmation or applicable contractual terms:
 
 Failure to resolve these items means the provider remains development-only and cannot
 be marked production-ready.
+
+
+## Phase 16.8 staged-enablement policy
+
+`TransportSourceEnablementPolicy` is the application-boundary gate for transport
+participation. Disabled adapters are filtered before the realtime ingestion runtime,
+so they cannot issue requests, contribute quotes, or affect provider health state.
+
+The supported rollout pattern is:
+
+1. keep The Odds API as the required primary transport;
+2. run OddsPapi only in deterministic fixture/test or otherwise explicitly approved
+   environments while production-rights questions remain open;
+3. after provider/legal approval, enable the second transport explicitly with the
+   staged multi-source policy;
+4. if operational or semantic evidence regresses, restore the primary-only policy.
+   Rollback does not require changes to arbitrage mathematics or canonical models.
+
+Phase 16.8 regression tests prove both the dual-source state and the primary-only
+rollback state using the two real adapter schemas.
+
+## Production activation decision
+
+**Current decision: not approved for production activation.**
+
+The unresolved items in the Production blockers section remain external prerequisites.
+Until they are resolved and recorded, production-like composition should keep OddsPapi
+out of the enabled transport set. This is intentionally stricter than technical
+integration readiness.
