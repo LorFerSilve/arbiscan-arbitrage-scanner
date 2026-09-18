@@ -94,6 +94,22 @@ def assess_market_support(*, sport: Sport, market: Market) -> MarketSupportDecis
             "football regulation total uses a push-free half-goal line",
         )
 
+    if market.kind is MarketKind.BOTH_TEAMS_TO_SCORE:
+        if sport is not Sport.FOOTBALL:
+            return MarketSupportDecision(
+                MarketSupportStatus.UNSUPPORTED,
+                "Phase 17.4 enables both-teams-to-score only for football",
+            )
+        if market.period is not MarketPeriod.REGULATION:
+            return MarketSupportDecision(
+                MarketSupportStatus.UNSUPPORTED,
+                "Phase 17.4 football BTTS requires regulation-time settlement",
+            )
+        return MarketSupportDecision(
+            MarketSupportStatus.SUPPORTED,
+            "football regulation both-teams-to-score uses an exact YES/NO outcome pair",
+        )
+
     if market.kind is MarketKind.HANDICAP:
         if sport is not Sport.FOOTBALL:
             return MarketSupportDecision(
