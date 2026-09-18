@@ -328,6 +328,61 @@ def evaluate_exchange_portfolio(
         if bookmaker_leg.quote.selection_id not in expected_set:
             raise ArbitrageMathError("bookmaker leg selection is outside the expected market")
 
+    liquidity_usage: dict[
+        tuple[
+            ProviderId,
+            ProviderId,
+            EventId,
+            MarketId,
+            SelectionId,
+            ExchangeSide | None,
+            Decimal,
+            str | None,
+        ],
+        Decimal,
+    ] = {}
+    liquidity_limits: dict[
+        tuple[
+            ProviderId,
+            ProviderId,
+            EventId,
+            MarketId,
+            SelectionId,
+            ExchangeSide | None,
+            Decimal,
+            str | None,
+        ],
+        Decimal,
+    ] = {}
+    for exchange_leg in exchange_values:
+        price = exchange_leg.price
+        available = price.available_stake
+        if available is None:
+            raise ArbitrageMathError("eligible exchange stake lost liquidity semantics")
+        liquidity_key = (
+            price.exchange_provider.id,
+            price.transport_provider_id,
+            price.event_id,
+            price.market_id,
+            price.selection_id,
+            price.side,
+            price.decimal_price,
+            price.commission_scope,
+        )
+        liquidity_usage[liquidity_key] = (
+            liquidity_usage.get(liquidity_key, _ZERO) + exchange_leg.stake
+        )
+        previous_limit = liquidity_limits.get(liquidity_key)
+        liquidity_limits[liquidity_key] = (
+            available if previous_limit is None else min(previous_limit, available)
+        )
+
+    for liquidity_key, used in liquidity_usage.items():
+        if used > liquidity_limits[liquidity_key]:
+            raise ArbitrageMathError(
+                "exchange portfolio exceeds shared available liquidity at one price level"
+            )
+
     commission_rates: dict[tuple[ProviderId, str], Decimal] = {}
     for exchange_leg in exchange_values:
         price = exchange_leg.price
