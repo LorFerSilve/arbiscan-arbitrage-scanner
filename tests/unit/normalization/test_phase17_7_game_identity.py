@@ -27,7 +27,11 @@ from arbiscan.domain import (
     Sport,
 )
 from arbiscan.matching import CanonicalRegistry, StaticCanonicalIdHooks
-from arbiscan.normalization import NormalizationIssueCode, normalize_source_snapshot
+from arbiscan.normalization import (
+    NormalizationIssueCode,
+    NormalizationResult,
+    normalize_source_snapshot,
+)
 from arbiscan.providers import (
     OddsSnapshot,
     SourceEvent,
@@ -168,7 +172,7 @@ def _normalize(
     snapshot: OddsSnapshot,
     registry: CanonicalRegistry,
     hooks: StaticCanonicalIdHooks,
-):
+) -> NormalizationResult:
     return normalize_source_snapshot(
         provider=PROVIDER,
         hooks=hooks,
