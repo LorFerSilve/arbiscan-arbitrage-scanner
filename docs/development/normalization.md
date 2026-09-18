@@ -306,6 +306,28 @@ losing transport provenance.
 See [tennis indexed set winner](../markets/tennis-set-winner.md), ADR-0012, and
 ADR-0018.
 
+## Phase 17.10 motorsport identity and support gate
+
+Motorsport introduces three different canonical market shapes rather than one generic
+winner label:
+
+- `OUTRIGHT_WINNER` for race/qualifying/session winner;
+- `PODIUM_FINISH` for one explicit subject participant with YES/NO outcomes;
+- `HEAD_TO_HEAD` for exactly two distinct event participants.
+
+Race, qualifying, session, and tournament/championship periods are distinct.
+`Market.subject_participant_id` is valid only for podium-finish identity.
+
+The canonical registry enforces full-grid coverage for race winner, exact YES/NO for
+podium, and exact two-participant completeness for H2H.
+
+None of these motorsport families currently passes `assess_market_support()`.
+Provider mappings remain closed until both real transports demonstrate equivalent
+machine-readable identity and DNS/DNF/disqualification/dead-heat/void settlement
+behavior is explicitly representable.
+
+See [motorsport/F1 semantics](../markets/motorsport-f1-semantics.md) and ADR-0021.
+
 ## Strict quote bridge integration
 
 `normalize_source_snapshot()` still requires explicit canonical ID hooks for event, market, and selection identity. Phase 7 changes its price behavior: all currently supported `SourceOddsFormat` values are passed through `normalize_odds()` before an `OddsQuote` is created.
