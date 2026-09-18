@@ -31,6 +31,7 @@ from arbiscan.services.observable_realtime_scanner import (
     RealtimeScanner as ObservableRealtimeScanner,
 )
 from arbiscan.services.realtime_scanner import RealtimeScanCycle
+from arbiscan.services.source_enablement import TransportSourceEnablementPolicy
 
 Clock = Callable[[], datetime]
 
@@ -103,15 +104,22 @@ class RealtimeScanner(ObservableRealtimeScanner):
         runtime: RealtimeIngestionRuntime | None = None,
         store: LiveQuoteStore | None = None,
         book_provider_policy: ProviderBookPolicy | None = None,
+        source_enablement_policy: TransportSourceEnablementPolicy | None = None,
         minimum_profit_margin: Decimal = Decimal("0"),
         clock: Clock = _utc_now,
     ) -> None:
+        configured_adapters = tuple(adapters)
+        enabled_adapters = (
+            configured_adapters
+            if source_enablement_policy is None
+            else source_enablement_policy.select(configured_adapters)
+        )
         resolved_policy = policy
         if resolved_policy is None:
             resolved_policy = runtime.policy if runtime is not None else RealtimeIngestionPolicy()
         resolved_store = store if store is not None else MultiSourceLiveQuoteStore(resolved_policy)
         super().__init__(
-            adapters=adapters,
+            adapters=enabled_adapters,
             registry=registry,
             sport=sport,
             policy=resolved_policy,
@@ -121,6 +129,13 @@ class RealtimeScanner(ObservableRealtimeScanner):
             minimum_profit_margin=minimum_profit_margin,
             clock=clock,
         )
+        self._configured_transport_provider_ids = tuple(
+            sorted(
+                (adapter.provider.id for adapter in configured_adapters),
+                key=lambda value: value.value,
+            )
+        )
+        self._source_enablement_policy = source_enablement_policy
         self._phase16_store = (
             resolved_store if isinstance(resolved_store, MultiSourceLiveQuoteStore) else None
         )
@@ -133,6 +148,21 @@ class RealtimeScanner(ObservableRealtimeScanner):
         self._phase16_overlap_diagnostics_by_provider: dict[ProviderId, int] = {}
         self._phase16_material_conflicts_by_provider: dict[ProviderId, int] = {}
         self._phase16_operational_snapshot: MultiSourceOperationalSnapshot | None = None
+
+    @property
+    def configured_transport_provider_ids(self) -> tuple[ProviderId, ...]:
+        """Return every transport supplied to the scanner before enablement filtering."""
+        return self._configured_transport_provider_ids
+
+    @property
+    def enabled_transport_provider_ids(self) -> tuple[ProviderId, ...]:
+        """Return the transport sources that are actually eligible to be polled."""
+        return tuple(adapter.provider.id for adapter in self.adapters)
+
+    @property
+    def source_enablement_policy(self) -> TransportSourceEnablementPolicy | None:
+        """Return the explicit staged-enable policy, when one was supplied."""
+        return self._source_enablement_policy
 
     @property
     def multisource_store(self) -> MultiSourceLiveQuoteStore | None:
