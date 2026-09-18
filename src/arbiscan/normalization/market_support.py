@@ -190,6 +190,22 @@ def assess_market_support(
             ),
         )
 
+    if sport is Sport.MOTORSPORT and market.kind in {
+        MarketKind.OUTRIGHT_WINNER,
+        MarketKind.PODIUM_FINISH,
+        MarketKind.HEAD_TO_HEAD,
+    }:
+        return MarketSupportDecision(
+            MarketSupportStatus.UNSUPPORTED,
+            (
+                "Phase 17.10 defines motorsport race/qualifying/session identity but "
+                "keeps winner, podium, and head-to-head runtime-disabled until both "
+                "real transports expose equivalent machine-readable market identity "
+                "and bookmaker DNS/DNF/disqualification/dead-heat settlement rules "
+                "are represented explicitly"
+            ),
+        )
+
     if market.kind is MarketKind.HANDICAP:
         if sport is Sport.FOOTBALL:
             if market.period is not MarketPeriod.REGULATION:
