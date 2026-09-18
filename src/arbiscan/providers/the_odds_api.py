@@ -608,11 +608,24 @@ class TheOddsApiProvider(ProviderAdapter):
 
         records = await self._load_sports(operation, emit_success=False)
         competition = next((value for value in records if value.key == competition_id), None)
-        if competition is None or _GROUP_TO_SPORT.get(competition.group) is None:
+        canonical_sport = (
+            None if competition is None else _GROUP_TO_SPORT.get(competition.group)
+        )
+        if competition is None or canonical_sport is None:
             raise self._error(
                 operation,
                 ProviderErrorKind.UNSUPPORTED,
                 "competition is not available as a supported canonical sport",
+            )
+        if canonical_sport is Sport.MOTORSPORT:
+            raise self._error(
+                operation,
+                ProviderErrorKind.UNSUPPORTED,
+                (
+                    "Phase 17.10 does not promote The Odds API motorsport outrights "
+                    "into binary event identity; documented outright schemas may omit "
+                    "home/away participants and require a dedicated multi-participant parser"
+                ),
             )
 
         query = {"dateFormat": "iso"}
