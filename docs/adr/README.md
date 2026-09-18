@@ -96,6 +96,7 @@ What evidence or change should cause this decision to be reconsidered?
 
 - [`0006-aggregator-price-origin-boundary.md`](0006-aggregator-price-origin-boundary.md) — separates transport/data-vendor identity from bookmaker/exchange price-origin identity.
 - [`0012-multi-source-price-observation-provenance.md`](0012-multi-source-price-observation-provenance.md) — defines how Phase 16 must preserve transport provenance and resolve overlapping observations without double-counting a bookmaker.
+- [`0013-structured-advanced-market-parameters.md`](0013-structured-advanced-market-parameters.md) — requires exact structured lines, period indexes, and selection handicaps before Phase 17 market families can enter canonical arbitrage detection.
 
 ## Initial ADR topics
 
