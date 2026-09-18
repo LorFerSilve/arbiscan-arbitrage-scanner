@@ -7,7 +7,10 @@ from decimal import Decimal
 from arbiscan.domain import (
     SCHEMA_VERSION,
     EventId,
+    Market,
     MarketId,
+    MarketKind,
+    MarketPeriod,
     OddsQuote,
     ProviderId,
     QuoteId,
@@ -37,10 +40,10 @@ def _quote() -> OddsQuote:
     )
 
 
-def test_schema_version_is_bumped_for_explicit_transport_provenance() -> None:
-    assert SCHEMA_VERSION == 2
+def test_schema_version_tracks_current_phase17_market_identity() -> None:
+    assert SCHEMA_VERSION == 3
     payload = json.loads(dumps(_quote()))
-    assert payload["schema_version"] == 2
+    assert payload["schema_version"] == 3
     assert payload["payload"]["transport_provider_id"]["value"] == "transport:a"
 
 
@@ -55,10 +58,29 @@ def test_schema_v1_quote_migrates_transport_to_legacy_price_provider() -> None:
     assert restored.transport_provider_id == ProviderId("bookmaker:a")
 
 
-def test_schema_v2_round_trip_preserves_distinct_transport_and_price_provider() -> None:
+def test_current_schema_round_trip_preserves_distinct_transport_and_price_provider() -> None:
     quote = _quote()
     restored = loads(dumps(quote), OddsQuote)
 
     assert restored == quote
     assert restored.provider_id == ProviderId("bookmaker:a")
     assert restored.transport_provider_id == ProviderId("transport:a")
+
+
+def test_schema_v2_market_migrates_new_optional_phase17_identity_fields() -> None:
+    market = Market(
+        id=MarketId("market:legacy-v2"),
+        event_id=EventId("event:legacy-v2"),
+        kind=MarketKind.MATCH_WINNER_2_WAY,
+        period=MarketPeriod.FULL_EVENT,
+    )
+    payload = json.loads(dumps(market))
+    payload["schema_version"] = 2
+    del payload["payload"]["set_index"]
+    del payload["payload"]["subject_participant_id"]
+
+    restored = loads(json.dumps(payload), Market)
+
+    assert restored == market
+    assert restored.set_index is None
+    assert restored.subject_participant_id is None
