@@ -8,8 +8,8 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
-from arbiscan.domain.errors import DomainValidationError
 from arbiscan.domain import ProviderId
+from arbiscan.domain.errors import DomainValidationError
 from arbiscan.domain.models import OddsQuote, Opportunity, StakePlan
 from arbiscan.domain.serialization import dumps, loads
 
