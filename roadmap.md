@@ -944,8 +944,8 @@ Expand beyond simple winner markets after the canonical market model has proven 
 
 ## Status
 
-In progress. **Phases 17.1 through 17.9 are technically complete.** The next
-dependency is **Phase 17.10 — motorsport/F1 winner, podium, and head-to-head semantics**.
+In progress. **Phases 17.1 through 17.10 are technically complete.** The next
+dependency is **Phase 17.11 — broader outright tournament/championship markets**.
 
 ### 17.1 — Structured advanced-market parameter foundation
 
@@ -1123,22 +1123,44 @@ ADR-0020 owns the full-event/overtime and settlement-scope invariant.
 
 ### 17.10 — Motorsport/F1 winner, podium, and head-to-head semantics
 
-The next dependency is motorsport/F1 market identity and settlement scope.
+Status: **Complete as a semantic/provider-feasibility gate; no runtime market enabled.**
+
+Phase 17.10 establishes:
+
+- distinct race, qualifying, session, and tournament/championship scope;
+- driver versus constructor participant identity;
+- race-winner full-grid completeness;
+- subject-specific podium YES/NO identity;
+- exact two-participant head-to-head identity;
+- fail-closed DNS/DNF/disqualification/dead-heat/void settlement boundaries;
+- The Odds API rejection of motorsport outright event shapes before binary home/away
+  parsing;
+- OddsPapi refusal to guess a motorsport sport identifier or market IDs that are not
+  published as stable public constants;
+- explicit runtime rejection of motorsport winner, podium, and head-to-head markets
+  until equivalent machine-readable identity and settlement semantics are demonstrated
+  across enabled real transports.
+
+ADR-0021 owns these invariants.
+
+### 17.11 — Broader outright tournament/championship markets
+
+The next dependency generalizes multi-participant outright identity beyond motorsport.
 
 Before enablement it must establish:
 
-- driver versus constructor participant identity;
-- race, qualifying, session, and tournament scope;
-- exact winner, podium, and head-to-head outcome completeness;
-- provider-specific mappings across both real transports where equivalent semantics
-  are demonstrated;
-- DNS/DNF/disqualification and dead-heat settlement behavior;
-- whether any market subset can safely reuse ordinary reciprocal-odds math;
-- fail-closed treatment of live, session-relative, and ambiguous outrights until
-  separately specified.
+- exact candidate-set completeness for tournament/championship winner markets;
+- participant-type boundaries across teams, individuals, drivers, constructors, or
+  other competitors;
+- handling of "field", "other", ties, withdrawals, voids, and dead heats;
+- provider-specific outright event schemas and stable market identity;
+- cross-transport equivalence where the same underlying outright is available;
+- whether a strict mutually-exclusive/exhaustive subset can reuse generic
+  reciprocal-odds/stake evaluation;
+- fail-closed treatment of incomplete or dynamically changing candidate sets.
 
-Later Phase 17 dependencies should address broader outright tournament markets and
-exchange-backed outcomes only after their own semantic specifications exist.
+Later Phase 17 work should address exchange-backed outcomes only after a dedicated
+back/lay and commission-aware model exists.
 
 ## Candidate markets
 
