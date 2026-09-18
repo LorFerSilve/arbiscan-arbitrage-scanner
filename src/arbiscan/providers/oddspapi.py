@@ -115,7 +115,7 @@ class _MarketRecord:
 
 
 _SLUG_TO_SPORT: Mapping[str, Sport] = MappingProxyType(
-    {"soccer": Sport.FOOTBALL, "tennis": Sport.TENNIS}
+    {"soccer": Sport.FOOTBALL, "basketball": Sport.BASKETBALL, "tennis": Sport.TENNIS}
 )
 _KNOWN_FIXTURE_STATUS_IDS = frozenset({0, 1, 2, 3})
 
@@ -293,6 +293,8 @@ def _market_records(payload: object) -> Mapping[str, _MarketRecord]:
         "winner",
         "over under full time",
         "asian handicap",
+        "over under (incl. overtime)",
+        "handicap (incl. overtime)",
         "both teams to score",
         "first set winner",
         "second set winner",
@@ -405,6 +407,23 @@ def _is_supported_market(record: _MarketRecord, sport: Sport) -> bool:
             and {value.casefold() for value in record.outcomes.values()} == {"1", "2"}
         )
         return match_winner or set_winner
+    if sport is Sport.BASKETBALL:
+        full_event_total = (
+            name == "over under (incl. overtime)"
+            and record.period == "fulltime"
+            and record.market_type == "totals"
+            and record.handicap > Decimal(0)
+            and len(record.outcomes) == 2
+            and {value.casefold() for value in record.outcomes.values()} == {"over", "under"}
+        )
+        full_event_handicap = (
+            name == "handicap (incl. overtime)"
+            and record.period == "fulltime"
+            and record.market_type == "handicap"
+            and len(record.outcomes) == 2
+            and {value.casefold() for value in record.outcomes.values()} == {"1", "2"}
+        )
+        return full_event_total or full_event_handicap
     return False
 
 
@@ -562,17 +581,31 @@ def _source_markets(
                                 handicap=(
                                     record.handicap
                                     if (
-                                        sport is Sport.FOOTBALL
-                                        and record.name.casefold() == "asian handicap"
-                                        and record.outcomes[outcome_id].casefold() == "1"
+                                        (
+                                            sport is Sport.FOOTBALL
+                                            and record.name.casefold() == "asian handicap"
+                                        )
+                                        or (
+                                            sport is Sport.BASKETBALL
+                                            and record.name.casefold()
+                                            == "handicap (incl. overtime)"
+                                        )
                                     )
+                                    and record.outcomes[outcome_id].casefold() == "1"
                                     else (
                                         -record.handicap
                                         if (
-                                            sport is Sport.FOOTBALL
-                                            and record.name.casefold() == "asian handicap"
-                                            and record.outcomes[outcome_id].casefold() == "2"
+                                            (
+                                                sport is Sport.FOOTBALL
+                                                and record.name.casefold() == "asian handicap"
+                                            )
+                                            or (
+                                                sport is Sport.BASKETBALL
+                                                and record.name.casefold()
+                                                == "handicap (incl. overtime)"
+                                            )
                                         )
+                                        and record.outcomes[outcome_id].casefold() == "2"
                                         else None
                                     )
                                 ),
@@ -585,9 +618,19 @@ def _source_markets(
                         line=(
                             record.handicap
                             if (
-                                sport is Sport.FOOTBALL
-                                and record.name.casefold()
-                                in {"over under full time", "asian handicap"}
+                                (
+                                    sport is Sport.FOOTBALL
+                                    and record.name.casefold()
+                                    in {"over under full time", "asian handicap"}
+                                )
+                                or (
+                                    sport is Sport.BASKETBALL
+                                    and record.name.casefold()
+                                    in {
+                                        "over under (incl. overtime)",
+                                        "handicap (incl. overtime)",
+                                    }
+                                )
                             )
                             else None
                         ),
