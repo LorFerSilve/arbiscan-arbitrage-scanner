@@ -138,6 +138,28 @@ class CanonicalRegistry:
                 )
 
         for market in markets:
+            if market.kind is not MarketKind.SET_WINNER:
+                continue
+            event = event_map[market.event_id]
+            if len(event.participants) != 2:
+                raise ValueError("set-winner markets require exactly two event participants")
+            market_selections = tuple(
+                selection for selection in selections if selection.market_id == market.id
+            )
+            if len(market_selections) != 2 or any(
+                selection.kind is not SelectionKind.PARTICIPANT
+                for selection in market_selections
+            ):
+                raise ValueError("set-winner markets require exactly two participant selections")
+            participant_ids = {participant.id for participant in event.participants}
+            if {selection.participant_id for selection in market_selections} != participant_ids:
+                raise ValueError(
+                    "set-winner selections must cover exactly the two event participants"
+                )
+            if any(selection.handicap is not None for selection in market_selections):
+                raise ValueError("set-winner selections must not carry handicaps")
+
+        for market in markets:
             if market.kind is not MarketKind.HANDICAP:
                 continue
             event = event_map[market.event_id]
