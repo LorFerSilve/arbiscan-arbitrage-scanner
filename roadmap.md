@@ -944,8 +944,8 @@ Expand beyond simple winner markets after the canonical market model has proven 
 
 ## Status
 
-In progress. **Phases 17.1 through 17.8 are technically complete.** The next
-dependency is **Phase 17.9 — basketball spreads/totals and overtime-period semantics**.
+In progress. **Phases 17.1 through 17.9 are technically complete.** The next
+dependency is **Phase 17.10 — motorsport/F1 winner, podium, and head-to-head semantics**.
 
 ### 17.1 — Structured advanced-market parameter foundation
 
@@ -1098,24 +1098,46 @@ retirement/walkover/incomplete-set caveat remains unchanged.
 
 ### 17.9 — Basketball spreads/totals and overtime-period semantics
 
-The next dependency is basketball market identity and settlement scope.
+Status: **Complete**.
+
+Phase 17.9 introduces canonical basketball sport support and enables a deliberately
+narrow, mathematically safe full-event subset:
+
+- `TOTAL_POINTS / FULL_EVENT` on positive half-point lines;
+- `HANDICAP / FULL_EVENT` on half-point lines;
+- spread identity anchored to ordered participant 1 with participant 2 carrying the
+  exact negated handicap;
+- exact Over/Under or two-participant completeness;
+- The Odds API featured `totals` / `spreads` parsing, kept separate from documented
+  quarter/half keys;
+- OddsPapi exact `Over Under (incl. overtime)` and `Handicap (incl. overtime)`
+  catalog mappings;
+- integer and quarter lines rejected from generic arbitrage/staking because PUSH or
+  split-settlement states are not represented by the two-outcome payout model;
+- quarter, half, alternate, and live market families kept fail-closed;
+- same-bookmaker cross-transport overlap consolidated under ADR-0012;
+- end-to-end generic reciprocal-odds opportunity and conservative stake-plan regression
+  on the push-free subset.
+
+ADR-0020 owns the full-event/overtime and settlement-scope invariant.
+
+### 17.10 — Motorsport/F1 winner, podium, and head-to-head semantics
+
+The next dependency is motorsport/F1 market identity and settlement scope.
 
 Before enablement it must establish:
 
-- canonical basketball sport support and participant ordering;
-- regulation-only versus overtime-inclusive market identity;
-- exact spread anchoring and mirrored participant handicap semantics;
-- total-points line identity;
-- integer/half/quarter settlement behavior and any PUSH/split-settlement cases;
+- driver versus constructor participant identity;
+- race, qualifying, session, and tournament scope;
+- exact winner, podium, and head-to-head outcome completeness;
 - provider-specific mappings across both real transports where equivalent semantics
   are demonstrated;
-- exact two-participant or Over/Under completeness;
-- cross-transport same-bookmaker consolidation under ADR-0012;
-- which subset can safely use the generic reciprocal-odds/stake engine;
-- fail-closed handling of quarters, halves, alternate lines, and live markets until
+- DNS/DNF/disqualification and dead-heat settlement behavior;
+- whether any market subset can safely reuse ordinary reciprocal-odds math;
+- fail-closed treatment of live, session-relative, and ambiguous outrights until
   separately specified.
 
-Later Phase 17 dependencies should address motorsport/F1, outright markets, and
+Later Phase 17 dependencies should address broader outright tournament markets and
 exchange-backed outcomes only after their own semantic specifications exist.
 
 ## Candidate markets
