@@ -44,20 +44,19 @@ This directory contains the reproducible engineering setup plus formal completio
 - [`phase-17.10-completion.md`](phase-17.10-completion.md) — Phase 17.10 motorsport/F1 canonical semantics and fail-closed provider/settlement feasibility gate.
 - [`phase-17.11-completion.md`](phase-17.11-completion.md) — Phase 17.11 broader outright candidate-set and settlement-safety gate.
 - [`phase-17.12-completion.md`](phase-17.12-completion.md) — Phase 17.12 exchange BACK/LAY, liability, liquidity, and commission-aware settlement foundation.
+- [`phase-18-completion.md`](phase-18-completion.md) — Phase 18 deterministic historical replay, backtesting, latency/freshness analysis, and matching-quality metrics.
 
 ## Current hand-off
 
-Phases 0 through 16 and **Phases 17.1–17.12** are the completed technical baseline.
-Phase 17 expansion is now closed at the semantic-foundation level.
+Phases 0 through **18** are the completed technical baseline.
 
-Phase 17.12 introduces a separate exchange settlement path with explicit BACK/LAY
-identity, lay liability, visible liquidity, exchange/transport provenance, commission
-scope, and net-market commission. Existing aggregator Betfair-labelled observations
-remain ordinary bookmaker price origins because neither current transport exposes the
-required exchange-order contract.
+Phase 18 can replay retained canonical quote history through the same market-book,
+arbitrage, and optional actionability primitives used by the live path. Reports expose
+fixed-corpus identity, opportunity duration, latency sensitivity, stale-data
+counterfactuals, provider comparisons, and labeled matching precision/recall while
+keeping theoretical/actionable output distinct from realized execution.
 
-No live exchange adapter or automated wagering path is enabled. The existing
-OddsPapi production/legal blocker remains unchanged.
+The existing OddsPapi production/legal blocker and scanner-only execution boundary
+remain unchanged.
 
-The next roadmap dependency is **Phase 18 — historical analysis, replay, and
-backtesting**.
+The next roadmap dependency is **Phase 19 — performance and scalability engineering**.

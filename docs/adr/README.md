@@ -107,6 +107,7 @@ What evidence or change should cause this decision to be reconsidered?
 - [`0021-motorsport-identity-and-settlement-gate.md`](0021-motorsport-identity-and-settlement-gate.md) — defines race/qualifying/session motorsport identity, winner/podium/H2H completeness, and keeps runtime support closed until provider and settlement equivalence is proven.
 - [`0022-outright-candidate-set-and-settlement-gate.md`](0022-outright-candidate-set-and-settlement-gate.md) — generalizes complete multi-participant outright identity and defines the settlement evidence required before generic N-outcome math is safe.
 - [`0023-exchange-back-lay-liability-commission.md`](0023-exchange-back-lay-liability-commission.md) — separates exchange BACK/LAY prices from bookmaker quotes and defines liability, liquidity, commission-scope, and scenario-P&L invariants.
+- [`0024-deterministic-historical-replay-boundary.md`](0024-deterministic-historical-replay-boundary.md) — requires historical analysis to replay fixed canonical evidence through production detection primitives and prohibits realized-profit claims from price snapshots alone.
 
 ## Initial ADR topics
 
