@@ -1145,22 +1145,43 @@ ADR-0021 owns these invariants.
 
 ### 17.11 — Broader outright tournament/championship markets
 
-The next dependency generalizes multi-participant outright identity beyond motorsport.
+Status: **Complete as a semantic/provider-feasibility gate; no broader outright runtime market enabled.**
+
+Phase 17.11 establishes:
+
+- exact candidate-set completeness for every canonical `OUTRIGHT_WINNER`;
+- one homogeneous participant kind per outright field;
+- exact one-selection-per-candidate coverage across race, qualifying, session, and
+  tournament/championship scopes;
+- explicit rejection of synthetic Field/Other and non-participant outcomes;
+- a provider-independent settlement-safety profile covering complete/static fields,
+  mutual exclusivity, exhaustiveness, ties, dead heats, withdrawals and voids;
+- proof that the existing arbitrary-N reciprocal-odds engine is mathematically
+  sufficient only when every safety condition is satisfied;
+- The Odds API `has_outrights` preservation and fail-closed rejection before binary
+  home/away event parsing;
+- OddsPapi refusal to promote an unverified tournament-winner catalogue family;
+- continued runtime rejection until real provider identity and settlement equivalence
+  are demonstrated.
+
+ADR-0022 owns these invariants.
+
+### 17.12 — Exchange-backed outcomes, back/lay identity, liability, and commission
+
+The next dependency should model exchange-backed prices without treating lay odds as
+ordinary bookmaker back odds.
 
 Before enablement it must establish:
 
-- exact candidate-set completeness for tournament/championship winner markets;
-- participant-type boundaries across teams, individuals, drivers, constructors, or
-  other competitors;
-- handling of "field", "other", ties, withdrawals, voids, and dead heats;
-- provider-specific outright event schemas and stable market identity;
-- cross-transport equivalence where the same underlying outright is available;
-- whether a strict mutually-exclusive/exhaustive subset can reuse generic
-  reciprocal-odds/stake evaluation;
-- fail-closed treatment of incomplete or dynamically changing candidate sets.
-
-Later Phase 17 work should address exchange-backed outcomes only after a dedicated
-back/lay and commission-aware model exists.
+- explicit BACK versus LAY side identity;
+- lay liability and return algebra;
+- exchange commission and net-profit semantics;
+- selection identity shared safely with bookmaker-backed outcomes;
+- price-origin/exchange account provenance;
+- partial matching/liquidity constraints where represented;
+- back/lay and lay/lay arbitrage test matrices;
+- fail-closed behavior when commission, liquidity, side identity, or settlement rules
+  are missing.
 
 ## Candidate markets
 
