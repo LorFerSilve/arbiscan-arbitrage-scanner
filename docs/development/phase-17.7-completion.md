@@ -120,20 +120,28 @@ The final documentation head must preserve the same quality/security gates.
 
 **Phase 17.7 is technically complete as a fail-closed semantic foundation.**
 
-The next dependency is **Phase 17.8 — basketball spreads/totals and overtime-period
-semantics**.
+The next dependency is **Phase 17.8 — tennis set-winner cross-transport completion**.
 
-Before basketball enablement, Phase 17.8 must establish:
+The Phase 17.7 provider revalidation found that The Odds API's current official
+market list now documents:
 
-- canonical `BASKETBALL` sport support;
-- regulation versus overtime-inclusive settlement identity;
-- exact spread orientation and mirrored participant lines;
-- total-points line identity;
-- integer/half/quarter settlement behavior where provider rules differ;
-- provider-specific market mappings across available transports;
-- exact two-participant / Over-Under completeness;
-- cross-provider same-line equivalence;
-- whether existing generic arbitrage/stake math is sufficient for the supported
-  settlement subset;
-- fail-closed handling of quarters, halves, alternate lines, and live markets unless
-  separately modeled.
+- `h2h_s1` — first-set moneyline;
+- `h2h_s2` — second-set moneyline.
+
+This does not change the Phase 17.6 OddsPapi-only implementation automatically.
+Before declaring The Odds API set-winner support, Phase 17.8 must:
+
+- parse only the exact documented `h2h_s1` / `h2h_s2` keys;
+- require the exact event participant pair;
+- reject unexpected point/parameter semantics;
+- emit structured `period_index=1` / `2`;
+- keep the provider default market request unchanged unless explicitly configured;
+- prove same-set canonical equivalence with OddsPapi;
+- prove Set 1 and Set 2 remain isolated;
+- exercise ADR-0012 overlap consolidation when both transports observe the same
+  bookmaker;
+- preserve the existing tennis retirement/walkover/incomplete-set caveat;
+- keep ordinary CI deterministic and credential-free.
+
+Individual tennis game winner remains runtime-disabled after Phase 17.7; Phase 17.8
+does not weaken that boundary.
