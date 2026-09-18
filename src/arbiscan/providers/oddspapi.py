@@ -1053,6 +1053,19 @@ class OddsPapiProvider(ProviderAdapter):
         try:
             records = _sport_records(payload)
             matches = tuple(record for record in records if record.sport is sport)
+            if not matches:
+                error = self._error(
+                    operation,
+                    ProviderErrorKind.UNSUPPORTED,
+                    f"OddsPapi has no verified record for canonical sport {sport.value}",
+                )
+                self._emit(
+                    operation,
+                    outcome=ProviderTelemetryOutcome.FAILURE,
+                    response=response,
+                    error=error,
+                )
+                raise error
             if len(matches) != 1:
                 raise _SchemaError(
                     f"OddsPapi returned {len(matches)} records for canonical sport {sport.value}"
