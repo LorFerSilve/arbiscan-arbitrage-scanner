@@ -28,17 +28,13 @@ def test_line_profile_classifies_half_integer_quarter_and_unsupported_lines() ->
     )
 
     assert quarter_negative.line_class is AsianHandicapLineClass.QUARTER
-    assert tuple(
-        (item.line, item.stake_fraction) for item in quarter_negative.components
-    ) == (
+    assert tuple((item.line, item.stake_fraction) for item in quarter_negative.components) == (
         (Decimal("-0.5"), Decimal("0.5")),
         (Decimal("0"), Decimal("0.5")),
     )
 
     assert quarter_positive.line_class is AsianHandicapLineClass.QUARTER
-    assert tuple(
-        (item.line, item.stake_fraction) for item in quarter_positive.components
-    ) == (
+    assert tuple((item.line, item.stake_fraction) for item in quarter_positive.components) == (
         (Decimal("0"), Decimal("0.5")),
         (Decimal("0.5"), Decimal("0.5")),
     )
