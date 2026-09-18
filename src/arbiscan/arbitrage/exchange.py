@@ -309,22 +309,22 @@ def evaluate_exchange_portfolio(
     first_market = exchange_values[0].price.market_id
     expected_set = set(expected)
 
-    for leg in exchange_values:
-        if leg.price.event_id != first_event or leg.price.market_id != first_market:
+    for exchange_leg in exchange_values:
+        if exchange_leg.price.event_id != first_event or exchange_leg.price.market_id != first_market:
             raise ArbitrageMathError("all exchange legs must belong to one event and market")
-        if leg.price.selection_id not in expected_set:
+        if exchange_leg.price.selection_id not in expected_set:
             raise ArbitrageMathError("exchange leg selection is outside the expected market")
-    for leg in bookmaker_values:
-        if leg.quote.event_id != first_event or leg.quote.market_id != first_market:
+    for bookmaker_leg in bookmaker_values:
+        if bookmaker_leg.quote.event_id != first_event or bookmaker_leg.quote.market_id != first_market:
             raise ArbitrageMathError(
                 "bookmaker and exchange legs must belong to one canonical event and market"
             )
-        if leg.quote.selection_id not in expected_set:
+        if bookmaker_leg.quote.selection_id not in expected_set:
             raise ArbitrageMathError("bookmaker leg selection is outside the expected market")
 
     commission_rates: dict[tuple[ProviderId, str], Decimal] = {}
-    for leg in exchange_values:
-        price = leg.price
+    for exchange_leg in exchange_values:
+        price = exchange_leg.price
         scope = price.commission_scope
         rate = price.commission_rate
         if scope is None or rate is None:
@@ -345,14 +345,14 @@ def evaluate_exchange_portfolio(
         }
 
         with localcontext(_EXCHANGE_CONTEXT):
-            for leg in bookmaker_values:
-                if leg.quote.selection_id == winner:
-                    bookmaker_profit += leg.stake * (leg.quote.decimal_price - _ONE)
+            for bookmaker_leg in bookmaker_values:
+                if bookmaker_leg.quote.selection_id == winner:
+                    bookmaker_profit += exchange_bookmaker_leg.stake * (bookmaker_leg.quote.decimal_price - _ONE)
                 else:
-                    bookmaker_profit -= leg.stake
+                    bookmaker_profit -= exchange_bookmaker_leg.stake
 
-            for leg in exchange_values:
-                price = leg.price
+            for exchange_leg in exchange_values:
+                price = exchange_leg.price
                 side = price.side
                 scope = price.commission_scope
                 if side is None or scope is None:
@@ -360,15 +360,15 @@ def evaluate_exchange_portfolio(
                 key = (price.exchange_provider.id, scope)
                 if side is ExchangeSide.BACK:
                     profit = (
-                        leg.stake * (price.decimal_price - _ONE)
+                        exchange_bookmaker_leg.stake * (price.decimal_price - _ONE)
                         if price.selection_id == winner
-                        else -leg.stake
+                        else -exchange_bookmaker_leg.stake
                     )
                 else:
                     profit = (
-                        -lay_liability(leg.stake, price.decimal_price)
+                        -lay_liability(exchange_bookmaker_leg.stake, price.decimal_price)
                         if price.selection_id == winner
-                        else leg.stake
+                        else exchange_bookmaker_leg.stake
                     )
                 exchange_gross[key] += profit
 
@@ -393,7 +393,7 @@ def evaluate_exchange_portfolio(
         )
 
     total_lay_liability = sum(
-        (leg.liability for leg in exchange_values if leg.price.side is ExchangeSide.LAY),
+        (exchange_leg.liability for leg in exchange_values if exchange_leg.price.side is ExchangeSide.LAY),
         _ZERO,
     )
     guaranteed_profit = min(value.net_profit for value in scenarios)
