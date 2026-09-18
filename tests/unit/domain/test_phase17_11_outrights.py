@@ -119,7 +119,9 @@ def test_tournament_outright_requires_exact_complete_candidate_set() -> None:
         raise AssertionError("incomplete outright candidate set must fail closed")
 
 
-def test_tournament_outright_rejects_mixed_participant_kinds_and_synthetic_field_candidate() -> None:
+def test_tournament_outright_rejects_mixed_participant_kinds_and_synthetic_field_candidate() -> (
+    None
+):
     candidates = _participants()
     synthetic_field = replace(
         candidates[-1],
