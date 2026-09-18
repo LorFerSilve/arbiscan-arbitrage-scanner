@@ -247,6 +247,25 @@ The default provider request remains `h2h`; Draw No Bet is opt-in.
 
 See [football Draw No Bet](../markets/football-draw-no-bet.md) and ADR-0017.
 
+## Phase 17.6 tennis set-winner scope
+
+Phase 17.6 does **not** add a tennis set-winner mapping for The Odds API.
+
+The current official tennis/provider market material reviewed for this phase did not
+establish an exact machine-readable indexed set-winner key that ArbiScan can safely
+map to `SET_WINNER / SET / period_index`.
+
+ArbiScan therefore remains fail-closed for this market family on The Odds API:
+
+- no guessed market key;
+- no label-derived set number;
+- no alias that treats match-winner, spreads, or totals as set winner.
+
+If the provider later documents an exact indexed set-winner market identity, it can
+be added through the same structured `period_index` invariant used by OddsPapi.
+
+See [tennis indexed set winner](../markets/tennis-set-winner.md) and ADR-0018.
+
 ## CI and fixtures
 
 CI never calls the live API. Sanitized fixtures under `tests/fixtures/providers/the_odds_api/` reproduce the documented V4 shapes for:
