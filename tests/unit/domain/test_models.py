@@ -211,6 +211,46 @@ def test_market_semantics_require_explicit_parameters() -> None:
         )
     )
 
+    game = Market(
+        id=MarketId("market:game:2:3"),
+        event_id=event_id,
+        kind=MarketKind.GAME_WINNER,
+        period=MarketPeriod.GAME,
+        period_index=3,
+        set_index=2,
+    )
+    assert game.set_index == 2
+    assert game.period_index == 3
+
+    expect_validation_error(
+        lambda: Market(
+            id=MarketId("market:game:missing-set"),
+            event_id=event_id,
+            kind=MarketKind.GAME_WINNER,
+            period=MarketPeriod.GAME,
+            period_index=3,
+        )
+    )
+    expect_validation_error(
+        lambda: Market(
+            id=MarketId("market:game:missing-game"),
+            event_id=event_id,
+            kind=MarketKind.GAME_WINNER,
+            period=MarketPeriod.GAME,
+            set_index=2,
+        )
+    )
+    expect_validation_error(
+        lambda: Market(
+            id=MarketId("market:set:unexpected-parent"),
+            event_id=event_id,
+            kind=MarketKind.SET_WINNER,
+            period=MarketPeriod.SET,
+            period_index=2,
+            set_index=1,
+        )
+    )
+
 
 def test_provider_market_references_are_unique_per_provider() -> None:
     provider_id = ProviderId("provider:a")
