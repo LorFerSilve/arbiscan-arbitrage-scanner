@@ -420,9 +420,7 @@ class SourceMarket:
             type(self.period_index) is not int or self.period_index < 1
         ):
             raise ProviderContractError("source market period_index must be a positive integer")
-        if self.set_index is not None and (
-            type(self.set_index) is not int or self.set_index < 1
-        ):
+        if self.set_index is not None and (type(self.set_index) is not int or self.set_index < 1):
             raise ProviderContractError("source market set_index must be a positive integer")
         if self.set_index is not None and self.period_index is None:
             raise ProviderContractError("source market set_index requires period_index")
