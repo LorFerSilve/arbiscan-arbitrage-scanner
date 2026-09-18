@@ -14,7 +14,6 @@ from arbiscan.domain import (
     Market,
     MarketId,
     MarketKind,
-    MarketPeriod,
     Participant,
     ParticipantId,
     Selection,
