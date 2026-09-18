@@ -154,3 +154,63 @@ def test_phase17_2_integer_total_is_structurally_preserved_for_later_fail_closed
         assert {market.line for market in snapshot.markets} == {Decimal("3")}
 
     asyncio.run(scenario())
+
+
+def test_phase17_3_asian_handicap_preserves_anchored_line_and_mirrored_selections() -> None:
+    async def scenario() -> None:
+        transport = FixtureHttpTransport(
+            fixture_overrides={
+                "/markets": "markets_phase17_3.json",
+                "/odds": "odds_fixture_phase17_3_handicap.json",
+            }
+        )
+        provider = _provider(transport)
+        await _discover_event(provider)
+
+        snapshot = await provider.fetch_odds(EVENT_ID)
+
+        assert snapshot is not None
+        assert len(snapshot.markets) == 4
+        assert {market.line for market in snapshot.markets} == {Decimal("-0.5")}
+        assert {market.selections[0].label for market in snapshot.markets} == {"1", "2"}
+        by_label = {
+            market.selections[0].label: market.selections[0].handicap
+            for market in snapshot.markets
+            if market.price_provider is not None
+            and market.price_provider.id.value == "bookmaker:the-odds-api:pinnacle"
+        }
+        assert by_label == {"1": Decimal("-0.5"), "2": Decimal("0.5")}
+
+    asyncio.run(scenario())
+
+
+def test_phase17_3_push_and_quarter_lines_are_preserved_for_canonical_support_gate() -> None:
+    async def load(fixture: str) -> tuple[Decimal, set[Decimal | None]]:
+        transport = FixtureHttpTransport(
+            fixture_overrides={
+                "/markets": "markets_phase17_3.json",
+                "/odds": fixture,
+            }
+        )
+        provider = _provider(transport)
+        await _discover_event(provider)
+        snapshot = await provider.fetch_odds(EVENT_ID)
+        assert snapshot is not None
+        assert len(snapshot.markets) == 2
+        line = snapshot.markets[0].line
+        assert line is not None
+        return line, {
+            market.selections[0].handicap for market in snapshot.markets
+        }
+
+    zero_line, zero_handicaps = asyncio.run(
+        load("odds_fixture_phase17_3_handicap_zero.json")
+    )
+    quarter_line, quarter_handicaps = asyncio.run(
+        load("odds_fixture_phase17_3_handicap_quarter.json")
+    )
+
+    assert zero_line == Decimal("0")
+    assert zero_handicaps == {Decimal("0")}
+    assert quarter_line == Decimal("-0.25")
+    assert quarter_handicaps == {Decimal("-0.25"), Decimal("0.25")}
