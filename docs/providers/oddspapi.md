@@ -85,6 +85,29 @@ Unsupported market families are ignored fail-closed. A known fixture status othe
 than pre-match is structurally valid, but all emitted source quotes are suspended so
 live/finished data cannot enter the current pre-match execution path.
 
+## Phase 17.2 football regulation totals
+
+Phase 17.2 extends the development adapter to recognize the provider catalog family
+`Over Under Full Time` only when its structured semantics are compatible:
+
+- football sport;
+- `period=fulltime`;
+- `marketType=totals`;
+- non-player market;
+- positive catalog `handicap`/line;
+- exactly the outcomes `Over` and `Under`.
+
+The catalog handicap is retained as exact `SourceMarket.line`. The adapter does not
+itself declare every such line safe for arbitrage: strict canonical normalization
+applies ADR-0014 and enables only regulation half-goal (`x.5`) totals. Integer and
+quarter lines therefore remain fail-closed.
+
+The adapter's non-prematch suspension path also preserves structured Phase-17
+parameters instead of discarding the line while changing eligibility state.
+
+This technical extension does **not** change the production decision below. OddsPapi
+remains production-blocked until the provider-specific rights questions are resolved.
+
 ## Relevant source fields
 
 The adapter preserves or validates at least:
