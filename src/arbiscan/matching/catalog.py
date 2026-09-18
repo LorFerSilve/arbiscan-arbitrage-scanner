@@ -13,6 +13,7 @@ from arbiscan.domain import (
     EventId,
     Market,
     MarketId,
+    MarketKind,
     Participant,
     ParticipantId,
     Selection,
@@ -109,6 +110,19 @@ class CanonicalRegistry:
                     raise ValueError(
                         "registry participant selection references a participant outside its event"
                     )
+
+        for market in markets:
+            if market.kind is not MarketKind.TOTAL_POINTS:
+                continue
+            market_selections = tuple(
+                selection for selection in selections if selection.market_id == market.id
+            )
+            if len(market_selections) != 2 or {
+                selection.kind for selection in market_selections
+            } != {SelectionKind.OVER, SelectionKind.UNDER}:
+                raise ValueError(
+                    "total-points markets require exactly one OVER and one UNDER selection"
+                )
 
         object.__setattr__(self, "competitions", competitions)
         object.__setattr__(self, "participants", participants)
