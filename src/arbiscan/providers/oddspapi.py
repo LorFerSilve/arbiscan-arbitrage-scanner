@@ -287,7 +287,7 @@ def _source_event(
 
 def _market_records(payload: object) -> Mapping[str, _MarketRecord]:
     records: dict[str, _MarketRecord] = {}
-    target_names = {"full time result", "match winner", "winner"}
+    target_names = {"full time result", "match winner", "winner", "over under full time"}
     for index, raw in enumerate(_sequence(payload, path="markets")):
         item = _mapping(raw, path=f"markets[{index}]")
         market_id = str(_integer(item.get("marketId"), path=f"markets[{index}].marketId"))
@@ -337,21 +337,33 @@ def _market_records(payload: object) -> Mapping[str, _MarketRecord]:
     return MappingProxyType(records)
 
 
-def _is_mvp_market(record: _MarketRecord, sport: Sport) -> bool:
-    if record.player_prop or record.handicap != Decimal(0):
+def _is_supported_market(record: _MarketRecord, sport: Sport) -> bool:
+    if record.player_prop:
         return False
     name = record.name.casefold()
     if sport is Sport.FOOTBALL:
-        return (
+        winner = (
             name == "full time result"
             and record.period == "fulltime"
             and record.market_type == "1x2"
+            and record.handicap == Decimal(0)
             and len(record.outcomes) == 3
         )
+        total = (
+            name == "over under full time"
+            and record.period == "fulltime"
+            and record.market_type == "totals"
+            and record.handicap > Decimal(0)
+            and len(record.outcomes) == 2
+            and {value.casefold() for value in record.outcomes.values()} == {"over", "under"}
+        )
+        return winner or total
     if sport is Sport.TENNIS:
         return (
             name in {"match winner", "winner"}
             and record.period in {"fulltime", "match"}
+            and record.market_type == "winner"
+            and record.handicap == Decimal(0)
             and len(record.outcomes) == 2
         )
     return False
@@ -412,7 +424,7 @@ def _source_markets(
 
         for market_id in sorted(raw_markets, key=lambda value: (len(value), value)):
             record = catalog.get(market_id)
-            if record is None or record.sport_id != sport_id or not _is_mvp_market(record, sport):
+            if record is None or record.sport_id != sport_id or not _is_supported_market(record, sport):
                 continue
             raw_market = _mapping(
                 raw_markets[market_id],
@@ -501,6 +513,14 @@ def _source_markets(
                         source_status=source_status,
                         price_provider=price_provider,
                         source_timestamp=source_timestamp,
+                        line=(
+                            record.handicap
+                            if (
+                                sport is Sport.FOOTBALL
+                                and record.name.casefold() == "over under full time"
+                            )
+                            else None
+                        ),
                     )
                 )
     return tuple(markets)
@@ -837,12 +857,15 @@ class OddsPapiProvider(ProviderAdapter):
                     price=selection.price,
                     odds_format=selection.odds_format,
                     source_status="suspended",
+                    handicap=selection.handicap,
                 )
                 for selection in market.selections
             ),
             source_status="suspended",
             price_provider=market.price_provider,
             source_timestamp=market.source_timestamp,
+            line=market.line,
+            period_index=market.period_index,
         )
 
     def stream_odds(self, external_event_ids: tuple[str, ...]) -> AsyncIterator[OddsSnapshot]:
