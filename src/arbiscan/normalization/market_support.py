@@ -54,10 +54,7 @@ def is_push_free_football_handicap_line(line: Decimal) -> bool:
     """Return whether ordinary two-outcome math safely models this handicap line."""
     if type(line) is not Decimal or not line.is_finite():
         return False
-    return (
-        asian_handicap_line_profile(line).line_class
-        is AsianHandicapLineClass.HALF_GOAL
-    )
+    return asian_handicap_line_profile(line).line_class is AsianHandicapLineClass.HALF_GOAL
 
 
 def assess_market_support(*, sport: Sport, market: Market) -> MarketSupportDecision:
