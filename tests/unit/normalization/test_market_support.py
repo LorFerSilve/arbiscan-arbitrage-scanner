@@ -18,6 +18,7 @@ def _market(
     period: MarketPeriod = MarketPeriod.REGULATION,
     line: Decimal | None = None,
     period_index: int | None = None,
+    set_index: int | None = None,
 ) -> Market:
     return Market(
         id=MarketId(f"market:{kind.value}:{period.value}:{line}"),
@@ -26,6 +27,7 @@ def _market(
         period=period,
         line=line,
         period_index=period_index,
+        set_index=set_index,
     )
 
 
@@ -228,3 +230,21 @@ def test_phase17_6_supports_only_documented_indexed_tennis_set_winners() -> None
 
     assert third_set.status is MarketSupportStatus.UNSUPPORTED
     assert football.status is MarketSupportStatus.UNSUPPORTED
+
+
+def test_phase17_7_game_winner_identity_exists_but_runtime_support_remains_closed() -> None:
+    market = _market(
+        kind=MarketKind.GAME_WINNER,
+        period=MarketPeriod.GAME,
+        period_index=3,
+        set_index=2,
+    )
+
+    decision = assess_market_support(
+        sport=Sport.TENNIS,
+        market=market,
+    )
+
+    assert decision.status is MarketSupportStatus.UNSUPPORTED
+    assert not decision.supported
+    assert "stable machine-readable set/game identity" in decision.detail
