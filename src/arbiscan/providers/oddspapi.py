@@ -367,6 +367,7 @@ def _is_supported_market(record: _MarketRecord, sport: Sport) -> bool:
         asian_handicap = (
             name == "asian handicap"
             and record.period == "fulltime"
+            and record.market_type == "handicap"
             and len(record.outcomes) == 2
             and {value.casefold() for value in record.outcomes.values()} == {"1", "2"}
         )
