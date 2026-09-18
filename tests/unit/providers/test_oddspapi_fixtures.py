@@ -199,13 +199,9 @@ def test_phase17_3_push_and_quarter_lines_are_preserved_for_canonical_support_ga
         assert len(snapshot.markets) == 2
         line = snapshot.markets[0].line
         assert line is not None
-        return line, {
-            market.selections[0].handicap for market in snapshot.markets
-        }
+        return line, {market.selections[0].handicap for market in snapshot.markets}
 
-    zero_line, zero_handicaps = asyncio.run(
-        load("odds_fixture_phase17_3_handicap_zero.json")
-    )
+    zero_line, zero_handicaps = asyncio.run(load("odds_fixture_phase17_3_handicap_zero.json"))
     quarter_line, quarter_handicaps = asyncio.run(
         load("odds_fixture_phase17_3_handicap_quarter.json")
     )
