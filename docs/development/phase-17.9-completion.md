@@ -6,6 +6,8 @@
 
 - canonical `Sport.BASKETBALL`;
 - basketball discovery through The Odds API and OddsPapi;
+- fail-closed The Odds API full-event bookmaker allowlisting, defaulting to no
+  basketball spread/total price origins until settlement scope is independently verified;
 - exact full-event total and spread line preservation;
 - ordered participant-1 spread anchoring with mirrored participant-2 handicap;
 - explicit OddsPapi mappings for `Over Under (incl. overtime)` and
