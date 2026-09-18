@@ -358,9 +358,7 @@ def _source_markets(payload: Mapping[str, object], *, event_id: str) -> tuple[So
                 if any(point is None for point in points):
                     raise _SchemaError("spreads market outcomes require point")
             elif any(point is not None for point in points):
-                raise _SchemaError(
-                    f"market {market_key!r} carries unsupported point semantics"
-                )
+                raise _SchemaError(f"market {market_key!r} carries unsupported point semantics")
 
             markets.append(
                 SourceMarket(
