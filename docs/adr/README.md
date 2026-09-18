@@ -102,6 +102,7 @@ What evidence or change should cause this decision to be reconsidered?
 - [`0016-football-btts-provider-equivalence.md`](0016-football-btts-provider-equivalence.md) — defines regulation-time BTTS through exact provider market identity and canonical YES/NO completeness.
 - [`0017-draw-no-bet-refund-aware-evaluation.md`](0017-draw-no-bet-refund-aware-evaluation.md) — reuses Asian Handicap 0 for DNB and separates decisive-state edge from the shared draw-refund state.
 - [`0018-tennis-indexed-set-winner-provider-scope.md`](0018-tennis-indexed-set-winner-provider-scope.md) — makes tennis set index structural, enables only demonstrated set-winner mappings, and rejects provider-capability guessing.
+- [`0019-tennis-game-identity-and-score-state-gate.md`](0019-tennis-game-identity-and-score-state-gate.md) — models nested set/game identity while keeping game-winner runtime support closed until stable provider score-state semantics exist.
 
 ## Initial ADR topics
 
