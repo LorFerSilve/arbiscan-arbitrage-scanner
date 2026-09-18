@@ -56,12 +56,18 @@ A risk with high correctness or security impact must not be dismissed merely bec
 | R-038 | Multiple bookmakers from one aggregator are mistaken for multiple independent data sources | Medium | High | Explicit transport-source definition and Phase 16 independent-source exit criterion | Closed |
 | R-039 | Two transport sources report conflicting same-time prices/status for one bookmaker and selection | Medium | High | Preserve both observations; exclude conflicting slot unless an explicit trust policy resolves it | Closed |
 | R-040 | A technically integrated second transport is activated in an environment before its provider-specific legal/data-rights review is complete | Low-Medium | Critical | Explicit transport-source enablement policy, primary-only rollback path, provider production blockers, and release/deployment gates | Mitigating |
+| R-041 | Advanced markets with different lines, indexed periods, or selection handicaps are mapped to one canonical identity | Medium | Critical | ADR-0013 structured source parameters plus exact fail-closed parameter matching before quote construction | Mitigating |
 
 ## Critical risk themes
 
 ### 1. Semantic correctness
 
 The dominant correctness risk is not the arbitrage formula itself; it is comparing prices that do not represent the same event, market, or settlement rules. Event matching and market normalization therefore precede broad provider coverage.
+
+Phase 17 extends this rule to structured market parameters. Numeric lines, period
+indexes, and signed selection handicaps are semantic identity, not presentation
+metadata. Parameter mismatches must be rejected before any quote can reach the market
+book.
 
 ### 2. Temporal correctness
 
