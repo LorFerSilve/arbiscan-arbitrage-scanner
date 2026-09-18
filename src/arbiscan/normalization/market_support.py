@@ -64,6 +64,22 @@ def is_push_free_football_handicap_line(line: Decimal) -> bool:
     return asian_handicap_line_profile(line).line_class is AsianHandicapLineClass.HALF_GOAL
 
 
+def is_push_free_basketball_total_line(line: Decimal) -> bool:
+    """Return whether a full-event basketball total cannot settle as a push."""
+    if type(line) is not Decimal or not line.is_finite() or line <= Decimal("0"):
+        return False
+    doubled = line * Decimal("2")
+    return doubled == doubled.to_integral_value() and int(doubled) % 2 == 1
+
+
+def is_push_free_basketball_handicap_line(line: Decimal) -> bool:
+    """Return whether a full-event basketball spread cannot settle as a push."""
+    if type(line) is not Decimal or not line.is_finite():
+        return False
+    doubled = line * Decimal("2")
+    return doubled == doubled.to_integral_value() and int(doubled) % 2 == 1
+
+
 def assess_market_support(
     *,
     sport: Sport,
@@ -88,24 +104,45 @@ def assess_market_support(
         )
 
     if market.kind is MarketKind.TOTAL_POINTS:
-        if sport is not Sport.FOOTBALL:
+        if sport is Sport.FOOTBALL:
+            if market.period is not MarketPeriod.REGULATION:
+                return MarketSupportDecision(
+                    MarketSupportStatus.UNSUPPORTED,
+                    "Phase 17.2 football totals require regulation-time settlement",
+                )
+            if market.line is None or not is_push_free_football_total_line(market.line):
+                return MarketSupportDecision(
+                    MarketSupportStatus.UNSUPPORTED,
+                    "Phase 17.2 football totals require a positive push-free half-goal line (x.5)",
+                )
             return MarketSupportDecision(
-                MarketSupportStatus.UNSUPPORTED,
-                "Phase 17.2 enables totals only for football",
+                MarketSupportStatus.SUPPORTED,
+                "football regulation total uses a push-free half-goal line",
             )
-        if market.period is not MarketPeriod.REGULATION:
+        if sport is Sport.BASKETBALL:
+            if market.period is not MarketPeriod.FULL_EVENT:
+                return MarketSupportDecision(
+                    MarketSupportStatus.UNSUPPORTED,
+                    (
+                        "Phase 17.9 basketball totals require explicit full-event "
+                        "overtime-inclusive settlement"
+                    ),
+                )
+            if market.line is None or not is_push_free_basketball_total_line(market.line):
+                return MarketSupportDecision(
+                    MarketSupportStatus.UNSUPPORTED,
+                    (
+                        "Phase 17.9 basketball totals require a positive push-free "
+                        "half-point line (x.5)"
+                    ),
+                )
             return MarketSupportDecision(
-                MarketSupportStatus.UNSUPPORTED,
-                "Phase 17.2 football totals require regulation-time settlement",
-            )
-        if market.line is None or not is_push_free_football_total_line(market.line):
-            return MarketSupportDecision(
-                MarketSupportStatus.UNSUPPORTED,
-                "Phase 17.2 football totals require a positive push-free half-goal line (x.5)",
+                MarketSupportStatus.SUPPORTED,
+                "basketball full-event total uses a push-free half-point line",
             )
         return MarketSupportDecision(
-            MarketSupportStatus.SUPPORTED,
-            "football regulation total uses a push-free half-goal line",
+            MarketSupportStatus.UNSUPPORTED,
+            "totals are not enabled for this sport",
         )
 
     if market.kind is MarketKind.BOTH_TEAMS_TO_SCORE:
@@ -154,36 +191,57 @@ def assess_market_support(
         )
 
     if market.kind is MarketKind.HANDICAP:
-        if sport is not Sport.FOOTBALL:
+        if sport is Sport.FOOTBALL:
+            if market.period is not MarketPeriod.REGULATION:
+                return MarketSupportDecision(
+                    MarketSupportStatus.UNSUPPORTED,
+                    "Phase 17.3 football handicaps require regulation-time settlement",
+                )
+            if market.line is not None and is_push_free_football_handicap_line(market.line):
+                return MarketSupportDecision(
+                    MarketSupportStatus.SUPPORTED,
+                    "football regulation handicap uses a push-free half-goal line",
+                )
+            if purpose is MarketSupportPurpose.SETTLEMENT_AWARE and market.line == Decimal("0"):
+                return MarketSupportDecision(
+                    MarketSupportStatus.SUPPORTED,
+                    (
+                        "football regulation handicap 0 is Draw No Bet and uses "
+                        "draw-refund settlement-aware evaluation"
+                    ),
+                )
             return MarketSupportDecision(
                 MarketSupportStatus.UNSUPPORTED,
-                "Phase 17.3 enables handicaps only for football",
-            )
-        if market.period is not MarketPeriod.REGULATION:
-            return MarketSupportDecision(
-                MarketSupportStatus.UNSUPPORTED,
-                "Phase 17.3 football handicaps require regulation-time settlement",
-            )
-        if market.line is not None and is_push_free_football_handicap_line(market.line):
-            return MarketSupportDecision(
-                MarketSupportStatus.SUPPORTED,
-                "football regulation handicap uses a push-free half-goal line",
-            )
-        if purpose is MarketSupportPurpose.SETTLEMENT_AWARE and market.line == Decimal("0"):
-            return MarketSupportDecision(
-                MarketSupportStatus.SUPPORTED,
                 (
-                    "football regulation handicap 0 is Draw No Bet and uses "
-                    "draw-refund settlement-aware evaluation"
+                    "football handicap variant is not eligible for this evaluation path; "
+                    "generic arbitrage supports half-goal lines only and Phase 17.5 "
+                    "settlement-aware support adds only line 0 Draw No Bet"
                 ),
+            )
+        if sport is Sport.BASKETBALL:
+            if market.period is not MarketPeriod.FULL_EVENT:
+                return MarketSupportDecision(
+                    MarketSupportStatus.UNSUPPORTED,
+                    (
+                        "Phase 17.9 basketball spreads require explicit full-event "
+                        "overtime-inclusive settlement"
+                    ),
+                )
+            if market.line is None or not is_push_free_basketball_handicap_line(market.line):
+                return MarketSupportDecision(
+                    MarketSupportStatus.UNSUPPORTED,
+                    (
+                        "Phase 17.9 basketball spreads require a push-free half-point "
+                        "line (x.5)"
+                    ),
+                )
+            return MarketSupportDecision(
+                MarketSupportStatus.SUPPORTED,
+                "basketball full-event spread uses a push-free half-point line",
             )
         return MarketSupportDecision(
             MarketSupportStatus.UNSUPPORTED,
-            (
-                "football handicap variant is not eligible for this evaluation path; "
-                "generic arbitrage supports half-goal lines only and Phase 17.5 "
-                "settlement-aware support adds only line 0 Draw No Bet"
-            ),
+            "handicaps are not enabled for this sport",
         )
 
     return MarketSupportDecision(
