@@ -18,7 +18,10 @@ from arbiscan.domain import (
 )
 from arbiscan.matching.catalog import CanonicalRegistry
 from arbiscan.matching.hooks import MatchedCanonicalIdHooks
-from arbiscan.normalization.market_support import assess_market_support
+from arbiscan.normalization.market_support import (
+    MarketSupportPurpose,
+    assess_market_support,
+)
 from arbiscan.normalization.odds import OddsNormalizationError, normalize_odds
 from arbiscan.providers.models import (
     CanonicalIdHooks,
@@ -147,6 +150,7 @@ def normalize_source_snapshot(
     registry: CanonicalRegistry,
     as_of: datetime,
     freshness_window: timedelta,
+    support_purpose: MarketSupportPurpose = MarketSupportPurpose.GENERIC_ARBITRAGE,
 ) -> NormalizationResult:
     """Normalize one validated source snapshot using explicit canonical mappings only.
 
@@ -163,6 +167,8 @@ def normalize_source_snapshot(
     equality after the matcher has already enforced its configured tolerance.
     """
     now = _utc(as_of, field_name="as_of")
+    if not isinstance(support_purpose, MarketSupportPurpose):
+        raise ValueError("support_purpose must be MarketSupportPurpose")
     if not isinstance(freshness_window, timedelta) or freshness_window <= timedelta(0):
         raise ValueError("freshness_window must be a positive timedelta")
 
@@ -300,6 +306,7 @@ def normalize_source_snapshot(
         support = assess_market_support(
             sport=canonical_event.sport,
             market=canonical_market,
+            purpose=support_purpose,
         )
         if not support.supported:
             issues.append(
