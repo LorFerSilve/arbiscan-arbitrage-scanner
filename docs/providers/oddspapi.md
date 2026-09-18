@@ -133,6 +133,27 @@ This market-family extension does **not** change the provider's production statu
 OddsPapi remains production-blocked until the independent rights/licensing questions
 below are resolved.
 
+## Phase 17.4 football both teams to score
+
+The documented market catalog exposes `Both Teams To Score` with full-time
+structured semantics. Phase 17.4 accepts that family only when:
+
+- football sport;
+- non-player market;
+- `period=fulltime`;
+- `marketType=totals`;
+- `handicap=0`;
+- outcome set exactly `Yes` and `No`.
+
+A record with the same market name but `firsthalf` is not promoted to regulation
+BTTS. This prevents label-only matching from collapsing distinct settlement periods.
+
+No line or selection handicap is attached to canonical BTTS.
+
+This technical capability does **not** change OddsPapi's production status. The
+provider remains production-blocked until its independent rights/licensing questions
+are resolved.
+
 ## Relevant source fields
 
 The adapter preserves or validates at least:
