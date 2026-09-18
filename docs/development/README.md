@@ -31,13 +31,20 @@ This directory contains the reproducible engineering setup plus formal completio
 - [`phase-16.5-completion.md`](phase-16.5-completion.md) — Phase 16.5 normalization and event-matching validation across both real adapter schemas.
 - [`phase-16.6-completion.md`](phase-16.6-completion.md) — Phase 16.6 real multi-source coexistence regressions.
 - [`phase-16.7-completion.md`](phase-16.7-completion.md) — Phase 16.7 observability and operational tuning for the second real source.
+- [`phase-16.8-completion.md`](phase-16.8-completion.md) — Phase 16.8 staged enablement and formal Phase 16 technical closure.
 
 ## Current hand-off
 
-Phases 0 through 15 and Phase 16.1 through Phase 16.7 are the completed baseline. The
-next roadmap dependency is **Phase 16.8 — staged enablement and closure**.
-Before implementation, read
+Phases 0 through 16 are the completed technical baseline. The next roadmap
+dependency is **Phase 17 — Advanced market support**.
+
+Before Phase 17 implementation, read
+[`phase-16.8-completion.md`](phase-16.8-completion.md),
 [`../providers/phase-16-readiness.md`](../providers/phase-16-readiness.md), ADR-0012,
-and the Phase 16.2 through Phase 16.7 completion records so staged enablement
-preserves the established provenance, matching, normalization, coexistence,
-observability, and fail-closed invariants.
+and the Phase 16.2 through Phase 16.7 completion records so every new market family
+preserves the established provenance, matching, freshness, overlap, observability,
+staged-enablement, and fail-closed invariants.
+
+Phase 16 technical completion does not override unresolved provider-specific
+production/legal blockers. OddsPapi remains production-blocked as documented in
+[`../providers/oddspapi.md`](../providers/oddspapi.md).
