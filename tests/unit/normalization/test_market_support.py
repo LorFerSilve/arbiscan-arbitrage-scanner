@@ -131,3 +131,35 @@ def test_baseline_winner_markets_remain_supported() -> None:
     )
 
     assert winner.status is MarketSupportStatus.SUPPORTED
+
+
+def test_phase17_4_supports_only_regulation_football_btts() -> None:
+    supported = assess_market_support(
+        sport=Sport.FOOTBALL,
+        market=_market(
+            kind=MarketKind.BOTH_TEAMS_TO_SCORE,
+            period=MarketPeriod.REGULATION,
+            line=None,
+        ),
+    )
+    first_half = assess_market_support(
+        sport=Sport.FOOTBALL,
+        market=_market(
+            kind=MarketKind.BOTH_TEAMS_TO_SCORE,
+            period=MarketPeriod.FIRST_HALF,
+            line=None,
+        ),
+    )
+    tennis = assess_market_support(
+        sport=Sport.TENNIS,
+        market=_market(
+            kind=MarketKind.BOTH_TEAMS_TO_SCORE,
+            period=MarketPeriod.REGULATION,
+            line=None,
+        ),
+    )
+
+    assert supported.status is MarketSupportStatus.SUPPORTED
+    assert supported.supported
+    assert first_half.status is MarketSupportStatus.UNSUPPORTED
+    assert tennis.status is MarketSupportStatus.UNSUPPORTED
