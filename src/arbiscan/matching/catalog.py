@@ -185,28 +185,33 @@ class CanonicalRegistry:
                 raise ValueError("game-winner selections must not carry handicaps")
 
         for market in markets:
-            if market.kind is MarketKind.OUTRIGHT_WINNER and market.period is MarketPeriod.RACE:
-                event = event_map[market.event_id]
-                market_selections = tuple(
-                    selection for selection in selections if selection.market_id == market.id
+            if market.kind is not MarketKind.OUTRIGHT_WINNER:
+                continue
+            event = event_map[market.event_id]
+            market_selections = tuple(
+                selection for selection in selections if selection.market_id == market.id
+            )
+            if len(event.participants) < 2:
+                raise ValueError("outright-winner markets require at least two event participants")
+            if len({participant.kind for participant in event.participants}) != 1:
+                raise ValueError(
+                    "outright-winner candidate sets must use one participant kind"
                 )
-                if len(event.participants) < 2:
-                    raise ValueError("race-winner markets require at least two event participants")
-                if len(market_selections) != len(event.participants) or any(
-                    selection.kind is not SelectionKind.PARTICIPANT
-                    for selection in market_selections
-                ):
-                    raise ValueError(
-                        "race-winner markets require one participant selection per event participant"
-                    )
-                if {selection.participant_id for selection in market_selections} != {
-                    participant.id for participant in event.participants
-                }:
-                    raise ValueError(
-                        "race-winner selections must cover exactly all event participants"
-                    )
-                if any(selection.handicap is not None for selection in market_selections):
-                    raise ValueError("race-winner selections must not carry handicaps")
+            if len(market_selections) != len(event.participants) or any(
+                selection.kind is not SelectionKind.PARTICIPANT
+                for selection in market_selections
+            ):
+                raise ValueError(
+                    "outright-winner markets require one participant selection per event participant"
+                )
+            if {selection.participant_id for selection in market_selections} != {
+                participant.id for participant in event.participants
+            }:
+                raise ValueError(
+                    "outright-winner selections must cover exactly all event participants"
+                )
+            if any(selection.handicap is not None for selection in market_selections):
+                raise ValueError("outright-winner selections must not carry handicaps")
 
         for market in markets:
             if market.kind is not MarketKind.PODIUM_FINISH:
