@@ -183,6 +183,18 @@ def _price_text(value: object, *, path: str) -> str:
     return str(value)
 
 
+def _optional_point(value: object | None, *, path: str) -> Decimal | None:
+    if value is None:
+        return None
+    if type(value) is int:
+        return Decimal(value)
+    if type(value) is not Decimal:
+        raise _SchemaError(f"{path} must be numeric")
+    if not value.is_finite():
+        raise _SchemaError(f"{path} must be finite")
+    return value
+
+
 def _header_int(headers: Mapping[str, str], name: str) -> int | None:
     raw = headers.get(name.casefold())
     if raw is None:
@@ -305,8 +317,14 @@ def _source_markets(payload: Mapping[str, object], *, event_id: str) -> tuple[So
             if not raw_outcomes:
                 raise _SchemaError("market.outcomes must not be empty")
             selections: list[SourceSelectionQuote] = []
+            points: list[Decimal | None] = []
             for outcome_index, raw_outcome in enumerate(raw_outcomes):
                 outcome = _mapping(raw_outcome, path=f"outcomes[{outcome_index}]")
+                point = _optional_point(
+                    outcome.get("point"),
+                    path=f"outcomes[{outcome_index}].point",
+                )
+                points.append(point)
                 selections.append(
                     SourceSelectionQuote(
                         external_selection_id=_selection_id(
@@ -324,8 +342,26 @@ def _source_markets(payload: Mapping[str, object], *, event_id: str) -> tuple[So
                             path=f"outcomes[{outcome_index}].price",
                         ),
                         odds_format=SourceOddsFormat.DECIMAL,
+                        handicap=point if market_key == "spreads" else None,
                     )
                 )
+
+            market_line: Decimal | None = None
+            if market_key == "totals":
+                if any(point is None for point in points):
+                    raise _SchemaError("totals market outcomes require point")
+                total_points = {point for point in points if point is not None}
+                if len(total_points) != 1:
+                    raise _SchemaError("totals market outcomes must share one point")
+                market_line = next(iter(total_points))
+            elif market_key == "spreads":
+                if any(point is None for point in points):
+                    raise _SchemaError("spreads market outcomes require point")
+            elif any(point is not None for point in points):
+                raise _SchemaError(
+                    f"market {market_key!r} carries unsupported point semantics"
+                )
+
             markets.append(
                 SourceMarket(
                     external_event_id=event_id,
@@ -334,6 +370,7 @@ def _source_markets(payload: Mapping[str, object], *, event_id: str) -> tuple[So
                     selections=tuple(selections),
                     price_provider=price_provider,
                     source_timestamp=last_update,
+                    line=market_line,
                 )
             )
     return tuple(markets)
@@ -342,8 +379,9 @@ def _source_markets(payload: Mapping[str, object], *, event_id: str) -> tuple[So
 class TheOddsApiProvider(ProviderAdapter):
     """Strict adapter for The Odds API V4.
 
-    Phase 6 intentionally requests decimal ``h2h`` data by default. Broader
-    market-semantic and odds-format conversion remains Phase 7 work.
+    The adapter still requests decimal ``h2h`` data by default. Phase 17.1 also
+    preserves structured ``point`` parameters for configured totals/spreads
+    without enabling those market families in canonical arbitrage detection.
     """
 
     def __init__(
