@@ -18,7 +18,11 @@ NOW = datetime(2026, 9, 18, 13, 0, tzinfo=UTC)
 
 def test_the_odds_api_basketball_featured_markets_preserve_lines_and_orientation() -> None:
     provider = TheOddsApiProvider(
-        config=TheOddsApiConfig(api_key="fixture", markets=("spreads", "totals")),
+        config=TheOddsApiConfig(
+            api_key="fixture",
+            markets=("spreads", "totals"),
+            basketball_full_event_bookmakers=("pinnacle", "bet365"),
+        ),
         transport=TheOddsApiFixtureTransport(
             fixture_overrides={
                 "events": "events_basketball_nba_phase17_9.json",
@@ -55,6 +59,24 @@ def test_the_odds_api_basketball_featured_markets_preserve_lines_and_orientation
         == {"Boston Celtics": Decimal("-3.5"), "New York Knicks": Decimal("3.5")}
         for market in spreads
     )
+
+
+def test_the_odds_api_unverified_basketball_bookmakers_fail_closed() -> None:
+    provider = TheOddsApiProvider(
+        config=TheOddsApiConfig(api_key="fixture", markets=("spreads", "totals")),
+        transport=TheOddsApiFixtureTransport(
+            fixture_overrides={
+                "events": "events_basketball_nba_phase17_9.json",
+                "odds": "odds_event_phase17_9_basketball.json",
+            }
+        ),
+        clock=lambda: NOW,
+    )
+    event = asyncio.run(provider.discover_events("basketball_nba"))[0]
+    snapshot = asyncio.run(provider.fetch_odds(event.external_id))
+
+    assert snapshot is not None
+    assert snapshot.markets == ()
 
 
 def test_the_odds_api_period_specific_basketball_total_fails_closed() -> None:
