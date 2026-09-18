@@ -113,12 +113,13 @@ def test_oddspapi_basketball_overtime_markets_preserve_lines_and_orientation() -
     assert {market.line for market in spreads} == {Decimal("-3.5")}
 
     pinnacle_spreads = tuple(
-        market for market in spreads if market.price_provider is not None
+        market
+        for market in spreads
+        if market.price_provider is not None
         and market.price_provider.id.value == "bookmaker:the-odds-api:pinnacle"
     )
     assert {
-        market.selections[0].label: market.selections[0].handicap
-        for market in pinnacle_spreads
+        market.selections[0].label: market.selections[0].handicap for market in pinnacle_spreads
     } == {"1": Decimal("-3.5"), "2": Decimal("3.5")}
 
 
