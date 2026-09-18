@@ -512,3 +512,25 @@ The provider's independent production-rights blocker remains unchanged.
 
 See [tournament/championship outright semantics](../markets/outright-tournament-championship.md)
 and ADR-0022.
+
+
+## Phase 17.12 exchange boundary
+
+OddsPapi currently carries bookmaker-labelled price origins, including a synthetic
+fixture using the slug `betfair`. Phase 17.12 deliberately leaves those price
+origins as `ProviderKind.BOOKMAKER`.
+
+A provider/brand name is not evidence of exchange execution semantics. The current
+adapter does not expose, for those observations:
+
+- explicit BACK versus LAY side;
+- exchange ladder liquidity at the quoted price;
+- account/market commission scope and effective commission rate;
+- matched versus unmatched order state.
+
+The Phase 17.12 regression therefore proves that a Betfair-labelled OddsPapi price
+cannot enter the exchange evaluator merely by string identity.
+
+A later authorized exchange integration must construct the separate
+`ExchangePriceObservation` contract explicitly. The existing OddsPapi
+production-rights blocker remains unchanged.
