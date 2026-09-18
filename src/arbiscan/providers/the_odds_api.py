@@ -63,6 +63,7 @@ class TheOddsApiConfig:
     markets: tuple[str, ...] = ("h2h",)
     request_timeout_seconds: float = 10.0
     include_sids: bool = True
+    basketball_full_event_bookmakers: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         if not isinstance(self.api_key, str) or not self.api_key.strip():
@@ -84,6 +85,25 @@ class TheOddsApiConfig:
             raise ProviderContractError("The Odds API markets must be unique non-empty text")
         object.__setattr__(self, "regions", regions)
         object.__setattr__(self, "markets", markets)
+
+        if any(not isinstance(value, str) for value in self.basketball_full_event_bookmakers):
+            raise ProviderContractError(
+                "The Odds API basketball_full_event_bookmakers must contain text values"
+            )
+        basketball_bookmakers = tuple(
+            value.strip().casefold() for value in self.basketball_full_event_bookmakers
+        )
+        if any(not value for value in basketball_bookmakers) or len(
+            set(basketball_bookmakers)
+        ) != len(basketball_bookmakers):
+            raise ProviderContractError(
+                "The Odds API basketball_full_event_bookmakers must be unique non-empty text"
+            )
+        object.__setattr__(
+            self,
+            "basketball_full_event_bookmakers",
+            basketball_bookmakers,
+        )
 
         timeout = self.request_timeout_seconds
         if isinstance(timeout, bool) or not isinstance(timeout, (int, float)):
@@ -272,7 +292,12 @@ def _selection_id(
     return f"{bookmaker_key}:{market_key}:{suffix}"
 
 
-def _source_markets(payload: Mapping[str, object], *, event_id: str) -> tuple[SourceMarket, ...]:
+def _source_markets(
+    payload: Mapping[str, object],
+    *,
+    event_id: str,
+    basketball_full_event_bookmakers: frozenset[str] = frozenset(),
+) -> tuple[SourceMarket, ...]:
     markets: list[SourceMarket] = []
     sport_key = _text(payload.get("sport_key"), path="event.sport_key")
     home_team = _text(payload.get("home_team"), path="event.home_team")
@@ -308,6 +333,15 @@ def _source_markets(payload: Mapping[str, object], *, event_id: str) -> tuple[So
                 market.get("key"),
                 path=f"bookmakers[{bookmaker_index}].markets[{market_index}].key",
             )
+            if (
+                sport_key.startswith("basketball_")
+                and market_key in {"spreads", "totals"}
+                and bookmaker_key.casefold() not in basketball_full_event_bookmakers
+            ):
+                # The transport exposes the bookmaker's featured game market but does
+                # not encode its overtime settlement rule. Only price origins with an
+                # independently verified full-event rule may enter this canonical path.
+                continue
             market_sid = _optional_text(
                 market.get("sid"),
                 path=f"bookmakers[{bookmaker_index}].markets[{market_index}].sid",
@@ -646,7 +680,13 @@ class TheOddsApiProvider(ProviderAdapter):
                 raise _SchemaError("event.id does not match the requested event")
             if returned_sport != competition_id:
                 raise _SchemaError("event.sport_key does not match the discovered competition")
-            markets = _source_markets(item, event_id=event_id)
+            markets = _source_markets(
+                item,
+                event_id=event_id,
+                basketball_full_event_bookmakers=frozenset(
+                    self._config.basketball_full_event_bookmakers
+                ),
+            )
             ingested_at = _utc(self._clock(), field_name="clock")
             snapshot = OddsSnapshot(
                 provider_id=self.provider.id,
