@@ -117,12 +117,8 @@ def _load_observations() -> tuple[_Observation, _Observation]:
         for value in asyncio.run(the_odds_api.discover_competitions(Sport.TENNIS))
         if value.external_id == "tennis_atp_us_open"
     )
-    the_odds_event = asyncio.run(
-        the_odds_api.discover_events("tennis_atp_us_open")
-    )[0]
-    the_odds_snapshot = asyncio.run(
-        the_odds_api.fetch_odds(the_odds_event.external_id)
-    )
+    the_odds_event = asyncio.run(the_odds_api.discover_events("tennis_atp_us_open"))[0]
+    the_odds_snapshot = asyncio.run(the_odds_api.fetch_odds(the_odds_event.external_id))
     assert the_odds_snapshot is not None
 
     oddspapi = OddsPapiProvider(
@@ -225,9 +221,7 @@ def _hooks(
         assert semantic.value.period is MarketPeriod.SET
         assert semantic.value.period_index == source_market.period_index
 
-        market_ids[source_market.external_market_id] = _market_id(
-            source_market.period_index
-        )
+        market_ids[source_market.external_market_id] = _market_id(source_market.period_index)
         for source_selection in source_market.selections:
             selection_ids[
                 (source_market.external_market_id, source_selection.external_selection_id)
@@ -293,27 +287,20 @@ def test_cross_transport_set_winners_consolidate_overlap_and_keep_sets_isolated(
     )
     assert len(equivalent) == 4
     assert all(
-        set(diagnostic.transport_provider_ids)
-        == {THE_ODDS_API_PROVIDER_ID, ODDSPAPI_PROVIDER_ID}
+        set(diagnostic.transport_provider_ids) == {THE_ODDS_API_PROVIDER_ID, ODDSPAPI_PROVIDER_ID}
         for diagnostic in equivalent
     )
 
-    pinnacle = tuple(
-        quote for quote in result.quotes if quote.provider_id == PINNACLE_ID
-    )
+    pinnacle = tuple(quote for quote in result.quotes if quote.provider_id == PINNACLE_ID)
     assert len(pinnacle) == 4
-    assert {
-        (quote.market_id, quote.selection_id)
-        for quote in pinnacle
-    } == {
+    assert {(quote.market_id, quote.selection_id) for quote in pinnacle} == {
         (phase17_6.SET1_MARKET_ID, phase17_6.SET1_SINNER_ID),
         (phase17_6.SET1_MARKET_ID, phase17_6.SET1_ALCARAZ_ID),
         (phase17_6.SET2_MARKET_ID, phase17_6.SET2_SINNER_ID),
         (phase17_6.SET2_MARKET_ID, phase17_6.SET2_ALCARAZ_ID),
     }
     assert all(
-        quote.transport_provider_id
-        in {THE_ODDS_API_PROVIDER_ID, ODDSPAPI_PROVIDER_ID}
+        quote.transport_provider_id in {THE_ODDS_API_PROVIDER_ID, ODDSPAPI_PROVIDER_ID}
         for quote in pinnacle
     )
 
@@ -329,23 +316,12 @@ def test_cross_transport_set_winners_consolidate_overlap_and_keep_sets_isolated(
     assert set(books) == {phase17_6.SET1_MARKET_ID, phase17_6.SET2_MARKET_ID}
 
     set1 = books[phase17_6.SET1_MARKET_ID]
-    set1_selected = {
-        outcome.selection.id: outcome.quote for outcome in set1.outcomes
-    }
+    set1_selected = {outcome.selection.id: outcome.quote for outcome in set1.outcomes}
     assert set1_selected[phase17_6.SET1_ALCARAZ_ID].provider_id == BETFAIR_ID
-    assert (
-        set1_selected[phase17_6.SET1_ALCARAZ_ID].transport_provider_id
-        == ODDSPAPI_PROVIDER_ID
-    )
-    assert (
-        set1_selected[phase17_6.SET1_ALCARAZ_ID].decimal_price
-        == Decimal("2.10")
-    )
+    assert set1_selected[phase17_6.SET1_ALCARAZ_ID].transport_provider_id == ODDSPAPI_PROVIDER_ID
+    assert set1_selected[phase17_6.SET1_ALCARAZ_ID].decimal_price == Decimal("2.10")
     assert set1_selected[phase17_6.SET1_SINNER_ID].provider_id == PINNACLE_ID
-    assert (
-        set1_selected[phase17_6.SET1_SINNER_ID].decimal_price
-        == Decimal("2.05")
-    )
+    assert set1_selected[phase17_6.SET1_SINNER_ID].decimal_price == Decimal("2.05")
 
     evaluation = evaluate_market(set1.quotes, set1.expected_selection_ids)
     assert evaluation.is_arbitrage
@@ -366,23 +342,14 @@ def test_cross_transport_set_winners_consolidate_overlap_and_keep_sets_isolated(
     assert plan.guaranteed_profit > Decimal("0")
 
     set2 = books[phase17_6.SET2_MARKET_ID]
-    set2_selected = {
-        outcome.selection.id: outcome.quote for outcome in set2.outcomes
-    }
+    set2_selected = {outcome.selection.id: outcome.quote for outcome in set2.outcomes}
     assert set2_selected[phase17_6.SET2_ALCARAZ_ID].provider_id == BET365_ID
     assert (
-        set2_selected[phase17_6.SET2_ALCARAZ_ID].transport_provider_id
-        == THE_ODDS_API_PROVIDER_ID
+        set2_selected[phase17_6.SET2_ALCARAZ_ID].transport_provider_id == THE_ODDS_API_PROVIDER_ID
     )
-    assert (
-        set2_selected[phase17_6.SET2_ALCARAZ_ID].decimal_price
-        == Decimal("1.92")
-    )
+    assert set2_selected[phase17_6.SET2_ALCARAZ_ID].decimal_price == Decimal("1.92")
     assert set2_selected[phase17_6.SET2_SINNER_ID].provider_id == PINNACLE_ID
-    assert (
-        set2_selected[phase17_6.SET2_SINNER_ID].decimal_price
-        == Decimal("1.94")
-    )
+    assert set2_selected[phase17_6.SET2_SINNER_ID].decimal_price == Decimal("1.94")
     assert not evaluate_market(
         set2.quotes,
         set2.expected_selection_ids,
@@ -423,15 +390,10 @@ def test_the_odds_api_set_one_cannot_be_mapped_to_canonical_set_two() -> None:
     )
 
     set1_issues = tuple(
-        issue
-        for issue in result.issues
-        if issue.external_market_id in set1_source_ids
+        issue for issue in result.issues if issue.external_market_id in set1_source_ids
     )
     assert len(set1_issues) == 2
     assert {issue.code for issue in set1_issues} == {
         NormalizationIssueCode.MARKET_PARAMETER_MISMATCH
     }
-    assert all(
-        quote.source_market_id not in set1_source_ids
-        for quote in result.quotes
-    )
+    assert all(quote.source_market_id not in set1_source_ids for quote in result.quotes)
