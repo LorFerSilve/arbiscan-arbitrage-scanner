@@ -608,9 +608,7 @@ class TheOddsApiProvider(ProviderAdapter):
 
         records = await self._load_sports(operation, emit_success=False)
         competition = next((value for value in records if value.key == competition_id), None)
-        canonical_sport = (
-            None if competition is None else _GROUP_TO_SPORT.get(competition.group)
-        )
+        canonical_sport = None if competition is None else _GROUP_TO_SPORT.get(competition.group)
         if competition is None or canonical_sport is None:
             raise self._error(
                 operation,
