@@ -35,22 +35,21 @@ This directory contains the reproducible engineering setup plus formal completio
 - [`phase-17.1-completion.md`](phase-17.1-completion.md) — Phase 17.1 structured advanced-market semantic foundation.
 - [`phase-17.2-completion.md`](phase-17.2-completion.md) — Phase 17.2 football pre-match regulation totals on push-free half-goal lines.
 - [`phase-17.3-completion.md`](phase-17.3-completion.md) — Phase 17.3 football Asian handicap identity, settlement semantics, and half-goal enablement.
+- [`phase-17.4-completion.md`](phase-17.4-completion.md) — Phase 17.4 football regulation-time BTTS provider equivalence and YES/NO enablement.
 
 ## Current hand-off
 
-Phases 0 through 16 and **Phases 17.1–17.3** are the completed technical baseline.
-The next roadmap dependency is **Phase 17.4 — football both-teams-to-score semantics
-and provider feasibility**.
+Phases 0 through 16 and **Phases 17.1–17.4** are the completed technical baseline.
+The next roadmap dependency is **Phase 17.5 — football draw-no-bet settlement
+semantics**.
 
-Before Phase 17.4 implementation, verify the provider API surfaces rather than
-assuming that a shared YES/NO label implies equivalent settlement scope. The phase
-must prove regulation-time identity, exact YES/NO completeness, source mappings for
-each real transport, and end-to-end same-market comparison.
+Before Phase 17.5 implementation, treat draw-no-bet as a settlement problem rather
+than merely a two-selection market. A regulation-time draw returns stake, so the
+phase must prove detection and stake allocation across the draw-refund terminal state
+before enabling the market.
 
-Phase 17.3 deliberately does not enable integer or quarter Asian handicap lines in
-generic arbitrage/staking. Their settlement states are represented, but enabling them
-requires a future scenario-aware guaranteed-return and stake-allocation model.
-
-Phase 16 technical completion still does not override unresolved provider-specific
-production/legal blockers. OddsPapi remains production-blocked as documented in
+Phase 17.4 establishes that both existing real transport schemas can contribute
+regulation-time BTTS through exact machine-readable provider identity. This does not
+weaken any provider-specific production/legal blocker. OddsPapi remains
+production-blocked as documented in
 [`../providers/oddspapi.md`](../providers/oddspapi.md).
