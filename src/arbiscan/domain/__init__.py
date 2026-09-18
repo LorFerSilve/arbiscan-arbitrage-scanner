@@ -49,12 +49,12 @@ from arbiscan.domain.models import (
 from arbiscan.domain.serialization import SCHEMA_VERSION, dumps, loads
 
 __all__ = [
+    "SCHEMA_VERSION",
     "AsianHandicapComponent",
     "AsianHandicapLineClass",
     "AsianHandicapLineProfile",
     "AsianHandicapSettlement",
     "AsianHandicapSettlementResult",
-    "SCHEMA_VERSION",
     "Competition",
     "CompetitionId",
     "DomainValidationError",
