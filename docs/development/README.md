@@ -30,13 +30,14 @@ This directory contains the reproducible engineering setup plus formal completio
 - [`phase-16.4-completion.md`](phase-16.4-completion.md) — Phase 16.4 reusable fixtures and provider conformance.
 - [`phase-16.5-completion.md`](phase-16.5-completion.md) — Phase 16.5 normalization and event-matching validation across both real adapter schemas.
 - [`phase-16.6-completion.md`](phase-16.6-completion.md) — Phase 16.6 real multi-source coexistence regressions.
+- [`phase-16.7-completion.md`](phase-16.7-completion.md) — Phase 16.7 observability and operational tuning for the second real source.
 
 ## Current hand-off
 
-Phases 0 through 15 and Phase 16.1 through Phase 16.6 are the completed baseline. The
-next roadmap dependency is **Phase 16.7 — observability and operational tuning**.
+Phases 0 through 15 and Phase 16.1 through Phase 16.7 are the completed baseline. The
+next roadmap dependency is **Phase 16.8 — staged enablement and closure**.
 Before implementation, read
 [`../providers/phase-16-readiness.md`](../providers/phase-16-readiness.md), ADR-0012,
-and the Phase 16.2 through Phase 16.6 completion records so operational tuning
-preserves the established provenance, matching, normalization, coexistence, and
-fail-closed invariants.
+and the Phase 16.2 through Phase 16.7 completion records so staged enablement
+preserves the established provenance, matching, normalization, coexistence,
+observability, and fail-closed invariants.
