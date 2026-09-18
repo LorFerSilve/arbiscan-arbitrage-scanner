@@ -39,6 +39,11 @@ EXCHANGE = Provider(
     name="Fixture Exchange",
     kind=ProviderKind.EXCHANGE,
 )
+BOOKMAKER = Provider(
+    id=ProviderId("bookmaker:phase17-12:fixture"),
+    name="Fixture Bookmaker",
+    kind=ProviderKind.BOOKMAKER,
+)
 TRANSPORT = ProviderId("provider:phase17-12:exchange-feed")
 
 
@@ -72,7 +77,7 @@ def _exchange_price(
 def _bookmaker_quote(*, selection_id: SelectionId, odds: str = "3.2") -> OddsQuote:
     return OddsQuote(
         id=QuoteId(f"quote:phase17-12:{selection_id.value.rsplit(':', 1)[-1]}"),
-        provider_id=ProviderId("bookmaker:phase17-12:fixture"),
+        provider_id=BOOKMAKER.id,
         event_id=EVENT_ID,
         market_id=MARKET_ID,
         selection_id=selection_id,
@@ -161,6 +166,7 @@ def test_exchange_stake_cannot_exceed_visible_matched_liquidity() -> None:
 def test_bookmaker_back_plus_exchange_lay_is_commission_aware_arbitrage() -> None:
     bookmaker = BookmakerBackStake(
         quote=_bookmaker_quote(selection_id=A, odds="3.2"),
+        price_provider=BOOKMAKER,
         stake=Decimal("100"),
     )
     lay = ExchangeStake(
