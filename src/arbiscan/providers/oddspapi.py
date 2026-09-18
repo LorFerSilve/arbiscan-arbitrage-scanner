@@ -424,7 +424,11 @@ def _source_markets(
 
         for market_id in sorted(raw_markets, key=lambda value: (len(value), value)):
             record = catalog.get(market_id)
-            if record is None or record.sport_id != sport_id or not _is_supported_market(record, sport):
+            if (
+                record is None
+                or record.sport_id != sport_id
+                or not _is_supported_market(record, sport)
+            ):
                 continue
             raw_market = _mapping(
                 raw_markets[market_id],
