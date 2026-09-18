@@ -256,3 +256,51 @@ price origins.
 If any condition fails, mathematical reciprocal-sum correctness is insufficient to
 claim guaranteed outright profit. The runtime market-support gate remains closed until
 a provider path can prove those conditions.
+
+
+## Phase 17.12 exchange scenario mathematics
+
+Exchange prices use a dedicated settlement path because a LAY price cannot be reduced
+to an ordinary bookmaker decimal quote.
+
+For exchange BACK stake `B` at price `o`:
+
+```text
+selection wins  -> +B * (o - 1)
+selection loses -> -B
+```
+
+For exchange LAY stake `L`:
+
+```text
+laid selection wins  -> -L * (o - 1)
+laid selection loses -> +L
+```
+
+The lay liability is therefore:
+
+```text
+liability = L * (o - 1)
+```
+
+`evaluate_exchange_portfolio()` enumerates every canonical terminal selection and
+combines ordinary bookmaker BACK legs with exchange BACK/LAY legs.
+
+Exchange P&L is first netted by exchange price origin and commission scope. Commission
+is then applied only to a positive net result for that exchange market/scope:
+
+```text
+commission = max(exchange_market_profit, 0) * commission_rate
+net_profit = gross_portfolio_profit - commission
+```
+
+This reflects exchange commission semantics such as Betfair's documented charge on
+net market winnings rather than on each individually profitable bet.
+
+A portfolio is classified as exchange arbitrage only when the minimum net profit over
+all terminal selection scenarios is strictly positive.
+
+The evaluator assumes each `ExchangeStake` is matched at its quoted price and rejects
+stake above the observation's visible available liquidity. It does not claim that the
+same liquidity will still be available later, nor does it optimize stakes or model
+unmatched/partially matched orders.
