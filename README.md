@@ -4,11 +4,11 @@ ArbiScan is a multi-bookmaker sports-odds aggregation and arbitrage-detection en
 
 ## Current status
 
-Phases 0 through 16 and **Phases 17.1 through 17.10** of
+Phases 0 through 16 and **Phases 17.1 through 17.11** of
 [`roadmap.md`](roadmap.md) are technically implemented on the active Phase 17 stack.
 
-The next implementation dependency is **Phase 17.11 — broader outright
-tournament/championship markets**.
+The next implementation dependency is **Phase 17.12 — exchange-backed outcomes,
+back/lay identity and commission-aware arbitrage semantics**.
 
 The implemented core includes:
 
@@ -27,7 +27,9 @@ The implemented core includes:
 - advanced football totals/handicaps/BTTS/DNB, indexed tennis set winners, and
   full-event basketball half-point spreads/totals;
 - canonical motorsport race/qualifying/session identity with race-winner, podium, and
-  H2H completeness gates, while runtime F1 evaluation remains intentionally disabled.
+  H2H completeness gates, while runtime F1 evaluation remains intentionally disabled;
+- generalized tournament/championship outright candidate completeness plus an explicit
+  settlement-safety profile for deciding when generic N-outcome math is sufficient.
 
 The project remains development software. OddsPapi is technically integrated but
 remains blocked from production activation pending the documented provider-rights
@@ -44,10 +46,12 @@ Enabled advanced semantics remain intentionally narrow:
    integer/quarter-line, alternate, and live variants fail-closed;
 4. motorsport/F1 canonical winner/podium/H2H identity is modeled, but all such
    markets remain runtime-disabled until provider and DNS/DNF/disqualification/
-   dead-heat settlement equivalence is proven.
+   dead-heat settlement equivalence is proven;
+5. broader tournament/championship outright identity now requires a complete,
+   homogeneous candidate set and explicit settlement-safety evidence; runtime support
+   remains closed until a provider path proves that evidence.
 
-Broader outrights, exchange-backed outcomes, and richer settlement algebra remain
-later roadmap work.
+Exchange-backed outcomes and richer settlement algebra remain later roadmap work.
 
 ## Development
 
