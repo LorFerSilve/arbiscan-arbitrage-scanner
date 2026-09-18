@@ -4,6 +4,7 @@ from decimal import Decimal
 
 from arbiscan.domain import EventId, Market, MarketId, MarketKind, MarketPeriod, Sport
 from arbiscan.normalization import (
+    MarketSupportPurpose,
     MarketSupportStatus,
     assess_market_support,
     is_push_free_football_handicap_line,
@@ -163,3 +164,31 @@ def test_phase17_4_supports_only_regulation_football_btts() -> None:
     assert supported.supported
     assert first_half.status is MarketSupportStatus.UNSUPPORTED
     assert tennis.status is MarketSupportStatus.UNSUPPORTED
+
+
+def test_phase17_5_draw_no_bet_requires_explicit_settlement_aware_path() -> None:
+    market = _market(kind=MarketKind.HANDICAP, line=Decimal("0"))
+
+    generic = assess_market_support(
+        sport=Sport.FOOTBALL,
+        market=market,
+    )
+    settlement_aware = assess_market_support(
+        sport=Sport.FOOTBALL,
+        market=market,
+        purpose=MarketSupportPurpose.SETTLEMENT_AWARE,
+    )
+
+    assert generic.status is MarketSupportStatus.UNSUPPORTED
+    assert settlement_aware.status is MarketSupportStatus.SUPPORTED
+    assert settlement_aware.supported
+
+
+def test_phase17_5_settlement_aware_path_does_not_unlock_other_integer_handicaps() -> None:
+    for line in (Decimal("-2"), Decimal("-1"), Decimal("1"), Decimal("2")):
+        decision = assess_market_support(
+            sport=Sport.FOOTBALL,
+            market=_market(kind=MarketKind.HANDICAP, line=line),
+            purpose=MarketSupportPurpose.SETTLEMENT_AWARE,
+        )
+        assert decision.status is MarketSupportStatus.UNSUPPORTED
