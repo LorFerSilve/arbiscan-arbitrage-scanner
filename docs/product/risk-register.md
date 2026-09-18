@@ -58,6 +58,7 @@ A risk with high correctness or security impact must not be dismissed merely bec
 | R-040 | A technically integrated second transport is activated in an environment before its provider-specific legal/data-rights review is complete | Low-Medium | Critical | Explicit transport-source enablement policy, primary-only rollback path, provider production blockers, and release/deployment gates | Mitigating |
 | R-041 | Advanced markets with different lines, indexed periods, or selection handicaps are mapped to one canonical identity | Medium | Critical | ADR-0013 structured source parameters plus exact fail-closed parameter matching before quote construction | Mitigating |
 | R-042 | Football totals with PUSH or split-settlement semantics enter the ordinary two-outcome guaranteed-return calculation | Medium | Critical | ADR-0014 canonical support gate: enable only regulation positive x.5 totals until push/half-win/half-loss payouts are modeled | Closed |
+| R-043 | Asian handicap direction is inverted across providers, or PUSH/split-settlement variants enter ordinary two-outcome guaranteed-return math | Medium | Critical | ADR-0015 participant-1 line anchor, exact mirrored selection handicaps, explicit settlement profiles, and half-goal-only generic-engine gate | Closed |
 
 ## Critical risk themes
 
@@ -71,6 +72,8 @@ metadata. Parameter mismatches must be rejected before any quote can reach the m
 book.
 
 Phase 17.2 also treats settlement shape as semantic correctness. Football totals are currently enabled only on positive regulation-time half-goal lines, where Over/Under is a true two-outcome win/lose partition. Integer and quarter-line totals fail closed before quote construction rather than being evaluated with incomplete PUSH or split-settlement assumptions.
+
+Phase 17.3 applies the same principle to Asian handicap orientation and settlement geometry. The canonical market line is the signed handicap of ordered participant 1, participant 2 must carry its exact negation, and only half-goal lines may reach ordinary arbitrage/staking. Integer and quarter variants are explicitly settleable in the domain model but remain ineligible for generic guaranteed-return claims.
 
 ### 2. Temporal correctness
 
