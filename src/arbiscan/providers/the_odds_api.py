@@ -346,7 +346,13 @@ def _source_markets(payload: Mapping[str, object], *, event_id: str) -> tuple[So
                             path=f"outcomes[{outcome_index}].price",
                         ),
                         odds_format=SourceOddsFormat.DECIMAL,
-                        handicap=point if market_key == "spreads" else None,
+                        handicap=(
+                            point
+                            if market_key == "spreads"
+                            else Decimal("0")
+                            if market_key == "draw_no_bet"
+                            else None
+                        ),
                     )
                 )
 
@@ -371,6 +377,16 @@ def _source_markets(payload: Mapping[str, object], *, event_id: str) -> tuple[So
                     raise _SchemaError(
                         "btts market must contain exactly one Yes and one No outcome"
                     )
+            elif market_key == "draw_no_bet":
+                if any(point is not None for point in points):
+                    raise _SchemaError("draw_no_bet market outcomes must not carry point")
+                if len(selections) != 2:
+                    raise _SchemaError("draw_no_bet market must contain exactly two outcomes")
+                if {selection.label for selection in selections} != {home_team, away_team}:
+                    raise _SchemaError(
+                        "draw_no_bet market outcomes must match the event home and away participants"
+                    )
+                market_line = Decimal("0")
             elif market_key == "spreads":
                 if any(point is None for point in points):
                     raise _SchemaError("spreads market outcomes require point")
@@ -414,6 +430,8 @@ class TheOddsApiProvider(ProviderAdapter):
     structured ``point`` parameters for explicitly configured totals/spreads.
     Totals require an exact Over/Under pair; spreads require the event's exact home/away
     pair with opposite points and anchor ``SourceMarket.line`` to the home participant.
+    Draw No Bet requires the exact event participant pair, carries no source point, and
+    is represented canonically as the existing Asian-handicap-zero settlement shape.
     """
 
     def __init__(
