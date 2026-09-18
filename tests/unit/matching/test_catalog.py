@@ -3,8 +3,20 @@
 import asyncio
 from collections.abc import Callable
 from dataclasses import replace
+from decimal import Decimal
 
-from arbiscan.domain import EventId, MarketId, ParticipantId, SelectionId, Sport
+from arbiscan.domain import (
+    EventId,
+    Market,
+    MarketId,
+    MarketKind,
+    MarketPeriod,
+    ParticipantId,
+    Selection,
+    SelectionId,
+    SelectionKind,
+    Sport,
+)
 from arbiscan.matching import CanonicalRegistry
 from arbiscan.providers.synthetic import build_phase5_synthetic_scenario
 
@@ -84,4 +96,48 @@ def test_registry_rejects_participant_from_another_event() -> None:
             selections=selections,
         ),
         "outside its event",
+    )
+
+
+def test_registry_requires_exact_over_under_completeness_for_totals() -> None:
+    scenario = build_phase5_synthetic_scenario()
+    event_id = scenario.registry.events[0].id
+    market = Market(
+        id=MarketId("market:test:total:2.5"),
+        event_id=event_id,
+        kind=MarketKind.TOTAL_POINTS,
+        period=MarketPeriod.REGULATION,
+        line=Decimal("2.5"),
+    )
+    over = Selection(
+        id=SelectionId("selection:test:over:2.5"),
+        market_id=market.id,
+        kind=SelectionKind.OVER,
+    )
+    under = Selection(
+        id=SelectionId("selection:test:under:2.5"),
+        market_id=market.id,
+        kind=SelectionKind.UNDER,
+    )
+
+    valid = CanonicalRegistry(
+        competitions=scenario.registry.competitions,
+        participants=scenario.registry.participants,
+        events=scenario.registry.events,
+        markets=(*scenario.registry.markets, market),
+        selections=(*scenario.registry.selections, over, under),
+    )
+    assert valid.selection_ids_for_market(market.id) == tuple(
+        sorted((over.id, under.id), key=lambda value: value.value)
+    )
+
+    _assert_registry_error(
+        lambda: CanonicalRegistry(
+            competitions=scenario.registry.competitions,
+            participants=scenario.registry.participants,
+            events=scenario.registry.events,
+            markets=(*scenario.registry.markets, market),
+            selections=(*scenario.registry.selections, over),
+        ),
+        "exactly one OVER and one UNDER",
     )
