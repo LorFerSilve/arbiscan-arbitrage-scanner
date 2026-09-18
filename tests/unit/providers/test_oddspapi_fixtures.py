@@ -334,8 +334,7 @@ def test_phase17_6_tennis_set_winners_preserve_structured_period_index() -> None
         assert snapshot is not None
         assert len(snapshot.markets) == 8
         by_name = {
-            market.label.split(" ", 1)[1]: market.period_index
-            for market in snapshot.markets
+            market.label.split(" ", 1)[1]: market.period_index for market in snapshot.markets
         }
         assert by_name["First Set Winner"] == 1
         assert by_name["Second Set Winner"] == 2
