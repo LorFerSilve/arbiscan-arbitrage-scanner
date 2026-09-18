@@ -219,6 +219,27 @@ are resolved.
 
 See [tennis indexed set winner](../markets/tennis-set-winner.md) and ADR-0018.
 
+## Phase 17.8 tennis set-winner cross-transport equivalence
+
+Phase 17.8 reuses the existing OddsPapi indexed set-winner mapping unchanged and
+proves it equivalent to The Odds API's documented `h2h_s1` / `h2h_s2` keys.
+
+The deterministic regression deliberately exposes Pinnacle through both transport
+sources at equal timestamps and equal prices. ADR-0012 consolidates each overlapping
+Pinnacle set/selection pair into one executable price origin while retaining the
+selected transport provenance.
+
+Across Set 1 and Set 2 there are four equivalent Pinnacle overlaps and no material
+conflicts. Betfair remains an independent OddsPapi price origin and can contribute a
+best price alongside The Odds API bookmakers.
+
+This technical cross-transport completion does **not** change OddsPapi's independent
+production-rights status. OddsPapi remains production-blocked until the documented
+licensing/retention/display/geography questions are resolved.
+
+See [tennis indexed set winner](../markets/tennis-set-winner.md), ADR-0012, and
+ADR-0018.
+
 ## Phase 17.7 tennis game-market feasibility
 
 OddsPapi's public tennis coverage includes broad game-related market families such as
