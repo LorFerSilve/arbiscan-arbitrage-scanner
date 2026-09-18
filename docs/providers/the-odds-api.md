@@ -178,6 +178,31 @@ model does not represent PUSH or split settlement.
 See [football regulation totals](../markets/football-regulation-totals.md) and
 ADR-0014.
 
+## Phase 17.3 football Asian handicap
+
+When `spreads` is explicitly configured, Phase 17.3 treats the source points as
+football Asian handicap semantics only after adapter-level orientation checks:
+
+- exactly two outcomes are required;
+- outcome labels must exactly match the event home and away participant labels;
+- both outcomes require numeric `point` values;
+- home and away points must be exact opposites;
+- `SourceMarket.line` is the home participant's signed point;
+- each source selection retains its own signed handicap.
+
+This provider-specific home anchor is then translated into ArbiScan's canonical
+ordered-participant-1 anchor. Strict normalization verifies exact market-line and
+selection-handicap equality.
+
+Only regulation-time half-goal lines are currently eligible for the generic
+arbitrage/stake pipeline. Integer and quarter spread lines are structurally valid
+advanced-market data but remain fail-closed until a settlement-aware payout engine
+supports PUSH and split settlement.
+
+The default adapter request remains `h2h`; spreads are opt-in.
+
+See [football Asian handicap](../markets/football-asian-handicap.md) and ADR-0015.
+
 ## CI and fixtures
 
 CI never calls the live API. Sanitized fixtures under `tests/fixtures/providers/the_odds_api/` reproduce the documented V4 shapes for:
