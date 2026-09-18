@@ -42,6 +42,7 @@ class MarketKind(StrEnum):
     HANDICAP = "handicap"
     BOTH_TEAMS_TO_SCORE = "both_teams_to_score"
     SET_WINNER = "set_winner"
+    GAME_WINNER = "game_winner"
     OUTRIGHT_WINNER = "outright_winner"
 
 
@@ -53,6 +54,7 @@ class MarketPeriod(StrEnum):
     FIRST_HALF = "first_half"
     SECOND_HALF = "second_half"
     SET = "set"
+    GAME = "game"
     PERIOD = "period"
     QUARTER = "quarter"
     RACE = "race"
