@@ -1,0 +1,58 @@
+{
+  "id": "us-open-sinner-alcaraz-20260918",
+  "sport_key": "tennis_atp_us_open",
+  "sport_title": "ATP US Open",
+  "commence_time": "2026-09-18T15:00:00Z",
+  "home_team": "Jannik Sinner",
+  "away_team": "Carlos Alcaraz",
+  "bookmakers": [
+    {
+      "key": "pinnacle",
+      "title": "Pinnacle",
+      "markets": [
+        {
+          "key": "h2h_s1",
+          "sid": "phase17-8-pinnacle-set1",
+          "last_update": "2026-09-18T14:58:00Z",
+          "outcomes": [
+            {"name": "Jannik Sinner", "price": 2.05, "sid": "pin-s1-sinner"},
+            {"name": "Carlos Alcaraz", "price": 1.96, "sid": "pin-s1-alcaraz"}
+          ]
+        },
+        {
+          "key": "h2h_s2",
+          "sid": "phase17-8-pinnacle-set2",
+          "last_update": "2026-09-18T14:58:00Z",
+          "outcomes": [
+            {"name": "Jannik Sinner", "price": 1.94, "sid": "pin-s2-sinner"},
+            {"name": "Carlos Alcaraz", "price": 1.88, "sid": "pin-s2-alcaraz"}
+          ]
+        }
+      ]
+    },
+    {
+      "key": "bet365",
+      "title": "Bet365",
+      "markets": [
+        {
+          "key": "h2h_s1",
+          "sid": "phase17-8-bet365-set1",
+          "last_update": "2026-09-18T14:58:10Z",
+          "outcomes": [
+            {"name": "Jannik Sinner", "price": 1.88, "sid": "b365-s1-sinner"},
+            {"name": "Carlos Alcaraz", "price": 2.08, "sid": "b365-s1-alcaraz"}
+          ]
+        },
+        {
+          "key": "h2h_s2",
+          "sid": "phase17-8-bet365-set2",
+          "last_update": "2026-09-18T14:58:11Z",
+          "outcomes": [
+            {"name": "Jannik Sinner", "price": 1.90, "sid": "b365-s2-sinner"},
+            {"name": "Carlos Alcaraz", "price": 1.92, "sid": "b365-s2-alcaraz"}
+          ]
+        }
+      ]
+    }
+  ]
+}
