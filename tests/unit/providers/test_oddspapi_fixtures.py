@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 from datetime import UTC, datetime
+from decimal import Decimal
 
 from arbiscan.domain import Sport
 from arbiscan.providers import ProviderError, ProviderErrorKind
@@ -101,3 +102,55 @@ def test_fixture_corpus_contains_no_live_credentials_or_captured_account_secret(
     assert "fixture-only" not in fixture_text
     assert "api_key" not in fixture_text.casefold()
     assert "authorization" not in fixture_text.casefold()
+
+
+def test_phase17_2_totals_preserve_catalog_line_and_outcome_identity() -> None:
+    async def scenario() -> None:
+        transport = FixtureHttpTransport(
+            fixture_overrides={
+                "/markets": "markets_phase17_2.json",
+                "/odds": "odds_fixture_phase17_2_totals.json",
+            }
+        )
+        provider = _provider(transport)
+        await _discover_event(provider)
+
+        snapshot = await provider.fetch_odds(EVENT_ID)
+
+        assert snapshot is not None
+        assert len(snapshot.markets) == 4
+        assert {market.line for market in snapshot.markets} == {Decimal("2.5")}
+        assert {market.selections[0].label for market in snapshot.markets} == {
+            "Over",
+            "Under",
+        }
+        assert {
+            market.price_provider.id.value
+            for market in snapshot.markets
+            if market.price_provider is not None
+        } == {
+            "bookmaker:the-odds-api:pinnacle",
+            "bookmaker:the-odds-api:betfair",
+        }
+
+    asyncio.run(scenario())
+
+
+def test_phase17_2_integer_total_is_structurally_preserved_for_later_fail_closed_gate() -> None:
+    async def scenario() -> None:
+        transport = FixtureHttpTransport(
+            fixture_overrides={
+                "/markets": "markets_phase17_2.json",
+                "/odds": "odds_fixture_phase17_2_integer_total.json",
+            }
+        )
+        provider = _provider(transport)
+        await _discover_event(provider)
+
+        snapshot = await provider.fetch_odds(EVENT_ID)
+
+        assert snapshot is not None
+        assert len(snapshot.markets) == 2
+        assert {market.line for market in snapshot.markets} == {Decimal("3")}
+
+    asyncio.run(scenario())
