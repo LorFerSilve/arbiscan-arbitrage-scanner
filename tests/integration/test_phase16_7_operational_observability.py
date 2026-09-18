@@ -360,7 +360,6 @@ def test_real_source_polling_cadence_and_update_interval_are_deterministic() -> 
         cycles = scanner.cycles(sleep=advancing_sleep)
         first = await cycles.__anext__()
         second = await cycles.__anext__()
-        await cycles.aclose()
         return first.metrics.started_at, second.metrics.started_at
 
     first_started, second_started = asyncio.run(collect_two_cycles())
