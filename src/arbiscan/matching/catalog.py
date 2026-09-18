@@ -125,6 +125,19 @@ class CanonicalRegistry:
                 )
 
         for market in markets:
+            if market.kind is not MarketKind.BOTH_TEAMS_TO_SCORE:
+                continue
+            market_selections = tuple(
+                selection for selection in selections if selection.market_id == market.id
+            )
+            if len(market_selections) != 2 or {
+                selection.kind for selection in market_selections
+            } != {SelectionKind.YES, SelectionKind.NO}:
+                raise ValueError(
+                    "both-teams-to-score markets require exactly one YES and one NO selection"
+                )
+
+        for market in markets:
             if market.kind is not MarketKind.HANDICAP:
                 continue
             event = event_map[market.event_id]
