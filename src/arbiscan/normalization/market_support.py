@@ -124,6 +124,28 @@ def assess_market_support(
             "football regulation both-teams-to-score uses an exact YES/NO outcome pair",
         )
 
+    if market.kind is MarketKind.SET_WINNER:
+        if sport is not Sport.TENNIS:
+            return MarketSupportDecision(
+                MarketSupportStatus.UNSUPPORTED,
+                "Phase 17.6 enables indexed set winner only for tennis",
+            )
+        if market.period is not MarketPeriod.SET or market.period_index not in {1, 2}:
+            return MarketSupportDecision(
+                MarketSupportStatus.UNSUPPORTED,
+                (
+                    "Phase 17.6 tennis set winner requires SET period with "
+                    "documented period_index 1 or 2"
+                ),
+            )
+        return MarketSupportDecision(
+            MarketSupportStatus.SUPPORTED,
+            (
+                "tennis set winner uses an exact indexed set identity and "
+                "two participant outcomes"
+            ),
+        )
+
     if market.kind is MarketKind.HANDICAP:
         if sport is not Sport.FOOTBALL:
             return MarketSupportDecision(
