@@ -153,7 +153,11 @@ def _registry() -> CanonicalRegistry:
 
 def _load_the_odds_api() -> _Observation:
     adapter = TheOddsApiProvider(
-        config=TheOddsApiConfig(api_key="fixture", markets=("spreads", "totals")),
+        config=TheOddsApiConfig(
+            api_key="fixture",
+            markets=("spreads", "totals"),
+            basketball_full_event_bookmakers=("pinnacle", "bet365"),
+        ),
         transport=TheOddsApiFixtureTransport(
             fixture_overrides={
                 "events": "events_basketball_nba_phase17_9.json",
