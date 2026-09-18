@@ -11,6 +11,7 @@ from arbiscan.normalization.aliases import (
 from arbiscan.normalization.event_identity import EventEvidencePreparation, prepare_event_evidence
 from arbiscan.normalization.market_support import (
     MarketSupportDecision,
+    MarketSupportPurpose,
     MarketSupportStatus,
     assess_market_support,
     is_push_free_football_handicap_line,
@@ -35,6 +36,7 @@ __all__ = [
     "MarketNormalizer",
     "MarketSemantic",
     "MarketSupportDecision",
+    "MarketSupportPurpose",
     "MarketSupportStatus",
     "NormalizationIssue",
     "NormalizationIssueCode",
