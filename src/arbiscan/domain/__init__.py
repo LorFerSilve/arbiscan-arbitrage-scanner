@@ -1,5 +1,14 @@
 """Provider-independent canonical domain API for ArbiScan."""
 
+from arbiscan.domain.asian_handicap import (
+    AsianHandicapComponent,
+    AsianHandicapLineClass,
+    AsianHandicapLineProfile,
+    AsianHandicapSettlement,
+    AsianHandicapSettlementResult,
+    asian_handicap_line_profile,
+    settle_asian_handicap,
+)
 from arbiscan.domain.enums import (
     EventStatus,
     MarketKind,
@@ -40,6 +49,11 @@ from arbiscan.domain.models import (
 from arbiscan.domain.serialization import SCHEMA_VERSION, dumps, loads
 
 __all__ = [
+    "AsianHandicapComponent",
+    "AsianHandicapLineClass",
+    "AsianHandicapLineProfile",
+    "AsianHandicapSettlement",
+    "AsianHandicapSettlementResult",
     "SCHEMA_VERSION",
     "Competition",
     "CompetitionId",
@@ -72,6 +86,8 @@ __all__ = [
     "StakeAllocation",
     "StakePlan",
     "StakePlanId",
+    "asian_handicap_line_profile",
     "dumps",
     "loads",
+    "settle_asian_handicap",
 ]
