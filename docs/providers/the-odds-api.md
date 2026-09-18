@@ -24,9 +24,10 @@ oddsFormat=decimal
 includeSids=true
 ```
 
-This preserves the validated winner-market baseline. Phase 17.1 adds structured
-parameter preservation for explicitly configured `totals` and `spreads` responses,
-but does not enable those families for canonical arbitrage detection by default.
+This preserves the validated winner-market baseline. Phase 17.1 added structured
+parameter preservation for explicitly configured `totals` and `spreads` responses.
+Phase 17.2 now enables the safe subset of football regulation totals after canonical
+normalization, while the default provider request remains unchanged.
 
 ## Credential
 
@@ -158,6 +159,24 @@ specification covering settlement scope, selection completeness, canonical mappi
 cross-provider equivalence, and end-to-end detection before they can be enabled.
 Spreads/Asian handicaps additionally require a documented canonical market-line
 anchoring policy before activation.
+
+## Phase 17.2 football regulation totals
+
+When `totals` is explicitly included in `TheOddsApiConfig.markets`, the adapter
+accepts the source market only when every outcome carries a numeric `point`, all
+outcomes share the same point, and the outcome set is exactly one `Over` plus one
+`Under`.
+
+The shared point is preserved as `SourceMarket.line`. Canonical normalization then
+requires exact line identity and the Phase 17.2 supported-market gate accepts only
+positive regulation-time half-goal lines (`x.5`).
+
+Integer and quarter-line totals may be structurally valid provider data but are not
+eligible for generic ArbiScan arbitrage evaluation yet because the current payout
+model does not represent PUSH or split settlement.
+
+See [football regulation totals](../markets/football-regulation-totals.md) and
+ADR-0014.
 
 ## CI and fixtures
 
