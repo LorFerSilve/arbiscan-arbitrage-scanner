@@ -1,0 +1,16 @@
+[
+  {
+    "marketId": 125,
+    "marketLength": 2,
+    "marketName": "Second Set Winner",
+    "playerProp": false,
+    "sportId": 12,
+    "handicap": 0,
+    "period": "p1",
+    "marketType": "winner",
+    "outcomes": [
+      {"outcomeId": 125, "outcomeName": "1"},
+      {"outcomeId": 126, "outcomeName": "2"}
+    ]
+  }
+]
