@@ -1,6 +1,6 @@
 """Phase 17.3 canonical Asian-handicap settlement semantics."""
 
-from decimal import Decimal
+from decimal import Decimal, localcontext
 
 from arbiscan.domain import (
     AsianHandicapLineClass,
@@ -111,3 +111,17 @@ def test_only_half_goal_profile_is_safe_for_generic_two_outcome_math() -> None:
     assert not asian_handicap_line_profile(Decimal("0")).generic_two_outcome_safe
     assert not asian_handicap_line_profile(Decimal("0.25")).generic_two_outcome_safe
     assert not asian_handicap_line_profile(Decimal("0.3")).generic_two_outcome_safe
+
+
+def test_settlement_ignores_reduced_ambient_decimal_precision() -> None:
+    odds = Decimal("2.123456789012345678901234567890123456789")
+    with localcontext() as external:
+        external.prec = 6
+        settlement = settle_asian_handicap(
+            line=Decimal("0.5"),
+            goal_difference=0,
+            decimal_odds=odds,
+        )
+
+    assert settlement.result is AsianHandicapSettlementResult.WIN
+    assert settlement.gross_return_multiplier == odds
