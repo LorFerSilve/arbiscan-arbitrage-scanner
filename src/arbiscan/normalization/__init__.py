@@ -14,6 +14,8 @@ from arbiscan.normalization.market_support import (
     MarketSupportPurpose,
     MarketSupportStatus,
     assess_market_support,
+    is_push_free_basketball_handicap_line,
+    is_push_free_basketball_total_line,
     is_push_free_football_handicap_line,
     is_push_free_football_total_line,
 )
@@ -49,6 +51,8 @@ __all__ = [
     "SportAlias",
     "SportNormalizer",
     "assess_market_support",
+    "is_push_free_basketball_handicap_line",
+    "is_push_free_basketball_total_line",
     "is_push_free_football_handicap_line",
     "is_push_free_football_total_line",
     "normalize_alias_key",
