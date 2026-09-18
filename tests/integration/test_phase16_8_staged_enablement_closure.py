@@ -39,18 +39,13 @@ def _transport_ids(cycle: object) -> set[ProviderId]:
 
     if not isinstance(cycle, RealtimeScanCycle):
         raise AssertionError("expected RealtimeScanCycle")
-    return {
-        quote.transport_provider_id or quote.provider_id
-        for quote in cycle.fresh_quotes
-    }
+    return {quote.transport_provider_id or quote.provider_id for quote in cycle.fresh_quotes}
 
 
 def test_primary_only_stage_does_not_poll_or_execute_disabled_second_source() -> None:
     clock = phase16_7._MutableClock(phase16_5.AS_OF)
     harness = phase16_7._real_harness(clock)
-    source_policy = TransportSourceEnablementPolicy.primary_only(
-        THE_ODDS_API_PROVIDER_ID
-    )
+    source_policy = TransportSourceEnablementPolicy.primary_only(THE_ODDS_API_PROVIDER_ID)
     scanner = _scanner(
         harness=harness,
         clock=clock,
@@ -70,9 +65,7 @@ def test_primary_only_stage_does_not_poll_or_execute_disabled_second_source() ->
     assert _transport_ids(cycle) == {THE_ODDS_API_PROVIDER_ID}
     snapshot = scanner.operational_snapshot
     assert snapshot is not None
-    assert {source.provider_id for source in snapshot.sources} == {
-        THE_ODDS_API_PROVIDER_ID
-    }
+    assert {source.provider_id for source in snapshot.sources} == {THE_ODDS_API_PROVIDER_ID}
 
 
 def test_dual_source_stage_activates_both_real_transports_and_shared_book() -> None:
@@ -105,20 +98,11 @@ def test_dual_source_stage_activates_both_real_transports_and_shared_book() -> N
     assert len(cycle.fresh_quotes) == 9
     assert len(cycle.market_books) == 1
 
-    selected = {
-        outcome.selection.id: outcome.quote
-        for outcome in cycle.market_books[0].outcomes
-    }
+    selected = {outcome.selection.id: outcome.quote for outcome in cycle.market_books[0].outcomes}
     assert selected[phase16_5.HOME_SELECTION_ID].provider_id == phase16_6.BET365_ID
-    assert (
-        selected[phase16_5.HOME_SELECTION_ID].transport_provider_id
-        == THE_ODDS_API_PROVIDER_ID
-    )
+    assert selected[phase16_5.HOME_SELECTION_ID].transport_provider_id == THE_ODDS_API_PROVIDER_ID
     assert selected[phase16_5.AWAY_SELECTION_ID].provider_id == phase16_6.BETFAIR_ID
-    assert (
-        selected[phase16_5.AWAY_SELECTION_ID].transport_provider_id
-        == ODDSPAPI_PROVIDER_ID
-    )
+    assert selected[phase16_5.AWAY_SELECTION_ID].transport_provider_id == ODDSPAPI_PROVIDER_ID
 
 
 def test_rollback_to_primary_only_removes_second_source_without_state_leakage() -> None:
@@ -140,15 +124,11 @@ def test_rollback_to_primary_only_removes_second_source_without_state_leakage() 
     rollback_scanner = _scanner(
         harness=rollback_harness,
         clock=rollback_clock,
-        source_policy=TransportSourceEnablementPolicy.primary_only(
-            THE_ODDS_API_PROVIDER_ID
-        ),
+        source_policy=TransportSourceEnablementPolicy.primary_only(THE_ODDS_API_PROVIDER_ID),
     )
     rollback_cycle = asyncio.run(rollback_scanner.run_cycle())
 
-    assert rollback_scanner.enabled_transport_provider_ids == (
-        THE_ODDS_API_PROVIDER_ID,
-    )
+    assert rollback_scanner.enabled_transport_provider_ids == (THE_ODDS_API_PROVIDER_ID,)
     assert _transport_ids(rollback_cycle) == {THE_ODDS_API_PROVIDER_ID}
     assert {metric.provider_id for metric in rollback_cycle.metrics.provider_metrics} == {
         THE_ODDS_API_PROVIDER_ID
@@ -171,9 +151,7 @@ def test_scanner_fails_closed_when_enablement_names_unconfigured_transport() -> 
             harness=harness,
             clock=clock,
             source_policy=TransportSourceEnablementPolicy(
-                enabled_provider_ids=frozenset(
-                    {THE_ODDS_API_PROVIDER_ID, unknown}
-                ),
+                enabled_provider_ids=frozenset({THE_ODDS_API_PROVIDER_ID, unknown}),
                 required_provider_ids=frozenset({THE_ODDS_API_PROVIDER_ID}),
             ),
         )
