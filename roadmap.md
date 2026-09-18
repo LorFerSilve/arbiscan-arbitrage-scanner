@@ -944,8 +944,8 @@ Expand beyond simple winner markets after the canonical market model has proven 
 
 ## Status
 
-In progress. **Phase 17.1 is technically complete.** The next dependency is
-**Phase 17.2 — football pre-match regulation totals**.
+In progress. **Phases 17.1 and 17.2 are technically complete.** The next dependency
+is **Phase 17.3 — football Asian handicap settlement semantics**.
 
 ### 17.1 — Structured advanced-market parameter foundation
 
@@ -964,23 +964,35 @@ ADR-0013 owns this invariant.
 
 ### 17.2 — Football totals
 
-The first market-family enablement should be football pre-match regulation totals
-because the canonical model already has explicit `TOTAL_POINTS`, `OVER`, `UNDER`,
-and exact line semantics.
+Status: **Complete**.
 
-Before enablement it must define:
+Football pre-match regulation totals are enabled for positive push-free half-goal
+(`x.5`) lines. Phase 17.2 proves exact line equivalence, canonical Over/Under
+completeness, two-real-transport same-line market-book construction, different-line
+non-comparison, and end-to-end arbitrage evaluation. Integer and quarter lines fail
+closed under ADR-0014 because the current generic payout model does not represent
+PUSH or split settlement.
 
-- regulation/full-event settlement scope per provider;
-- exact line equivalence;
-- Over/Under completeness;
-- push/void behavior for integer lines;
-- provider mappings and fixtures;
-- multi-source same-line comparison;
-- different-line non-comparison regressions.
+### 17.3 — Football Asian handicap settlement semantics
 
-Later Phase 17 dependencies should address Asian handicap, both-teams-to-score,
-draw-no-bet, tennis set/game markets, and the remaining roadmap candidates only after
-their own semantic specifications exist.
+The next dependency must define the settlement model before any handicap market is
+enabled.
+
+Required work includes:
+
+- canonical market-line anchoring and sign convention;
+- participant-side handicap identity;
+- exact cross-provider line equivalence;
+- integer-line push semantics;
+- quarter-line half-win/half-loss split settlement;
+- outcome completeness and payout representation;
+- provider mapping fixtures;
+- a decision on whether generic `ArbitrageEvaluation` / `StakePlan` can represent
+  the required payouts or need a settlement-aware extension.
+
+Later Phase 17 dependencies should address both-teams-to-score, draw-no-bet, tennis
+set/game markets, and the remaining roadmap candidates only after their own semantic
+specifications exist.
 
 ## Candidate markets
 
