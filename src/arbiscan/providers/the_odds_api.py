@@ -273,6 +273,10 @@ def _selection_id(
 
 def _source_markets(payload: Mapping[str, object], *, event_id: str) -> tuple[SourceMarket, ...]:
     markets: list[SourceMarket] = []
+    home_team = _text(payload.get("home_team"), path="event.home_team")
+    away_team = _text(payload.get("away_team"), path="event.away_team")
+    if home_team == away_team:
+        raise _SchemaError("event home and away participants must differ")
     bookmakers = _sequence(payload.get("bookmakers"), path="event.bookmakers")
     for bookmaker_index, raw_bookmaker in enumerate(bookmakers):
         bookmaker = _mapping(raw_bookmaker, path=f"bookmakers[{bookmaker_index}]")
@@ -362,6 +366,22 @@ def _source_markets(payload: Mapping[str, object], *, event_id: str) -> tuple[So
             elif market_key == "spreads":
                 if any(point is None for point in points):
                     raise _SchemaError("spreads market outcomes require point")
+                if len(selections) != 2:
+                    raise _SchemaError("spreads market must contain exactly two outcomes")
+                by_label = {selection.label: selection for selection in selections}
+                if set(by_label) != {home_team, away_team}:
+                    raise _SchemaError(
+                        "spreads market outcomes must match the event home and away participants"
+                    )
+                home_handicap = by_label[home_team].handicap
+                away_handicap = by_label[away_team].handicap
+                if home_handicap is None or away_handicap is None:
+                    raise _SchemaError("spreads market outcomes require handicap points")
+                if home_handicap != -away_handicap:
+                    raise _SchemaError(
+                        "spreads market home and away handicap points must be exact opposites"
+                    )
+                market_line = home_handicap
             elif any(point is not None for point in points):
                 raise _SchemaError(f"market {market_key!r} carries unsupported point semantics")
 
@@ -383,8 +403,9 @@ class TheOddsApiProvider(ProviderAdapter):
     """Strict adapter for The Odds API V4.
 
     The adapter still requests decimal ``h2h`` data by default. Phase 17 preserves
-    structured ``point`` parameters for explicitly configured totals/spreads and
-    validates totals as an exact Over/Under pair before canonical normalization.
+    structured ``point`` parameters for explicitly configured totals/spreads.
+    Totals require an exact Over/Under pair; spreads require the event's exact home/away
+    pair with opposite points and anchor ``SourceMarket.line`` to the home participant.
     """
 
     def __init__(
