@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 from enum import StrEnum
 from typing import Protocol
 
@@ -92,6 +93,16 @@ def _optional_aware_utc(value: object | None, *, field_name: str) -> datetime | 
     if value is None:
         return None
     return _aware_utc(value, field_name=field_name)
+
+
+def _optional_decimal(value: object | None, *, field_name: str) -> Decimal | None:
+    if value is None:
+        return None
+    if not isinstance(value, Decimal):
+        raise ProviderContractError(f"{field_name} must be Decimal")
+    if not value.is_finite():
+        raise ProviderContractError(f"{field_name} must be finite")
+    return value
 
 
 @dataclass(frozen=True, slots=True)
@@ -299,6 +310,7 @@ class SourceSelectionQuote:
     price: str
     odds_format: SourceOddsFormat
     source_status: str = "active"
+    handicap: Decimal | None = None
 
     def __post_init__(self) -> None:
         object.__setattr__(
@@ -326,6 +338,14 @@ class SourceSelectionQuote:
             "source_status",
             _text(self.source_status, field_name="source_selection_quote.source_status"),
         )
+        object.__setattr__(
+            self,
+            "handicap",
+            _optional_decimal(
+                self.handicap,
+                field_name="source_selection_quote.handicap",
+            ),
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -345,6 +365,8 @@ class SourceMarket:
     source_status: str = "active"
     price_provider: Provider | None = None
     source_timestamp: datetime | None = None
+    line: Decimal | None = None
+    period_index: int | None = None
 
     def __post_init__(self) -> None:
         object.__setattr__(
@@ -388,6 +410,17 @@ class SourceMarket:
                 field_name="source_market.source_timestamp",
             ),
         )
+        object.__setattr__(
+            self,
+            "line",
+            _optional_decimal(self.line, field_name="source_market.line"),
+        )
+        if self.period_index is not None and (
+            type(self.period_index) is not int or self.period_index < 1
+        ):
+            raise ProviderContractError(
+                "source market period_index must be a positive integer"
+            )
 
 
 @dataclass(frozen=True, slots=True)
