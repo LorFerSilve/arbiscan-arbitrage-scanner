@@ -124,6 +124,46 @@ class CanonicalRegistry:
                     "total-points markets require exactly one OVER and one UNDER selection"
                 )
 
+        for market in markets:
+            if market.kind is not MarketKind.HANDICAP:
+                continue
+            event = event_map[market.event_id]
+            if len(event.participants) != 2:
+                raise ValueError("handicap markets require exactly two ordered event participants")
+            market_selections = tuple(
+                selection for selection in selections if selection.market_id == market.id
+            )
+            if len(market_selections) != 2 or any(
+                selection.kind is not SelectionKind.PARTICIPANT
+                for selection in market_selections
+            ):
+                raise ValueError(
+                    "handicap markets require exactly two participant selections"
+                )
+            by_participant = {
+                selection.participant_id: selection for selection in market_selections
+            }
+            participant_ids = tuple(participant.id for participant in event.participants)
+            if set(by_participant) != set(participant_ids):
+                raise ValueError(
+                    "handicap selections must cover exactly the two ordered event participants"
+                )
+            line = market.line
+            if line is None:
+                raise ValueError("handicap market line is required")
+            expected_handicaps = (line, -line)
+            for participant_id, expected_handicap in zip(
+                participant_ids,
+                expected_handicaps,
+                strict=True,
+            ):
+                selection = by_participant[participant_id]
+                if selection.handicap != expected_handicap:
+                    raise ValueError(
+                        "handicap selection values must equal market.line for participant 1 "
+                        "and its negation for participant 2"
+                    )
+
         object.__setattr__(self, "competitions", competitions)
         object.__setattr__(self, "participants", participants)
         object.__setattr__(self, "events", events)
