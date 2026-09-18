@@ -194,12 +194,9 @@ class CanonicalRegistry:
             if len(event.participants) < 2:
                 raise ValueError("outright-winner markets require at least two event participants")
             if len({participant.kind for participant in event.participants}) != 1:
-                raise ValueError(
-                    "outright-winner candidate sets must use one participant kind"
-                )
+                raise ValueError("outright-winner candidate sets must use one participant kind")
             if len(market_selections) != len(event.participants) or any(
-                selection.kind is not SelectionKind.PARTICIPANT
-                for selection in market_selections
+                selection.kind is not SelectionKind.PARTICIPANT for selection in market_selections
             ):
                 raise ValueError(
                     "outright-winner markets require one participant selection per event participant"
