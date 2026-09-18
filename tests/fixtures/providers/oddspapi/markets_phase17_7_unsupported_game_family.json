@@ -1,0 +1,16 @@
+[
+  {
+    "marketId": 601,
+    "marketLength": 2,
+    "marketName": "Game Handicap",
+    "playerProp": false,
+    "sportId": 12,
+    "handicap": 0.5,
+    "period": "p1",
+    "marketType": "handicap",
+    "outcomes": [
+      {"outcomeId": 601, "outcomeName": "1"},
+      {"outcomeId": 602, "outcomeName": "2"}
+    ]
+  }
+]
