@@ -944,8 +944,8 @@ Expand beyond simple winner markets after the canonical market model has proven 
 
 ## Status
 
-In progress. **Phases 17.1 through 17.6 are technically complete.** The next
-dependency is **Phase 17.7 — tennis game-market identity and score-state semantics**.
+In progress. **Phases 17.1 through 17.7 are technically complete.** The next
+dependency is **Phase 17.8 — tennis set-winner cross-transport completion**.
 
 ### 17.1 — Structured advanced-market parameter foundation
 
@@ -1039,9 +1039,10 @@ documented market 123 / `p1` to Set 1 and market 125 / `p2` to Set 2, emitting t
 index as structured source data. Strict source/canonical index equality prevents
 cross-set quote construction.
 
-The Odds API remains unsupported for this family because no exact documented indexed
-tennis set-winner market key was established. Phase 17.6 intentionally narrows
-provider scope rather than guessing semantic equivalence.
+The Phase 17.6 implementation remains OddsPapi-only. During Phase 17.7 provider
+revalidation, the current The Odds API market list was found to document tennis
+`h2h_s1` and `h2h_s2` set moneylines. That new evidence does not retroactively
+enable the adapter; Phase 17.8 owns strict mapping and cross-transport validation.
 
 For a normally completed set, ordinary two-way arbitrage and stake allocation are
 valid under the canonical model. Bookmaker-specific retirement, walkover,
@@ -1050,29 +1051,55 @@ not represented as a universal realized-profit guarantee.
 
 ### 17.7 — Tennis game-market identity and score-state semantics
 
-The next dependency is tennis game-level market feasibility and identity.
+Status: **Complete as a fail-closed semantic foundation**.
 
-Before enablement it must establish:
+Phase 17.7 adds `GAME_WINNER` and `MarketPeriod.GAME` with nested structured
+identity:
 
-- whether game markets require both set index and game index in canonical identity;
-- whether service/receiver identity is also required;
-- exact provider machine identity for numbered/current-game markets;
-- tiebreak versus ordinary-game distinction;
-- whether pre-match game markets exist with stable identity or depend on live score
-  state;
-- provider-specific outcome completeness;
-- retirement, abandonment, and unfinished-game settlement behavior;
-- fail-closed behavior when a provider exposes only human labels or mutable score
-  strings;
-- whether the current canonical `MarketPeriod` / parameter model is sufficient or
-  needs a dedicated game-level identity field.
+- `set_index` identifies the containing set;
+- `period_index` identifies the game number within that set.
 
-If stable machine-readable game identity cannot be demonstrated, Phase 17.7 must
-remain fail-closed rather than infer canonical state from labels or scores.
+The provider-neutral source model preserves the same pair, strict normalization
+requires exact equality for both values, and canonical completeness requires exactly
+the event's two participants.
 
-Later Phase 17 dependencies should address basketball, motorsport/F1, outright
-markets, and exchange-backed outcomes only after their own semantic specifications
-exist.
+Provider feasibility did not establish a stable fixed Set N / Game M winner mapping
+on either current transport. OddsPapi exposes broader game-derived families such as
+game handicaps/totals/tiebreak propositions, while The Odds API's documented key list
+does not expose an individual numbered game-winner key.
+
+Consequently `GAME_WINNER` remains explicitly unsupported at runtime. Current/next
+game labels, mutable score strings, assumed service rotation, tiebreaks, and
+service-relative propositions cannot create canonical game quotes.
+
+### 17.8 — Tennis set-winner cross-transport completion
+
+The next dependency is completing the existing Set 1 / Set 2 winner family across
+both transport schemas.
+
+Phase 17.7 provider revalidation found current The Odds API documentation for:
+
+- `h2h_s1` — first-set moneyline;
+- `h2h_s2` — second-set moneyline.
+
+Before enablement on that transport, Phase 17.8 must:
+
+- map only the exact documented keys to `SET_WINNER / SET / period_index 1|2`;
+- require exactly the event's two participants;
+- reject unexpected point or alternate parameter semantics;
+- preserve structured period identity rather than label-derived set number;
+- keep ordinary provider defaults unchanged unless the set keys are explicitly
+  configured;
+- add schema-faithful deterministic The Odds API fixtures;
+- prove same-set equivalence with the existing OddsPapi Set 1 / Set 2 mappings;
+- prove Set 1 and Set 2 cannot cross-compare;
+- test same-bookmaker overlap consolidation across transports under ADR-0012;
+- preserve transport provenance for the selected quote;
+- retain the Phase 17.6 retirement/walkover/incomplete-set limitation.
+
+After Phase 17.8, later Phase 17 dependencies should address basketball,
+motorsport/F1, outright markets, and exchange-backed outcomes only after their own
+semantic specifications exist.
 
 ## Candidate markets
 
