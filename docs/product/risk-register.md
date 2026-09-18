@@ -68,6 +68,7 @@ A risk with high correctness or security impact must not be dismissed merely bec
 | R-050 | Tennis Set 1/Set 2 observations of the same bookmaker through The Odds API and OddsPapi are counted twice or conflict silently | Medium | Critical | ADR-0012 price-origin consolidation plus Phase 17.8 equal-time equivalent-overlap and strict set-index regressions | Closed |
 | R-051 | F1 winner/podium/H2H prices are compared despite incomplete driver grids, session mismatch, or different DNS/DNF/disqualification/dead-heat rules | High | Critical | ADR-0021 models explicit motorsport identity/completeness and keeps all Phase 17.10 motorsport runtime support closed until provider and settlement equivalence is proven | Closed |
 | R-052 | Tournament/championship outright prices are compared across incomplete/dynamic candidate fields, synthetic Field/Other buckets, or incompatible tie/dead-heat/withdrawal/void settlement | High | Critical | ADR-0022 exact candidate completeness, homogeneous participant-kind boundary, explicit outright settlement profile, and runtime fail-closed provider gate | Closed |
+| R-053 | Exchange lay prices are treated as ordinary bookmaker back odds, or arbitrage ignores lay liability, matched liquidity, account/market commission, or settlement rules | High | Critical | ADR-0023 separate exchange price model, explicit BACK/LAY side, liability/liquidity checks, net-market commission, provenance, and fail-closed support gate | Closed |
 
 ## Critical risk themes
 
@@ -111,6 +112,14 @@ dead heats, withdrawals and void rules are explicit settlement blockers rather t
 decorative metadata. The generic arbitrary-N formula may be reused only when the
 dedicated outright safety profile proves a complete/static, mutually-exclusive and
 exhaustive settlement partition with equivalent withdrawal/void behavior.
+
+
+Phase 17.12 separates exchange execution semantics from bookmaker prices. A LAY price
+is not another decimal BACK quote: it carries liability, side identity, available
+matched liquidity and commission context. Commission is applied to positive net
+exchange-market winnings per exchange/provider commission scope. Missing side,
+liquidity, commission, scope or settlement verification remains fail-closed, and a
+Betfair-labelled aggregator price does not become an exchange observation by name.
 
 ### 2. Temporal correctness
 
