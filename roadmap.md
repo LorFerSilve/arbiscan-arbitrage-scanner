@@ -944,8 +944,8 @@ Expand beyond simple winner markets after the canonical market model has proven 
 
 ## Status
 
-In progress. **Phases 17.1 through 17.7 are technically complete.** The next
-dependency is **Phase 17.8 — tennis set-winner cross-transport completion**.
+In progress. **Phases 17.1 through 17.8 are technically complete.** The next
+dependency is **Phase 17.9 — basketball spreads/totals and overtime-period semantics**.
 
 ### 17.1 — Structured advanced-market parameter foundation
 
@@ -1074,32 +1074,49 @@ service-relative propositions cannot create canonical game quotes.
 
 ### 17.8 — Tennis set-winner cross-transport completion
 
-The next dependency is completing the existing Set 1 / Set 2 winner family across
-both transport schemas.
+Status: **Complete**.
 
-Phase 17.7 provider revalidation found current The Odds API documentation for:
+Phase 17.8 adds strict The Odds API support for the documented tennis market keys:
 
-- `h2h_s1` — first-set moneyline;
-- `h2h_s2` — second-set moneyline.
+- `h2h_s1` -> `SET_WINNER / SET / period_index=1`;
+- `h2h_s2` -> `SET_WINNER / SET / period_index=2`.
 
-Before enablement on that transport, Phase 17.8 must:
+The adapter requires a tennis event, the exact two event participants, and no
+unexpected point semantics. The default request remains `h2h`; set markets are
+opt-in.
 
-- map only the exact documented keys to `SET_WINNER / SET / period_index 1|2`;
-- require exactly the event's two participants;
-- reject unexpected point or alternate parameter semantics;
-- preserve structured period identity rather than label-derived set number;
-- keep ordinary provider defaults unchanged unless the set keys are explicitly
-  configured;
-- add schema-faithful deterministic The Odds API fixtures;
-- prove same-set equivalence with the existing OddsPapi Set 1 / Set 2 mappings;
-- prove Set 1 and Set 2 cannot cross-compare;
-- test same-bookmaker overlap consolidation across transports under ADR-0012;
-- preserve transport provenance for the selected quote;
-- retain the Phase 17.6 retirement/walkover/incomplete-set limitation.
+Schema-faithful The Odds API and OddsPapi fixtures prove that both transports
+normalize to the same canonical Set 1 / Set 2 markets. Four equal-time/equal-price
+Pinnacle observations overlap across the two feeds and consolidate under ADR-0012 to
+one executable price origin per set/selection. Set 1 and Set 2 remain isolated by
+strict structured `period_index`.
 
-After Phase 17.8, later Phase 17 dependencies should address basketball,
-motorsport/F1, outright markets, and exchange-backed outcomes only after their own
-semantic specifications exist.
+The combined market book allows independent Bet365 and Betfair price contributions,
+detects a theoretical Set 1 arbitrage, and materializes the existing conservative
+stake plan under the normal completed-set settlement assumptions. The tennis
+retirement/walkover/incomplete-set caveat remains unchanged.
+
+### 17.9 — Basketball spreads/totals and overtime-period semantics
+
+The next dependency is basketball market identity and settlement scope.
+
+Before enablement it must establish:
+
+- canonical basketball sport support and participant ordering;
+- regulation-only versus overtime-inclusive market identity;
+- exact spread anchoring and mirrored participant handicap semantics;
+- total-points line identity;
+- integer/half/quarter settlement behavior and any PUSH/split-settlement cases;
+- provider-specific mappings across both real transports where equivalent semantics
+  are demonstrated;
+- exact two-participant or Over/Under completeness;
+- cross-transport same-bookmaker consolidation under ADR-0012;
+- which subset can safely use the generic reciprocal-odds/stake engine;
+- fail-closed handling of quarters, halves, alternate lines, and live markets until
+  separately specified.
+
+Later Phase 17 dependencies should address motorsport/F1, outright markets, and
+exchange-backed outcomes only after their own semantic specifications exist.
 
 ## Candidate markets
 
