@@ -12,6 +12,7 @@ from arbiscan.services.realtime_scanner import (
     RealtimeEvaluationIssue,
     RealtimeScanCycle,
 )
+from arbiscan.services.source_enablement import TransportSourceEnablementPolicy
 from arbiscan.services.vertical_slice import (
     BookIssue,
     BookIssueCode,
@@ -30,6 +31,7 @@ __all__ = [
     "RealtimeScanCycle",
     "RealtimeScanner",
     "SourceOperationalSnapshot",
+    "TransportSourceEnablementPolicy",
     "VerticalSliceResult",
     "run_vertical_slice",
 ]
