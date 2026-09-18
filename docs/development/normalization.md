@@ -367,3 +367,20 @@ The Phase-7 tests cover, among other cases:
 - caller Decimal-context independence;
 - decimal overflow containment;
 - strict-bridge conversion and per-selection failure isolation.
+
+
+## Phase 17.11 broader outright safety
+
+Canonical `OUTRIGHT_WINNER` markets now require an exact participant-selection set
+covering every event candidate, with a single homogeneous participant kind. This
+applies across race, qualifying, session and tournament scopes.
+
+The provider-independent `OutrightEvaluationProfile` separates candidate identity
+from settlement safety. `assess_generic_outright_math()` permits the ordinary
+arbitrary-N reciprocal-odds payout shape only when the candidate set is complete and
+static, outcomes are mutually exclusive and exhaustive, no Field/Other bucket or
+tie/dead-heat split can occur, and withdrawal/void rules are proven equivalent.
+
+This eligibility result does not bypass `assess_market_support()`. Broader
+tournament/championship outrights remain runtime-disabled until a real provider path
+can construct the required evidence without guessing from labels.
