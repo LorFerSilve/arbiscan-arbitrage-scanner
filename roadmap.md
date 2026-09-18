@@ -903,6 +903,14 @@ Alerts should be deduplicated and should identify when an opportunity has materi
 
 Increase coverage without compromising adapter isolation or correctness.
 
+## Status
+
+Technically complete as of 2026-09-18. The Odds API and OddsPapi have passed the
+Phase 16 engineering gates for deterministic multi-source participation, including a
+tested staged-enable/rollback boundary. This status does not grant production usage
+rights: provider-specific legal/licensing/retention/display/geographic blockers remain
+independent release prerequisites.
+
 ## Process for every new provider
 
 1. provider/legal/API review;
@@ -922,7 +930,7 @@ A provider is not considered supported merely because data can be downloaded. It
 
 ## Exit criteria
 
-- at least two independent provider/bookmaker data sources participate safely in arbitrage detection;
+- at least two independent transport/data sources participate safely in arbitrage detection;
 - provider outages are isolated;
 - adding providers does not increase core-domain coupling.
 
