@@ -385,3 +385,34 @@ Those remain assigned to later roadmap phases.
 ## Compliance boundary
 
 Using an authorized data API does not remove jurisdictional or licensing obligations. The provider's terms assign responsibility for lawful use to the customer. ArbiScan remains a scanner/reporting system; automated wager placement is outside the initial product boundary.
+
+
+## Phase 17.11 broader outright competition gate
+
+The Odds API explicitly exposes `has_outrights` on sport records and documents an
+`outrights` market for futures such as tournament or championship winners.
+
+Its outright schema is materially different from ordinary fixture identity: provider
+documentation notes that outright payloads can omit the normal teams/home-team fields.
+Phase 17.11 therefore parses and preserves `has_outrights` instead of inferring
+outright status from a sport-key name.
+
+Any competition with `has_outrights=true` fails before ArbiScan's current binary
+home/away event parser. This gate applies generically, not only to motorsport.
+
+A future outright adapter path must provide:
+
+- explicit multi-participant source identity;
+- a complete/static candidate set;
+- stable mapping of every quoted candidate to canonical participant identity;
+- no unresolved Field/Other bucket;
+- settlement equivalence for ties, dead heats, withdrawals and voids.
+
+Official references reviewed on 2026-09-18:
+
+- https://the-odds-api.com/liveapi/guides/v4/
+- https://the-odds-api.com/releases/outrights.html
+- https://the-odds-api.com/sports-odds-data/betting-markets.html
+
+See [tournament/championship outright semantics](../markets/outright-tournament-championship.md)
+and ADR-0022.
