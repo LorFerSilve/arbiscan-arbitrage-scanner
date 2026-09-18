@@ -10,6 +10,11 @@ from arbiscan.arbitrage.core import (
     is_theoretical_arbitrage,
     theoretical_profit_margin,
 )
+from arbiscan.arbitrage.errors import (
+    ArbitrageMathError,
+    IncompleteMarketError,
+    StakeConstraintError,
+)
 from arbiscan.arbitrage.exchange import (
     BookmakerBackStake,
     ExchangePortfolioEvaluation,
@@ -21,11 +26,6 @@ from arbiscan.arbitrage.exchange import (
     assess_exchange_price_support,
     evaluate_exchange_portfolio,
     lay_liability,
-)
-from arbiscan.arbitrage.errors import (
-    ArbitrageMathError,
-    IncompleteMarketError,
-    StakeConstraintError,
 )
 from arbiscan.arbitrage.models import (
     ArbitrageEvaluation,
