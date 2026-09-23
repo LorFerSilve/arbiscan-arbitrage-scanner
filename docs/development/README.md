@@ -7,6 +7,7 @@ This directory contains the reproducible engineering setup plus formal completio
 - [`setup.md`](setup.md) — reproducible local setup and quality commands.
 - [`dependency-policy.md`](dependency-policy.md) — third-party dependency and supply-chain policy.
 - [`normalization.md`](normalization.md) — canonical normalization rules and supported semantics.
+- [`phase-19-performance-baseline.md`](phase-19-performance-baseline.md) — reproducible post-ingestion benchmark and first profiled optimizations.
 
 ## Phase completion records
 

@@ -49,6 +49,9 @@ class CanonicalRegistry:
     _selections_by_id: Mapping[SelectionId, Selection] = field(
         init=False, repr=False, compare=False
     )
+    _selection_ids_by_market: Mapping[MarketId, tuple[SelectionId, ...]] = field(
+        init=False, repr=False, compare=False
+    )
 
     def __post_init__(self) -> None:
         competitions = tuple(self.competitions)
@@ -73,6 +76,9 @@ class CanonicalRegistry:
         event_map = {value.id: value for value in events}
         market_map = {value.id: value for value in markets}
         selection_map = {value.id: value for value in selections}
+        selection_ids_by_market: dict[MarketId, list[SelectionId]] = {}
+        for selection in selections:
+            selection_ids_by_market.setdefault(selection.market_id, []).append(selection.id)
 
         if len(competition_map) != len(competitions):
             raise ValueError("registry competition IDs must be unique")
@@ -303,6 +309,16 @@ class CanonicalRegistry:
         object.__setattr__(self, "_events_by_id", MappingProxyType(event_map))
         object.__setattr__(self, "_markets_by_id", MappingProxyType(market_map))
         object.__setattr__(self, "_selections_by_id", MappingProxyType(selection_map))
+        object.__setattr__(
+            self,
+            "_selection_ids_by_market",
+            MappingProxyType(
+                {
+                    market_id: tuple(sorted(ids, key=lambda value: value.value))
+                    for market_id, ids in selection_ids_by_market.items()
+                }
+            ),
+        )
 
     def competition(self, competition_id: CompetitionId) -> Competition | None:
         """Return a canonical competition by opaque ID."""
@@ -326,12 +342,7 @@ class CanonicalRegistry:
 
     def selection_ids_for_market(self, market_id: MarketId) -> tuple[SelectionId, ...]:
         """Return deterministic expected outcomes for one canonical market."""
-        return tuple(
-            sorted(
-                (selection.id for selection in self.selections if selection.market_id == market_id),
-                key=lambda selection_id: selection_id.value,
-            )
-        )
+        return self._selection_ids_by_market.get(market_id, ())
 
 
 @dataclass(frozen=True, slots=True)
