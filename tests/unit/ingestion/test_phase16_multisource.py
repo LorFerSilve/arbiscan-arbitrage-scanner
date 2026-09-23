@@ -1,5 +1,6 @@
 """Phase 16.2 regressions for transport provenance and overlap consolidation."""
 
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
@@ -14,6 +15,7 @@ from arbiscan.domain import (
 )
 from arbiscan.ingestion.multisource import (
     ConsolidationDiagnosticCode,
+    PriceSlotKey,
     SourceObservationKey,
     consolidate_quotes,
 )
@@ -113,6 +115,98 @@ def test_equal_time_material_conflict_fails_closed() -> None:
     assert result.conflict_count == 1
     assert result.diagnostics[0].code is ConsolidationDiagnosticCode.MATERIAL_CONFLICT
     assert set(result.diagnostics[0].transport_provider_ids) == {TRANSPORT_A, TRANSPORT_B}
+
+
+def test_many_price_slots_keep_quote_and_diagnostic_order_independent_of_input() -> None:
+    def moved(
+        quote: OddsQuote, *, event: str, market: str, selection: str, provider: str
+    ) -> OddsQuote:
+        return replace(
+            quote,
+            id=QuoteId(f"{quote.id.value}:{event}:{market}:{selection}:{provider}"),
+            event_id=EventId(event),
+            market_id=MarketId(market),
+            selection_id=SelectionId(selection),
+            provider_id=ProviderId(provider),
+        )
+
+    conflict_a = moved(
+        _quote(transport=TRANSPORT_A, price="2.10"),
+        event="event:a",
+        market="market:a",
+        selection="selection:a",
+        provider="provider:a",
+    )
+    conflict_b = moved(
+        _quote(transport=TRANSPORT_B, price="2.20"),
+        event="event:a",
+        market="market:a",
+        selection="selection:a",
+        provider="provider:a",
+    )
+    singleton = moved(
+        _quote(transport=TRANSPORT_A, price="2.10"),
+        event="event:b",
+        market="market:a",
+        selection="selection:a",
+        provider="provider:a",
+    )
+    older = moved(
+        _quote(
+            transport=TRANSPORT_A,
+            price="2.05",
+            source_timestamp=NOW - timedelta(seconds=10),
+        ),
+        event="event:b",
+        market="market:b",
+        selection="selection:a",
+        provider="provider:a",
+    )
+    newer = moved(
+        _quote(transport=TRANSPORT_B, price="2.15"),
+        event="event:b",
+        market="market:b",
+        selection="selection:a",
+        provider="provider:a",
+    )
+    equivalent_a = moved(
+        _quote(transport=TRANSPORT_A, price="2.10"),
+        event="event:z",
+        market="market:z",
+        selection="selection:z",
+        provider="provider:z",
+    )
+    equivalent_b = moved(
+        _quote(transport=TRANSPORT_B, price="2.10"),
+        event="event:z",
+        market="market:z",
+        selection="selection:z",
+        provider="provider:z",
+    )
+    observations = (
+        equivalent_b,
+        newer,
+        conflict_b,
+        singleton,
+        older,
+        equivalent_a,
+        conflict_a,
+    )
+
+    forward = consolidate_quotes(observations)
+    reverse = consolidate_quotes(reversed(observations))
+
+    assert forward == reverse
+    assert forward.quotes == (singleton, newer, equivalent_b)
+    assert tuple(item.code for item in forward.diagnostics) == (
+        ConsolidationDiagnosticCode.MATERIAL_CONFLICT,
+        ConsolidationDiagnosticCode.EQUIVALENT_OVERLAP,
+    )
+    assert tuple(item.slot for item in forward.diagnostics) == (
+        PriceSlotKey.from_quote(conflict_a),
+        PriceSlotKey.from_quote(equivalent_a),
+    )
+    assert forward.conflict_count == forward.equivalent_overlap_count == 1
 
 
 def test_legacy_quote_defaults_transport_identity_to_price_provider() -> None:

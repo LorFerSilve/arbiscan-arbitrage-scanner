@@ -100,14 +100,12 @@ def _observation_sort_key(quote: OddsQuote) -> tuple[str, datetime, datetime, st
     )
 
 
-def _output_sort_key(quote: OddsQuote) -> tuple[str, str, str, str, str]:
-    transport = quote.transport_provider_id or quote.provider_id
+def _slot_sort_key(quote: OddsQuote) -> tuple[str, str, str, str]:
     return (
         quote.event_id.value,
         quote.market_id.value,
         quote.selection_id.value,
         quote.provider_id.value,
-        transport.value,
     )
 
 
@@ -128,30 +126,35 @@ def consolidate_quotes(quotes: Iterable[OddsQuote]) -> ConsolidationResult:
     if any(not isinstance(quote, OddsQuote) for quote in quote_values):
         raise ValueError("quotes must contain OddsQuote values")
 
-    grouped: dict[PriceSlotKey, list[OddsQuote]] = defaultdict(list)
+    # Group by existing normalized ID values; construct a public slot object only
+    # for a diagnostic. Most slots need no diagnostic after freshness selection.
+    grouped: dict[tuple[str, str, str, str], list[OddsQuote]] = defaultdict(list)
     for quote in quote_values:
-        grouped[PriceSlotKey.from_quote(quote)].append(quote)
+        grouped[_slot_sort_key(quote)].append(quote)
 
     selected: list[OddsQuote] = []
     diagnostics: list[ConsolidationDiagnostic] = []
     equivalent_overlap_count = 0
     conflict_count = 0
 
-    for slot in sorted(
-        grouped,
-        key=lambda item: (
-            item.event_id.value,
-            item.market_id.value,
-            item.selection_id.value,
-            item.provider_id.value,
-        ),
-    ):
-        observations = grouped[slot]
+    for slot_key in sorted(grouped):
+        observations = grouped[slot_key]
+        if len(observations) == 1:
+            selected.append(observations[0])
+            continue
+
         newest_timestamp = max(effective_timestamp(quote) for quote in observations)
         newest = [quote for quote in observations if effective_timestamp(quote) == newest_timestamp]
+        if len(newest) == 1:
+            selected.append(newest[0])
+            continue
+
         newest.sort(key=_observation_sort_key)
 
-        semantic_states = {(quote.decimal_price, quote.status) for quote in newest}
+        first_state = (newest[0].decimal_price, newest[0].status)
+        material_conflict = any(
+            (quote.decimal_price, quote.status) != first_state for quote in newest[1:]
+        )
         transports = tuple(
             sorted(
                 {quote.transport_provider_id or quote.provider_id for quote in newest},
@@ -159,8 +162,9 @@ def consolidate_quotes(quotes: Iterable[OddsQuote]) -> ConsolidationResult:
             )
         )
         quote_ids = tuple(quote.id.value for quote in newest)
+        slot = PriceSlotKey.from_quote(observations[0])
 
-        if len(semantic_states) > 1:
+        if material_conflict:
             conflict_count += 1
             diagnostics.append(
                 ConsolidationDiagnostic(
@@ -195,21 +199,11 @@ def consolidate_quotes(quotes: Iterable[OddsQuote]) -> ConsolidationResult:
                 )
             )
 
+    # The group keys already have the output sort order, and each price slot
+    # contributes at most one quote or diagnostic.
     return ConsolidationResult(
-        quotes=tuple(sorted(selected, key=_output_sort_key)),
-        diagnostics=tuple(
-            sorted(
-                diagnostics,
-                key=lambda item: (
-                    item.slot.event_id.value,
-                    item.slot.market_id.value,
-                    item.slot.selection_id.value,
-                    item.slot.provider_id.value,
-                    item.effective_timestamp,
-                    item.code.value,
-                ),
-            )
-        ),
+        quotes=tuple(selected),
+        diagnostics=tuple(diagnostics),
         equivalent_overlap_count=equivalent_overlap_count,
         conflict_count=conflict_count,
     )

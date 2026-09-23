@@ -25,9 +25,9 @@ updates per cycle, three warm-up cycles, and 20 measured cycles. The script acce
 `--warmup-cycles`, and `--measured-cycles`. The quote state and timings are created
 without network calls, credentials, or randomness.
 
-The cycle timing covers the in-process post-ingestion detection path. Provider HTTP,
-payload normalization, cross-provider event matching, feed conflict resolution,
-database writes, alerts, and UI rendering are outside this workload. The synthetic
+The default cycle timing covers the in-process post-ingestion detection path. Provider
+HTTP, payload normalization, cross-provider event matching, feed conflict resolution,
+database writes, alerts, and UI rendering are outside this default workload. The synthetic
 prices intentionally create a detection in every complete market, exercising
 opportunity materialization on every cycle. The `core_updates_per_second` figure
 measures `LiveQuoteStore.apply()` time; it is not a provider ingestion rate.
@@ -83,6 +83,61 @@ Median time scaled close to the workload size across these three local samples.
 The 400-event p95 shows enough variation that load and tail-latency claims need
 longer runs on the intended deployment machine before setting an SLO.
 
+## Multi-source consolidation workload
+
+The default benchmark uses `LiveQuoteStore`, whereas the production multi-source
+scanner uses `MultiSourceLiveQuoteStore`. Run the same harness with overlapping
+transport feeds to include the latter store's quote versioning and consolidation:
+
+```text
+uv run python scripts/benchmark_detection.py --transports-per-provider 2
+uv run python scripts/benchmark_detection.py --transports-per-provider 2 --conflicting-slots 21
+```
+
+Each synthetic price-provider slot is reported by two independent transports at
+the same effective timestamp. Equal prices collapse to one executable quote. The
+optional `--conflicting-slots` argument makes that many fixed price slots disagree
+at equal timestamps; those slots must produce conflict diagnostics and no
+executable quote. The report separates applying observations, reading fresh and
+consolidated quotes, market-book construction, and evaluation. It includes
+observation and consolidation counts alongside the stable result digest. The
+agreeing-overlap workload has the same detection digest as the one-transport
+workload. A conflict workload is intentionally semantically different; compare
+its digest only against runs with identical input parameters.
+
+This remains a synthetic, in-process post-ingestion measurement. It does not time
+provider polling, payload normalization, event matching, persistence, alerts, or
+the UI. Its update throughput measures store operations, not external feed capacity.
+
+On the same Windows 10 / CPython 3.13.15 / Ryzen 7 5800X machine, local runs of
+the default-sized workloads gave these medians (milliseconds). The before and
+after multi-source rows use the same 2,100 price slots and 20 measured cycles:
+
+| Workload | Apply | Fresh / consolidate | Build books | Evaluate | Full cycle | Cycle p95 |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| One transport | 1.859 | 0.856 | 10.544 | 11.624 | 24.971 | 25.944 |
+| Two agreeing transports, before | 4.987 | 25.135 | 10.594 | 11.711 | 52.097 | 57.475 |
+| Two agreeing transports, after | 4.900 | 13.482 | 10.619 | 11.625 | 40.831 | 46.700 |
+| Two transports, 21 conflicts, before | 4.898 | 25.077 | 10.604 | 11.618 | 52.207 | 54.864 |
+| Two transports, 21 conflicts, after | 4.876 | 13.620 | 10.585 | 11.419 | 40.812 | 47.211 |
+
+The agreeing run held the same 2,100 price slots and produced the same 6,000 books
+and opportunities as the one-transport run, while storing 4,200 observations and
+applying 600 observations per cycle. The conflicting run suppressed 21 slots on
+each of 20 measured cycles: 420 conflicts in total, 41,580 executable quote
+appearances, and 5,940 books and opportunities. The agreeing run's opportunity
+digest matched the one-transport run exactly:
+`7be7cdd1f19ecc850fba82bd158b5ae107d2d31f63d5e3905e106a59f2ce5e1f`.
+
+`cProfile` put 1.129 seconds across 23 calls to `consolidate_quotes()` in the
+initial multi-source workload. Consolidation now groups by existing ID values,
+avoids redundant output sorts, and skips detailed checks when one observation is
+newest. The live store also avoids constructing observation keys when no source
+has been invalidated. Three runs after these changes put the median full cycle
+between 40.777 and 41.591 ms, versus 52.097 ms in the original run. The first
+after run above reduced its fresh/consolidate stage from 25.135 to 13.482 ms.
+These are local diagnostics, not an operational throughput or latency promise.
+
 For a fresh profile:
 
 ```text
@@ -90,10 +145,14 @@ uv run python -m cProfile -o ../arbiscan-profile.pstats scripts/benchmark_detect
 uv run python -c "import pstats; pstats.Stats('../arbiscan-profile.pstats').sort_stats('cumtime').print_stats(20)"
 ```
 
+Pass `--transports-per-provider 2` after the script name when profiling the
+overlapping-feed workload.
+
 ## Remaining Phase 19 work
 
-Measure provider polling and normalization, event matching, multi-source
-consolidation, persistence, and historical replay at representative loads. Define
+Measure provider polling and normalization, event matching, persistence, and
+historical replay at representative loads. Extend the synthetic multi-source
+measurement to observed transport overlap and deployment-sized loads. Define
 operational latency/throughput targets from actual provider contracts and deployment
 capacity, then profile any further changes against fixed workloads and verify equal
 results before promoting them.
