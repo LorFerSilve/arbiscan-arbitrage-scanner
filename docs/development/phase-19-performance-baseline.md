@@ -68,6 +68,21 @@ return multiplier, margin, and threshold decision. Public Decimal outputs and th
 synthetic result digest remained identical; the arbitrage suite also checks parity
 with the public math functions across fair, profitable, and unprofitable books.
 
+## Exploratory load scaling
+
+With two warm-up and ten measured cycles, three providers, three markets per event,
+and updates proportional to the event count, the optimized in-process median was:
+
+| Events | Current quotes | Updates/cycle | Median cycle | p95 cycle |
+| ---: | ---: | ---: | ---: | ---: |
+| 100 | 2,100 | 300 | 24.545 ms | 24.974 ms |
+| 200 | 4,200 | 600 | 48.993 ms | 51.122 ms |
+| 400 | 8,400 | 1,200 | 99.041 ms | 121.229 ms |
+
+Median time scaled close to the workload size across these three local samples.
+The 400-event p95 shows enough variation that load and tail-latency claims need
+longer runs on the intended deployment machine before setting an SLO.
+
 For a fresh profile:
 
 ```text
