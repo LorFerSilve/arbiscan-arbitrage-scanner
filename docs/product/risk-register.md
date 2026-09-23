@@ -69,6 +69,21 @@ A risk with high correctness or security impact must not be dismissed merely bec
 | R-051 | F1 winner/podium/H2H prices are compared despite incomplete driver grids, session mismatch, or different DNS/DNF/disqualification/dead-heat rules | High | Critical | ADR-0021 models explicit motorsport identity/completeness and keeps all Phase 17.10 motorsport runtime support closed until provider and settlement equivalence is proven | Closed |
 | R-052 | Tournament/championship outright prices are compared across incomplete/dynamic candidate fields, synthetic Field/Other buckets, or incompatible tie/dead-heat/withdrawal/void settlement | High | Critical | ADR-0022 exact candidate completeness, homogeneous participant-kind boundary, explicit outright settlement profile, and runtime fail-closed provider gate | Closed |
 | R-053 | Exchange lay prices are treated as ordinary bookmaker back odds, or arbitrage ignores lay liability, matched liquidity, account/market commission, or settlement rules | High | Critical | ADR-0023 separate exchange price model, explicit BACK/LAY side, liability/liquidity checks, net-market commission, provenance, and fail-closed support gate | Closed |
+| R-054 | Historical price replay is presented as realized profitability, or code/config changes are compared against different mutable evidence corpora | High | High | ADR-0024 fixed canonical corpus digest, production-path replay, explicit latency/freshness/actionability assumptions, and theoretical-vs-realized execution boundary | Closed |
+
+
+
+### Phase 18 historical-analysis boundary
+
+Phase 18 prevents historical price snapshots from being interpreted as proof of
+realized wagering profit. Replay uses immutable canonical evidence identified by a
+stable corpus digest and routes it through the same market-book and arbitrage
+primitives as live detection. Detection latency, freshness, provider policy, and
+optional actionability assumptions are explicit configuration.
+
+The report separates theoretical detections from modeled actionable detections.
+Wager acceptance, account-specific limits, partial matching, manual execution and
+other unobserved execution factors remain outside realized-profit claims.
 
 ## Critical risk themes
 

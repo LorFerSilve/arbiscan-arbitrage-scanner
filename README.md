@@ -4,11 +4,12 @@ ArbiScan is a multi-bookmaker sports-odds aggregation and arbitrage-detection en
 
 ## Current status
 
-Phases 0 through 16 and **Phases 17.1 through 17.12** of
-[`roadmap.md`](roadmap.md) are technically implemented on the active Phase 17 stack.
+Phases 0 through 18 of [`roadmap.md`](roadmap.md) are technically implemented on
+the current development branch.
 
-Phase 17 expansion is now semantically complete. The next implementation dependency
-is **Phase 18 — historical analysis, replay, and backtesting**.
+Phase 18 adds deterministic historical replay and backtesting over canonical quote
+history. The next implementation dependency is **Phase 19 — performance and
+scalability engineering**.
 
 The implemented core includes:
 
@@ -31,7 +32,10 @@ The implemented core includes:
 - generalized tournament/championship outright candidate completeness plus an explicit
   settlement-safety profile for deciding when generic N-outcome math is sufficient;
 - a separate exchange settlement path with explicit BACK/LAY identity, lay liability,
-  matched-liquidity limits, commission scope, and net-market commission.
+  matched-liquidity limits, commission scope, and net-market commission;
+- deterministic historical replay over canonical quote corpora, including opportunity
+  duration, latency sensitivity, stale-data counterfactuals, provider comparisons,
+  matching precision/recall, and theoretical-versus-actionable analysis.
 
 The project remains development software. OddsPapi is technically integrated but
 remains blocked from production activation pending the documented provider-rights
@@ -80,5 +84,6 @@ CI uses deterministic fixtures and does not require live provider credentials.
 - Phase 16.1 provider selection: [`docs/providers/phase-16.1-provider-selection.md`](docs/providers/phase-16.1-provider-selection.md)
 - OddsPapi onboarding record: [`docs/providers/oddspapi.md`](docs/providers/oddspapi.md)
 - Dashboard/alert boundary: [`docs/product/dashboard-and-alerts.md`](docs/product/dashboard-and-alerts.md)
+- Historical replay/backtesting: [`docs/analysis/historical-replay-and-backtesting.md`](docs/analysis/historical-replay-and-backtesting.md)
 - Architecture decisions: [`docs/adr/`](docs/adr/)
 - Development roadmap: [`roadmap.md`](roadmap.md)
