@@ -42,14 +42,18 @@ the fixed evidence corpus used for comparisons.
 
 - freshness window;
 - detection latency;
+- source clock-skew tolerance for live-store admission;
 - minimum theoretical margin;
 - provider inclusion/exclusion policy;
 - optional actionability policy;
 - optional canonical market scope.
 
 At each simulated detector instant, replay uses only batches whose observation time is
-not later than that instant. The latest canonical quote per `QuoteKey` is then passed
-through the existing production market-book and evaluation paths.
+not later than that instant. The production multi-source live store retains one
+accepted observation per transport stream. After the configured freshness gate,
+overlapping feeds are consolidated by executable bookmaker price slot and equal-time
+material conflicts suppress the slot. Only markets supported by the generic arbitrage
+settlement policy are passed to the existing market-book and evaluation paths.
 
 Phase 18 reports:
 

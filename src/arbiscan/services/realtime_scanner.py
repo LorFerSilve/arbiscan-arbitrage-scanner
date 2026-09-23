@@ -34,6 +34,7 @@ from arbiscan.marketbook import (
     build_market_books,
 )
 from arbiscan.matching.catalog import CanonicalRegistry
+from arbiscan.normalization.market_support import assess_market_support
 from arbiscan.normalization.strict import NormalizationIssue, normalize_source_snapshot
 from arbiscan.providers.contract import ProviderAdapter
 
@@ -190,6 +191,7 @@ class RealtimeScanner:
             for market in self.registry.markets
             if (event := self.registry.event(market.event_id)) is not None
             and event.sport is self.sport
+            and assess_market_support(sport=event.sport, market=market).supported
         )
 
     def _explicit_inactive_quote_keys(self, ingested: IngestedSnapshot) -> set[QuoteKey]:

@@ -16,7 +16,7 @@ from arbiscan.domain import (
     ProviderId,
 )
 from arbiscan.domain.serialization import dumps
-from arbiscan.ingestion.realtime import QuoteKey
+from arbiscan.ingestion.multisource import SourceObservationKey
 from arbiscan.lifecycle import ActionabilityPolicy, LifecycleEvaluation, LifecycleState
 from arbiscan.marketbook import ProviderBookPolicy
 
@@ -55,9 +55,11 @@ class HistoricalQuoteBatch:
             raise ValueError("historical quote batch cannot be empty")
         if any(not isinstance(quote, OddsQuote) for quote in quotes):
             raise ValueError("historical quote batch must contain OddsQuote values")
-        keys = tuple(QuoteKey.from_quote(quote) for quote in quotes)
+        keys = tuple(SourceObservationKey.from_quote(quote) for quote in quotes)
         if len(set(keys)) != len(keys):
-            raise ValueError("historical quote batch may contain at most one update per QuoteKey")
+            raise ValueError(
+                "historical quote batch may contain at most one update per SourceObservationKey"
+            )
         if any(quote.ingested_at > observed for quote in quotes):
             raise ValueError("historical quote cannot be available before its ingestion timestamp")
         object.__setattr__(self, "observed_at", observed)
@@ -69,6 +71,7 @@ class HistoricalQuoteBatch:
                     quotes,
                     key=lambda quote: (
                         quote.provider_id.value,
+                        (quote.transport_provider_id or quote.provider_id).value,
                         quote.event_id.value,
                         quote.market_id.value,
                         quote.selection_id.value,
@@ -154,6 +157,7 @@ class BacktestConfig:
 
     freshness_window: timedelta
     detection_latency: timedelta = timedelta(0)
+    clock_skew_tolerance: timedelta = timedelta(seconds=5)
     minimum_profit_margin: Decimal = Decimal("0")
     provider_policy: ProviderBookPolicy | None = None
     actionability_policy: ActionabilityPolicy | None = None
@@ -165,6 +169,7 @@ class BacktestConfig:
         ):
             raise ValueError("freshness_window must be a positive timedelta")
         _non_negative_timedelta(self.detection_latency, field="detection_latency")
+        _non_negative_timedelta(self.clock_skew_tolerance, field="clock_skew_tolerance")
         _finite_decimal(self.minimum_profit_margin, field="minimum_profit_margin")
         if self.provider_policy is not None and not isinstance(
             self.provider_policy, ProviderBookPolicy

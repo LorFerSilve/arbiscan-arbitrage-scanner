@@ -20,11 +20,16 @@ detector_time = batch.observed_at + configured_detection_latency
 ```
 
 Before evaluation at that detector time, replay applies every quote batch that would
-already have been observable. The latest quote per canonical `QuoteKey` becomes the
-candidate live state.
+already have been observable through the production transport-aware live store. Each
+transport retains its own latest accepted observation; out-of-order updates and
+excessive source clock skew are rejected using `BacktestConfig.clock_skew_tolerance`
+(five seconds by default). Eligible observations are consolidated by executable
+bookmaker price slot. Equal-time conflicting feeds suppress that slot, as in live scans.
 
-Market construction then uses the normal production `build_market_books()` path and
-the configured freshness window.
+The configured freshness window is applied before consolidation. Market construction
+then uses the normal production `build_market_books()` path. Only markets supported by
+the generic arbitrage settlement policy are evaluated. An explicitly scoped market
+that requires a different settlement path, such as Draw No Bet, is rejected.
 
 ## Detection and actionability
 
@@ -63,8 +68,9 @@ present in the corpus.
 ## Stale-data false positives
 
 For each replay instant, the strict configured freshness result is compared with a
-counterfactual that keeps the same latest quote state but widens only the freshness
-window enough to admit older currently-known quotes.
+counterfactual that keeps the same accepted transport observations but widens only the
+freshness window enough to admit older currently-known quotes. Both runs apply the
+same conflict-safe consolidation after their respective freshness gates.
 
 A theoretical arbitrage visible only in that relaxed run is recorded as a stale-data
 false positive.

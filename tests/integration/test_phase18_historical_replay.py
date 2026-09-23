@@ -73,7 +73,7 @@ def _registry() -> CanonicalRegistry:
         id=MARKET_ID,
         event_id=EVENT_ID,
         kind=MarketKind.TOTAL_POINTS,
-        period=MarketPeriod.FULL_EVENT,
+        period=MarketPeriod.REGULATION,
         line=Decimal("2.5"),
     )
     selections = (

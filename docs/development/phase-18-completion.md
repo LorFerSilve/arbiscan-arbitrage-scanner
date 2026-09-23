@@ -7,6 +7,8 @@
 - deterministic `HistoricalQuoteCorpus` and timestamped quote batches;
 - stable SHA-256 corpus identity;
 - historical replay using the same production market-book and arbitrage primitives;
+- transport-aware live-state admission and conflict-safe bookmaker quote consolidation;
+- generic settlement-policy gate that excludes refundable and unsupported markets;
 - optional reuse of Phase-12 actionability revalidation;
 - opportunity interval and duration analysis;
 - configurable detection-latency replay;

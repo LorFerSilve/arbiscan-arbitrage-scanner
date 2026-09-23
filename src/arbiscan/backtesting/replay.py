@@ -22,10 +22,13 @@ from arbiscan.backtesting.models import (
     _OpenOpportunityInterval,
 )
 from arbiscan.domain import MarketId, OddsQuote, OpportunityId, ProviderId, StakePlanId
-from arbiscan.ingestion.realtime import QuoteKey
+from arbiscan.ingestion.multisource import consolidate_quotes
+from arbiscan.ingestion.multisource_state import MultiSourceLiveQuoteStore
+from arbiscan.ingestion.realtime import RealtimeIngestionPolicy
 from arbiscan.lifecycle import LifecycleState, revalidate_opportunity
 from arbiscan.marketbook import ProviderBookPolicy, build_market_books, quote_effective_timestamp
 from arbiscan.matching import CanonicalRegistry
+from arbiscan.normalization.market_support import assess_market_support
 
 _METRIC_CONTEXT = Context(prec=60, rounding=ROUND_HALF_EVEN)
 _ZERO = Decimal("0")
@@ -35,10 +38,14 @@ def _market_scope(
     registry: CanonicalRegistry,
     config: BacktestConfig,
 ) -> tuple[MarketId, ...]:
+    supported = {
+        market.id
+        for market in registry.markets
+        if (event := registry.event(market.event_id)) is not None
+        and assess_market_support(sport=event.sport, market=market).supported
+    }
     if config.market_ids is None:
-        return tuple(
-            sorted((market.id for market in registry.markets), key=lambda value: value.value)
-        )
+        return tuple(sorted(supported, key=lambda value: value.value))
 
     unknown = tuple(
         market_id for market_id in config.market_ids if registry.market(market_id) is None
@@ -47,6 +54,12 @@ def _market_scope(
         raise ValueError(
             "backtest market_ids contain unknown canonical markets: "
             + ", ".join(value.value for value in unknown)
+        )
+    unsupported = tuple(market_id for market_id in config.market_ids if market_id not in supported)
+    if unsupported:
+        raise ValueError(
+            "backtest market_ids contain markets unsupported by generic arbitrage: "
+            + ", ".join(value.value for value in unsupported)
         )
     return config.market_ids
 
@@ -83,6 +96,21 @@ def _counterfactual_freshness_window(
         return minimum_window
     oldest_age = max(available_ages)
     return max(minimum_window, oldest_age + timedelta(microseconds=1))
+
+
+def _consolidated_eligible_quotes(
+    observations: tuple[OddsQuote, ...],
+    *,
+    detected_at: datetime,
+    freshness_window: timedelta,
+) -> tuple[OddsQuote, ...]:
+    """Apply freshness before the production multi-transport conflict gate."""
+    eligible = (
+        quote
+        for quote in observations
+        if detected_at - quote_effective_timestamp(quote) <= freshness_window
+    )
+    return consolidate_quotes(eligible).quotes
 
 
 def _provider_only_policy(provider_id: ProviderId) -> ProviderBookPolicy:
@@ -131,7 +159,14 @@ def run_backtest(
         sorted({batch.observed_at + config.detection_latency for batch in corpus.batches})
     )
 
-    current_by_key: dict[QuoteKey, OddsQuote] = {}
+    # Keep one versioned stream per transport, just as the live multi-source store does.
+    # Its broad retention window lets the counterfactual apply a different freshness gate.
+    store = MultiSourceLiveQuoteStore(
+        RealtimeIngestionPolicy(
+            freshness_window=timedelta.max,
+            clock_skew_tolerance=config.clock_skew_tolerance,
+        )
+    )
     next_batch = 0
     detections: list[ReplayDetection] = []
     stale_false_positives: list[StaleFalsePositive] = []
@@ -165,13 +200,17 @@ def run_backtest(
             and corpus.batches[next_batch].observed_at <= detected_at
         ):
             batch = corpus.batches[next_batch]
-            for quote in batch.quotes:
-                current_by_key[QuoteKey.from_quote(quote)] = quote
+            store.apply(batch.quotes, observed_at=batch.observed_at)
             next_batch += 1
 
-        current_quotes = tuple(current_by_key.values())
-        strict_batch = build_market_books(
+        current_quotes = store.fresh_observations(as_of=detected_at)
+        strict_quotes = _consolidated_eligible_quotes(
             current_quotes,
+            detected_at=detected_at,
+            freshness_window=config.freshness_window,
+        )
+        strict_batch = build_market_books(
+            strict_quotes,
             registry=registry,
             as_of=detected_at,
             freshness_window=config.freshness_window,
@@ -229,8 +268,13 @@ def run_backtest(
             minimum_window=config.freshness_window,
         )
         if relaxed_window > config.freshness_window:
-            relaxed_batch = build_market_books(
+            relaxed_quotes = _consolidated_eligible_quotes(
                 current_quotes,
+                detected_at=detected_at,
+                freshness_window=relaxed_window,
+            )
+            relaxed_batch = build_market_books(
+                relaxed_quotes,
                 registry=registry,
                 as_of=detected_at,
                 freshness_window=relaxed_window,
@@ -261,7 +305,7 @@ def run_backtest(
 
         for provider_id in allowed_providers:
             provider_batch = build_market_books(
-                current_quotes,
+                strict_quotes,
                 registry=registry,
                 as_of=detected_at,
                 freshness_window=config.freshness_window,

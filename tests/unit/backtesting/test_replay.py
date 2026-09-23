@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
@@ -38,6 +39,7 @@ from arbiscan.domain import (
 )
 from arbiscan.lifecycle import ActionabilityPolicy, LifecycleState
 from arbiscan.matching import CanonicalRegistry
+from arbiscan.services.realtime_scanner import RealtimeScanner
 
 T0 = datetime(2026, 1, 1, 12, 0, tzinfo=UTC)
 EVENT_ID = EventId("event:phase18")
@@ -82,7 +84,7 @@ def _registry() -> CanonicalRegistry:
         id=MARKET_ID,
         event_id=EVENT_ID,
         kind=MarketKind.TOTAL_POINTS,
-        period=MarketPeriod.FULL_EVENT,
+        period=MarketPeriod.REGULATION,
         line=Decimal("2.5"),
     )
     selections = (
@@ -95,6 +97,31 @@ def _registry() -> CanonicalRegistry:
         events=(event,),
         markets=(market,),
         selections=selections,
+    )
+
+
+def _refundable_registry() -> CanonicalRegistry:
+    """The same football event with a Draw No Bet / handicap-zero market."""
+    base = _registry()
+    return CanonicalRegistry(
+        competitions=base.competitions,
+        participants=base.participants,
+        events=base.events,
+        markets=(replace(base.markets[0], kind=MarketKind.HANDICAP, line=Decimal("0")),),
+        selections=(
+            replace(
+                base.selections[0],
+                kind=SelectionKind.PARTICIPANT,
+                participant_id=base.participants[0].id,
+                handicap=Decimal("0"),
+            ),
+            replace(
+                base.selections[1],
+                kind=SelectionKind.PARTICIPANT,
+                participant_id=base.participants[1].id,
+                handicap=Decimal("0"),
+            ),
+        ),
     )
 
 
@@ -238,6 +265,98 @@ def test_provider_metrics_compare_standalone_book_coverage_and_signal() -> None:
     assert by_provider[P2].selected_best_quote_count == 0
     assert by_provider[P2].complete_book_count == 1
     assert by_provider[P2].theoretical_detection_count == 0
+
+
+def test_refundable_market_cannot_enter_generic_replay_or_live_scope() -> None:
+    registry = _refundable_registry()
+    corpus = HistoricalQuoteCorpus.from_quotes(
+        (
+            _quote(P1, OVER, "2.20", at=T0, revision=1),
+            _quote(P2, UNDER, "2.20", at=T0, revision=1),
+        )
+    )
+    report = run_backtest(
+        corpus,
+        registry=registry,
+        config=BacktestConfig(freshness_window=timedelta(seconds=30)),
+    )
+
+    assert report.summary.evaluation_count == 0
+    assert report.summary.theoretical_detection_count == 0
+    assert report.summary.stale_false_positive_count == 0
+    assert all(metric.theoretical_detection_count == 0 for metric in report.provider_metrics)
+    assert (
+        RealtimeScanner(adapters=(), registry=registry, sport=Sport.FOOTBALL)._market_scope() == ()
+    )
+
+    try:
+        run_backtest(
+            corpus,
+            registry=registry,
+            config=BacktestConfig(freshness_window=timedelta(seconds=30), market_ids=(MARKET_ID,)),
+        )
+    except ValueError as error:
+        assert "unsupported by generic arbitrage" in str(error)
+    else:
+        raise AssertionError("explicit refundable market scope must fail closed")
+
+
+def test_replay_consolidates_same_bookmaker_feeds_before_price_selection() -> None:
+    first = replace(
+        _quote(P1, OVER, "2.20", at=T0, revision=1),
+        transport_provider_id=ProviderId("transport:a"),
+    )
+    second = replace(
+        first,
+        id=QuoteId("quote:phase18:over:second-feed"),
+        transport_provider_id=ProviderId("transport:b"),
+    )
+    under = _quote(P2, UNDER, "2.20", at=T0, revision=1)
+    config = BacktestConfig(freshness_window=timedelta(seconds=30))
+
+    equivalent = run_backtest(
+        HistoricalQuoteCorpus.from_quotes((first, second, under)),
+        registry=_registry(),
+        config=config,
+    )
+    assert equivalent.summary.theoretical_detection_count == 1
+    assert first.id in equivalent.detections[0].opportunity.quote_ids
+    assert second.id not in equivalent.detections[0].opportunity.quote_ids
+
+    conflict = run_backtest(
+        HistoricalQuoteCorpus.from_quotes(
+            (first, replace(second, decimal_price=Decimal("2.40")), under)
+        ),
+        registry=_registry(),
+        config=config,
+    )
+    assert conflict.summary.theoretical_detection_count == 0
+    assert conflict.summary.stale_false_positive_count == 0
+    assert all(metric.theoretical_detection_count == 0 for metric in conflict.provider_metrics)
+
+
+def test_replay_rejects_out_of_order_source_update_like_live_store() -> None:
+    old_update = replace(
+        _quote(P1, OVER, "1.20", at=T0 + timedelta(seconds=10), revision=2),
+        source_timestamp=T0 - timedelta(seconds=60),
+    )
+    corpus = HistoricalQuoteCorpus.from_quotes(
+        (
+            _quote(P1, OVER, "2.20", at=T0, revision=1),
+            _quote(P2, UNDER, "2.20", at=T0, revision=1),
+            old_update,
+        )
+    )
+    report = run_backtest(
+        corpus,
+        registry=_registry(),
+        config=BacktestConfig(freshness_window=timedelta(seconds=120)),
+    )
+
+    assert report.summary.theoretical_detection_count == 2
+    assert all(
+        old_update.id not in detection.opportunity.quote_ids for detection in report.detections
+    )
 
 
 def test_matching_precision_recall_counts_wrong_identity_as_fp_and_fn() -> None:
