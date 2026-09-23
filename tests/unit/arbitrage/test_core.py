@@ -109,6 +109,29 @@ def test_minimum_profit_threshold_is_respected() -> None:
     assert not is_theoretical_arbitrage(odds, minimum_profit_margin=Decimal("0.06"))
 
 
+def test_market_evaluation_matches_public_exact_math_at_thresholds() -> None:
+    for prices in (
+        ("2", "2"),
+        ("2.20", "2.20"),
+        ("1.80", "2.20"),
+        ("3.20", "3.20", "3.20"),
+    ):
+        odds = tuple(Decimal(price) for price in prices)
+        quotes = tuple(
+            make_quote(f"selection:{index}", price, index=index)
+            for index, price in enumerate(prices, start=1)
+        )
+        expected = tuple(quote.selection_id for quote in quotes)
+        for threshold in (Decimal("0"), Decimal("0.01")):
+            evaluation = evaluate_market(quotes, expected, minimum_profit_margin=threshold)
+            assert evaluation.implied_probability_sum == implied_probability_sum(odds)
+            assert evaluation.return_multiplier == gross_return_multiplier(odds)
+            assert evaluation.theoretical_profit_margin == theoretical_profit_margin(odds)
+            assert evaluation.is_arbitrage == is_theoretical_arbitrage(
+                odds, minimum_profit_margin=threshold
+            )
+
+
 def test_evaluation_is_order_independent_and_builds_canonical_opportunity() -> None:
     quotes = (
         make_quote("selection:b", "2.20", index=2),

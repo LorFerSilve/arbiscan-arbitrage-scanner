@@ -159,15 +159,18 @@ def evaluate_market(
     ordered_quotes = tuple(sorted(quote_values, key=lambda quote: quote.selection_id.value))
     ordered_expected = tuple(sorted(expected_values, key=lambda selection_id: selection_id.value))
     odds = tuple(quote.decimal_price for quote in ordered_quotes)
-    implied_sum = implied_probability_sum(odds)
-    return_multiplier = gross_return_multiplier(odds)
+    # Exact rational arithmetic is the expensive part of an evaluation. Reuse the
+    # same exact sum for all reported fields and the threshold decision.
+    exact_sum = _exact_implied_sum(odds)
+    implied_sum = _fraction_to_decimal(exact_sum)
+    return_multiplier = _fraction_to_decimal(Fraction(1, 1) / exact_sum)
     with localcontext(_MATH_CONTEXT):
         margin = return_multiplier - _ONE
 
     threshold = _require_decimal(minimum_profit_margin, field="minimum_profit_margin")
     if threshold < _ZERO:
         raise ArbitrageMathError("minimum profit margin cannot be negative")
-    arbitrage = is_theoretical_arbitrage(odds, minimum_profit_margin=threshold)
+    arbitrage = exact_sum < Fraction(1, 1) and margin > _ZERO and margin >= threshold
 
     return ArbitrageEvaluation(
         event_id=first.event_id,
