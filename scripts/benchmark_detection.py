@@ -415,6 +415,10 @@ def run_benchmark(
             + resolved_overlap_slots * (transports_per_provider - 1),
             "updates_per_cycle": updates_per_cycle,
             "measured_update_observations": measured_update_observations,
+            "update_observations_per_cycle": round(
+                measured_update_observations / measured_cycles,
+                2,
+            ),
             "mean_update_observations_per_cycle": round(
                 measured_update_observations / measured_cycles,
                 2,
