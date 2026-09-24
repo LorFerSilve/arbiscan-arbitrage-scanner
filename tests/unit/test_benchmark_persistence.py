@@ -28,6 +28,10 @@ def test_persistence_benchmark_checks_full_and_filtered_replay() -> None:
         "3169fe281403d90fe29e55aae7676cee712796b936fd74a475bc6262e73c0368"
     )
     write_rate = report["write_quotes_per_second"]
+    batch_rate = report["batch_write_quotes_per_second"]
+    batch_speedup = report["batch_write_speedup"]
     read_rate = report["read_quotes_per_second"]
     assert isinstance(write_rate, float) and write_rate > 0
+    assert isinstance(batch_rate, float) and batch_rate > 0
+    assert isinstance(batch_speedup, float) and batch_speedup > 0
     assert isinstance(read_rate, float) and read_rate > 0
