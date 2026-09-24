@@ -48,6 +48,7 @@ from arbiscan.providers.models import (
 )
 from arbiscan.providers.oddspapi import OddsPapiConfig, OddsPapiProvider
 from arbiscan.providers.the_odds_api import TheOddsApiConfig, TheOddsApiProvider
+
 _THE_ODDS_API_NOW = datetime(2026, 9, 20, 11, 5, tzinfo=UTC)
 _ODDSPAPI_NOW = datetime(2026, 9, 17, 10, 21, tzinfo=UTC)
 _FRESHNESS_WINDOW = timedelta(minutes=10)
