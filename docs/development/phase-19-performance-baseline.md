@@ -148,6 +148,53 @@ uv run python -c "import pstats; pstats.Stats('../arbiscan-profile.pstats').sort
 Pass `--transports-per-provider 2` after the script name when profiling the
 overlapping-feed workload.
 
+## Reference deployment load matrix
+
+The production multi-source benchmark now supports partial transport overlap instead
+of only the two extremes of one transport or full duplication. Use
+`--overlap-slots` to duplicate only a deterministic subset of canonical
+price-provider slots:
+
+```text
+uv run python scripts/benchmark_detection.py --transports-per-provider 2 --overlap-slots 525
+```
+
+With partial overlap, the report records the number and fraction of overlapping slots,
+the exact initial observation count, and the actual measured update observations.
+Equivalent transport overlap must preserve the single-source market-book,
+opportunity, and result digest semantics. Material conflicts remain restricted to
+slots that actually overlap.
+
+For repeatable capacity exploration, run the Phase 19 reference load matrix:
+
+```text
+uv run python -m scripts.benchmark_load_matrix
+uv run python -m scripts.benchmark_load_matrix --profile reference
+uv run python -m scripts.benchmark_load_matrix --profile safety_margin
+```
+
+The checked-in profiles are explicit engineering reference loads, not claimed
+production traffic or SLOs:
+
+| Profile | Events | Markets/event | Providers | Quote slots | Updates/cycle | Transport overlap |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| reference | 100 | 3 | 3 | 2,100 | 300 | 25% |
+| scaled | 250 | 3 | 4 | 7,000 | 750 | 25% |
+| safety_margin | 400 | 4 | 4 | 14,400 | 1,200 | 35% |
+
+Each profile first runs an equivalent single-source semantic control and then the
+partial-overlap production multi-source path. The matrix fails if market-book count,
+opportunity count, or the stable detection digest changes under equivalent transport
+overlap. Timings are reported only for the multi-source run, while the matrix digest
+covers the fixed workload definitions and semantic result digests rather than
+machine-dependent timing values.
+
+The safety-margin profile is deliberately larger than the reference profile, but the
+reference profile is not yet an asserted production envelope. Real provider
+contracts, retained traffic distributions, deployment hardware, and observed
+transport overlap still need to replace these provisional dimensions before Phase 19
+can claim its production-scale exit criterion.
+
 ## Historical replay throughput workload
 
 Run the complete Phase 18 replay over a fixed synthetic quote corpus:
@@ -288,11 +335,11 @@ fixture timing as a production SLO.
 
 ## Remaining Phase 19 work
 
-Profile the new provider-pipeline and event-matching workloads on an intended
-deployment machine, then validate both against retained real multi-provider data.
-Persistence and historical replay still need representative retained-data measurements
-beyond their existing synthetic baselines. Extend the synthetic multi-source
-measurement to observed transport overlap and deployment-sized loads. Define
-operational latency/throughput targets from actual provider contracts and deployment
-capacity, then profile any further changes against fixed workloads and verify equal
-results before promoting them.
+Profile the provider-pipeline, event-matching, and reference load-matrix workloads on
+an intended deployment machine, then validate them against retained real
+multi-provider data. Persistence and historical replay still need representative
+retained-data measurements beyond their existing synthetic baselines. Replace the
+reference matrix's provisional scale and overlap assumptions with observed traffic
+and transport-overlap distributions. Define operational latency/throughput targets
+from actual provider contracts and deployment capacity, then profile any further
+changes against fixed workloads and verify equal results before promoting them.
