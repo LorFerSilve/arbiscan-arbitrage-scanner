@@ -148,11 +148,67 @@ uv run python -c "import pstats; pstats.Stats('../arbiscan-profile.pstats').sort
 Pass `--transports-per-provider 2` after the script name when profiling the
 overlapping-feed workload.
 
+## Historical replay throughput workload
+
+Run the complete Phase 18 replay over a fixed synthetic quote corpus:
+
+```text
+uv run python -m scripts.benchmark_replay
+```
+
+The default corpus has 10 events, two markets per event, two price providers,
+two agreeing transport feeds, and three update batches. It contains 320
+transport observations at four simulated instants. One warm-up and three
+measured runs each call `run_backtest()` with the same corpus and registry.
+The timer covers the full replay, including multi-source state, freshness and
+consolidation, market-book construction, arbitrage evaluation, provider-only
+analysis, report construction, and the corpus digest computed by replay.
+Corpus generation and cross-run signature checks happen outside the timer.
+The report includes a
+corpus digest, a signature over selected semantic report fields, fixed counts,
+median/p95/maximum replay time, and observation throughput over all measured
+runs. A changed report signature between repeats fails the command.
+
+The CLI accepts event, market, provider, batch, update, transport, conflict,
+warm-up, and measurement counts. For the larger workload measured below:
+
+```text
+uv run python -m scripts.benchmark_replay --events 50 --markets-per-event 3 --providers 3 --update-batches 20 --updates-per-batch 150
+```
+
+On the same Windows 10 / CPython 3.13.15 / Ryzen 7 5800X machine, one local
+series of three measured full replays per workload gave:
+
+| Events | Batches | Observations | Evaluations / detections | Median replay | Observations/s |
+| ---: | ---: | ---: | ---: | ---: | ---: |
+| 10 | 4 | 320 | 80 | 32.121 ms | 9,971.6 |
+| 20 | 11 | 2,040 | 660 | 356.864 ms | 5,721.5 |
+| 50 | 21 | 8,100 | 3,150 | 2,057.510 ms | 3,953.4 |
+
+The default corpus digest was
+`4a1cb2bf9c3847c0dede9fa176c6bddbced96d6fb456700098d67d7f3eb7c70f`;
+its report signature was
+`f25f34cc3f6f5411fb398d00354c004cd22601dea1474d538e341a84f499be04`.
+All repeated reports in each workload had the same signature. The optional
+`--conflicting-slots` input keeps equal-time transport conflicts in a fixed
+subset; a regression test verifies that a conflicted, incomplete market no
+longer yields a detection.
+
+This is an in-memory replay rate, not historical import throughput or a live
+provider capacity claim. It excludes SQL history loading, provider HTTP,
+normalization, matching, alerts, and UI. The synthetic quotes stay fresh and
+produce theoretical arbitrage in every complete market; no execution or
+realized profit is modeled. `cProfile` of the 20-event workload attributed
+about 0.50 of 1.06 profiled `run_backtest()` seconds to 44 market-book builds.
+The observed throughput decline at larger loads warrants a workload-specific
+target before any replay architecture change.
+
 ## Remaining Phase 19 work
 
 Measure provider polling and normalization, event matching, persistence, and
-historical replay at representative loads. Extend the synthetic multi-source
-measurement to observed transport overlap and deployment-sized loads. Define
+historical replay against retained real data at representative loads. Extend the
+synthetic multi-source measurement to observed transport overlap and
+deployment-sized loads. Define
 operational latency/throughput targets from actual provider contracts and deployment
 capacity, then profile any further changes against fixed workloads and verify equal
 results before promoting them.
