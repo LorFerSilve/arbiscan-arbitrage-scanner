@@ -174,28 +174,29 @@ def _canonical_context(event: SourceEvent, snapshot: OddsSnapshot) -> _Canonical
     if len(event.participants) != 2:
         raise RuntimeError("provider benchmark requires exactly two event participants")
 
+    provider_key = sha256(snapshot.provider_id.value.encode("utf-8")).hexdigest()[:8]
     competition = Competition(
-        id=CompetitionId(f"competition:benchmark:{snapshot.provider_id.value}"),
+        id=CompetitionId(f"c:p19:{provider_key}"),
         sport=Sport.FOOTBALL,
         name="Phase 19 provider benchmark",
     )
     home = Participant(
-        id=ParticipantId(f"participant:benchmark:{snapshot.provider_id.value}:home"),
+        id=ParticipantId(f"p:p19:{provider_key}:h"),
         sport=Sport.FOOTBALL,
         name=event.participants[0].name,
         kind=ParticipantKind.TEAM,
     )
     away = Participant(
-        id=ParticipantId(f"participant:benchmark:{snapshot.provider_id.value}:away"),
+        id=ParticipantId(f"p:p19:{provider_key}:a"),
         sport=Sport.FOOTBALL,
         name=event.participants[1].name,
         kind=ParticipantKind.TEAM,
     )
-    event_id = EventId(f"event:benchmark:{snapshot.provider_id.value}")
-    market_id = MarketId(f"market:benchmark:{snapshot.provider_id.value}:1x2")
-    home_selection_id = SelectionId(f"selection:benchmark:{snapshot.provider_id.value}:home")
-    draw_selection_id = SelectionId(f"selection:benchmark:{snapshot.provider_id.value}:draw")
-    away_selection_id = SelectionId(f"selection:benchmark:{snapshot.provider_id.value}:away")
+    event_id = EventId(f"e:p19:{provider_key}")
+    market_id = MarketId(f"m:p19:{provider_key}")
+    home_selection_id = SelectionId(f"s:p19:{provider_key}:h")
+    draw_selection_id = SelectionId(f"s:p19:{provider_key}:d")
+    away_selection_id = SelectionId(f"s:p19:{provider_key}:a")
 
     canonical_event = Event(
         id=event_id,
