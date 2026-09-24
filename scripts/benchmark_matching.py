@@ -118,6 +118,15 @@ def _decision_digest(decisions: tuple[EventMatchDecision, ...]) -> str:
         )
         digest.update(b"|")
         digest.update(str(decision.confidence_bps).encode("ascii"))
+        for candidate in decision.candidates:
+            digest.update(b"|")
+            digest.update(candidate.event_id.value.encode("utf-8"))
+            digest.update(b":")
+            digest.update(str(candidate.confidence_bps).encode("ascii"))
+            digest.update(b":")
+            digest.update(str(candidate.start_delta.total_seconds()).encode("ascii"))
+            digest.update(b":")
+            digest.update(b"1" if candidate.explicit_provider_reference else b"0")
         digest.update(b"\n")
     return digest.hexdigest()
 
@@ -155,12 +164,23 @@ def run_benchmark(
         raise ValueError("measured_runs must be at least one")
 
     registry, evidences = _workload(events)
-    matcher = EventMatcher(registry, cache_capacity=events)
 
-    cold_elapsed, cold_decisions = _run_once(matcher, evidences)
-    if any(decision.status is not EventMatchStatus.MATCHED for decision in cold_decisions):
-        raise RuntimeError("matching benchmark cold run produced an unexpected decision")
-    expected_digest = _decision_digest(cold_decisions)
+    exhaustive_matcher = EventMatcher(
+        registry,
+        cache_capacity=0,
+        exhaustive_diagnostics=True,
+    )
+    exhaustive_elapsed, exhaustive_decisions = _run_once(exhaustive_matcher, evidences)
+    if any(decision.status is not EventMatchStatus.MATCHED for decision in exhaustive_decisions):
+        raise RuntimeError("matching benchmark exhaustive run produced an unexpected decision")
+    expected_digest = _decision_digest(exhaustive_decisions)
+
+    matcher = EventMatcher(registry, cache_capacity=events)
+    indexed_elapsed, indexed_decisions = _run_once(matcher, evidences)
+    if any(decision.status is not EventMatchStatus.MATCHED for decision in indexed_decisions):
+        raise RuntimeError("matching benchmark indexed cold run produced an unexpected decision")
+    if _decision_digest(indexed_decisions) != expected_digest:
+        raise RuntimeError("indexed cold matching changed core decision semantics")
     if matcher.cached_decision_count != events:
         raise RuntimeError("matching benchmark did not retain the complete evidence workload")
 
@@ -185,14 +205,20 @@ def run_benchmark(
         "workload": {
             "canonical_events": events,
             "provider_events_per_run": events,
-            "uncached_candidate_comparisons": events * events,
-            "cached_candidate_comparisons_per_run": 0,
+            "exhaustive_candidate_evaluations_per_cold_run": events * events,
+            "indexed_candidate_evaluations_per_cold_run": events,
+            "cached_candidate_evaluations_per_run": 0,
             "cache_capacity": matcher.cache_capacity,
             "cached_decisions": matcher.cached_decision_count,
             "warmup_runs": warmup_runs,
             "measured_runs": measured_runs,
         },
-        "cold_matching_ms": round(cold_elapsed / 1_000_000, 3),
+        "exhaustive_cold_matching_ms": round(exhaustive_elapsed / 1_000_000, 3),
+        "indexed_cold_matching_ms": round(indexed_elapsed / 1_000_000, 3),
+        "indexed_cold_events_per_second": round(
+            events * 1_000_000_000 / indexed_elapsed,
+            1,
+        ),
         "matching_ms": _milliseconds(durations),
         "events_per_second": round(
             total_events * 1_000_000_000 / sum(durations),
