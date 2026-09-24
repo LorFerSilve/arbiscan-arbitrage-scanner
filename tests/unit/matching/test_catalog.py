@@ -63,11 +63,14 @@ def test_registry_indexes_event_match_hard_filters() -> None:
         event.competition.id,
         tuple(reversed(participant_ids)),
     ) == (event,)
-    assert scenario.registry.event_match_candidates(
-        event.sport,
-        event.competition.id,
-        (ParticipantId("participant:unknown"),),
-    ) == ()
+    assert (
+        scenario.registry.event_match_candidates(
+            event.sport,
+            event.competition.id,
+            (ParticipantId("participant:unknown"),),
+        )
+        == ()
+    )
 
 
 def test_provider_hooks_do_not_guess_unmapped_lookalike_event() -> None:
