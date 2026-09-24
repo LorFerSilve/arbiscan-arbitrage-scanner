@@ -525,9 +525,7 @@ def test_compact_diagnostics_preserve_matching_explanation_without_registry_scan
     assert EventMatchReason.PARTICIPANT_MISMATCH in {
         diagnostic.reason for diagnostic in exhaustive.diagnostics
     }
-    assert EventMatchReason.MATCHED in {
-        diagnostic.reason for diagnostic in exhaustive.diagnostics
-    }
+    assert EventMatchReason.MATCHED in {diagnostic.reason for diagnostic in exhaustive.diagnostics}
 
 
 def test_compact_hard_filter_rejection_retains_stage_reason() -> None:
