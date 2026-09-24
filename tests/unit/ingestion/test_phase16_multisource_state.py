@@ -2,6 +2,7 @@
 
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
+from unittest.mock import patch
 
 from arbiscan.domain import (
     EventId,
@@ -63,6 +64,25 @@ def test_independent_transports_remain_distinct_until_consolidation() -> None:
     assert {item.code for item in consolidation.diagnostics} == {
         ConsolidationDiagnosticCode.EQUIVALENT_OVERLAP
     }
+
+
+def test_fresh_versions_avoid_observation_keys_until_invalidation_is_needed() -> None:
+    store = _store()
+    alpha = _quote(transport="alpha", price="2.20", seconds_old=0, suffix="a")
+    beta = _quote(transport="beta", price="2.20", seconds_old=0, suffix="b")
+    store.apply((beta, alpha), observed_at=AS_OF)
+
+    with patch.object(
+        SourceObservationKey,
+        "from_quote",
+        side_effect=AssertionError("empty invalidation set must not construct observation keys"),
+    ):
+        versions = store.fresh_versions(as_of=AS_OF)
+
+    assert tuple(version.quote for version in versions) == (alpha, beta)
+
+    store.invalidate_observations((SourceObservationKey.from_quote(beta),))
+    assert tuple(version.quote for version in store.fresh_versions(as_of=AS_OF)) == (alpha,)
 
 
 def test_newest_transport_observation_wins_executable_slot() -> None:

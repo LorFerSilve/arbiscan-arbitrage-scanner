@@ -156,12 +156,19 @@ class MultiSourceLiveQuoteStore(LiveQuoteStore):
         )
 
     def fresh_versions(self, *, as_of: datetime) -> tuple[QuoteVersion, ...]:
-        versions = (
+        all_versions = (
             version
             for store in self._transport_stores.values()
             for version in store.fresh_versions(as_of=as_of)
-            if SourceObservationKey.from_quote(version.quote) not in self._invalidated_observations
         )
+        versions = all_versions
+        if self._invalidated_observations:
+            versions = (
+                version
+                for version in all_versions
+                if SourceObservationKey.from_quote(version.quote)
+                not in self._invalidated_observations
+            )
         return tuple(sorted(versions, key=self._version_sort_key))
 
     def fresh_observations(self, *, as_of: datetime) -> tuple[OddsQuote, ...]:

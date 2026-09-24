@@ -38,6 +38,7 @@ from arbiscan.domain import (
     SelectionKind,
     Sport,
 )
+from arbiscan.ingestion.multisource_state import MultiSourceLiveQuoteStore
 from arbiscan.ingestion.realtime import LiveQuoteStore, RealtimeIngestionPolicy
 from arbiscan.marketbook import build_market_books
 from arbiscan.matching import CanonicalRegistry
@@ -182,23 +183,66 @@ def _workload(
     return registry, tuple(specs)
 
 
-def _quote(spec: QuoteSpec, *, at: datetime, revision: int) -> OddsQuote:
+def _quote(
+    spec: QuoteSpec,
+    *,
+    at: datetime,
+    revision: int,
+    transport_number: int | None = None,
+    conflicting: bool = False,
+) -> OddsQuote:
+    transport_suffix = (
+        ""
+        if transport_number is None or transport_number == 0
+        else f":transport:{transport_number}"
+    )
     return OddsQuote(
         id=QuoteId(
-            f"quote:benchmark:{spec.provider_id.value}:{spec.selection_id.value}:{revision}"
+            f"quote:benchmark:{spec.provider_id.value}:{spec.selection_id.value}"
+            f"{transport_suffix}:{revision}"
         ),
         provider_id=spec.provider_id,
+        transport_provider_id=(
+            None
+            if transport_number is None
+            else ProviderId(f"transport:benchmark:{transport_number}")
+        ),
         event_id=spec.event_id,
         market_id=spec.market_id,
         selection_id=spec.selection_id,
-        decimal_price=spec.price,
+        decimal_price=spec.price + Decimal("0.01") if conflicting else spec.price,
         source_event_id=spec.event_id.value,
         source_market_id=spec.market_id.value,
         source_selection_id=spec.selection_id.value,
         source_timestamp=at,
         ingested_at=at,
         status=QuoteStatus.ACTIVE,
-        trace_id=f"trace:benchmark:{spec.provider_id.value}:{spec.selection_id.value}:{revision}",
+        trace_id=(
+            f"trace:benchmark:{spec.provider_id.value}:{spec.selection_id.value}"
+            f"{transport_suffix}:{revision}"
+        ),
+    )
+
+
+def _observations(
+    spec: QuoteSpec,
+    *,
+    at: datetime,
+    revision: int,
+    transports_per_provider: int,
+    conflicting: bool,
+) -> tuple[OddsQuote, ...]:
+    if transports_per_provider == 1:
+        return (_quote(spec, at=at, revision=revision),)
+    return tuple(
+        _quote(
+            spec,
+            at=at,
+            revision=revision,
+            transport_number=transport_number,
+            conflicting=conflicting and transport_number == transports_per_provider - 1,
+        )
+        for transport_number in range(transports_per_provider)
     )
 
 
@@ -219,9 +263,21 @@ def run_benchmark(
     updates_per_cycle: int,
     warmup_cycles: int,
     measured_cycles: int,
+    transports_per_provider: int = 1,
+    conflicting_slots: int = 0,
 ) -> dict[str, object]:
     """Return stage timings and a stable semantic digest for a fixed synthetic load."""
-    if min(events, markets_per_event, providers, updates_per_cycle, measured_cycles) < 1:
+    if (
+        min(
+            events,
+            markets_per_event,
+            providers,
+            updates_per_cycle,
+            measured_cycles,
+            transports_per_provider,
+        )
+        < 1
+    ):
         raise ValueError("workload dimensions and measured_cycles must be positive")
     if warmup_cycles < 0:
         raise ValueError("warmup_cycles cannot be negative")
@@ -230,28 +286,62 @@ def run_benchmark(
     )
     if updates_per_cycle > len(specs):
         raise ValueError("updates_per_cycle cannot exceed initial quote count")
+    if conflicting_slots < 0 or conflicting_slots > len(specs):
+        raise ValueError("conflicting_slots must be between zero and initial quote count")
+    if conflicting_slots and transports_per_provider < 2:
+        raise ValueError("conflicting_slots requires at least two transports per provider")
 
     window = timedelta(seconds=max(300, warmup_cycles + measured_cycles + 1))
-    store = LiveQuoteStore(RealtimeIngestionPolicy(freshness_window=window))
-    store.apply((_quote(spec, at=START, revision=0) for spec in specs), observed_at=START)
+    policy = RealtimeIngestionPolicy(freshness_window=window)
+    store: LiveQuoteStore = (
+        MultiSourceLiveQuoteStore(policy) if transports_per_provider > 1 else LiveQuoteStore(policy)
+    )
+    initial = (
+        quote
+        for spec_index, spec in enumerate(specs)
+        for quote in _observations(
+            spec,
+            at=START,
+            revision=0,
+            transports_per_provider=transports_per_provider,
+            conflicting=spec_index < conflicting_slots,
+        )
+    )
+    store.apply(initial, observed_at=START)
+    fresh_stage = "fresh_consolidate" if transports_per_provider > 1 else "fresh"
     durations: dict[str, list[int]] = {
-        name: [] for name in ("apply", "fresh", "book", "evaluate", "cycle")
+        name: [] for name in ("apply", fresh_stage, "book", "evaluate", "cycle")
     }
     digest = sha256()
     opportunity_count = 0
     book_count = 0
+    executable_quote_count = 0
+    equivalent_overlap_count = 0
+    conflict_count = 0
 
     for cycle in range(1, warmup_cycles + measured_cycles + 1):
         at = START + timedelta(seconds=cycle)
         offset = (cycle * updates_per_cycle) % len(specs)
         updates = tuple(
-            _quote(specs[(offset + index) % len(specs)], at=at, revision=cycle)
-            for index in range(updates_per_cycle)
+            quote
+            for spec_index in range(offset, offset + updates_per_cycle)
+            for quote in _observations(
+                specs[spec_index % len(specs)],
+                at=at,
+                revision=cycle,
+                transports_per_provider=transports_per_provider,
+                conflicting=spec_index % len(specs) < conflicting_slots,
+            )
         )
         started = perf_counter_ns()
         store.apply(updates, observed_at=at)
         applied = perf_counter_ns()
         fresh = store.fresh_quotes(as_of=at)
+        consolidation = (
+            store.last_consolidation_result
+            if isinstance(store, MultiSourceLiveQuoteStore)
+            else None
+        )
         fetched = perf_counter_ns()
         books = build_market_books(
             fresh,
@@ -282,7 +372,7 @@ def run_benchmark(
         if cycle > warmup_cycles:
             for name, duration in (
                 ("apply", applied - started),
-                ("fresh", fetched - applied),
+                (fresh_stage, fetched - applied),
                 ("book", built - fetched),
                 ("evaluate", evaluated - built),
                 ("cycle", evaluated - started),
@@ -290,6 +380,10 @@ def run_benchmark(
                 durations[name].append(duration)
             book_count += len(books)
             opportunity_count += cycle_opportunities
+            executable_quote_count += len(fresh)
+            if consolidation is not None:
+                equivalent_overlap_count += consolidation.equivalent_overlap_count
+                conflict_count += consolidation.conflict_count
             digest.update("\n".join(cycle_signatures).encode("utf-8"))
             digest.update(b"\n")
 
@@ -299,16 +393,28 @@ def run_benchmark(
             "markets_per_event": markets_per_event,
             "providers": providers,
             "initial_quotes": len(specs),
+            "transports_per_provider": transports_per_provider,
+            "initial_observations": len(specs) * transports_per_provider,
             "updates_per_cycle": updates_per_cycle,
+            "update_observations_per_cycle": updates_per_cycle * transports_per_provider,
+            "conflicting_slots": conflicting_slots,
             "warmup_cycles": warmup_cycles,
             "measured_cycles": measured_cycles,
         },
         "environment": {"python": sys.version.split()[0], "platform": platform.platform()},
+        "executable_quotes": executable_quote_count,
+        "equivalent_overlaps": equivalent_overlap_count,
+        "conflicts": conflict_count,
         "market_books": book_count,
         "opportunities": opportunity_count,
         "result_digest": digest.hexdigest(),
         "core_updates_per_second": round(
-            updates_per_cycle * measured_cycles * 1_000_000_000 / sum(durations["apply"]), 1
+            updates_per_cycle
+            * transports_per_provider
+            * measured_cycles
+            * 1_000_000_000
+            / sum(durations["apply"]),
+            1,
         ),
         "stage_ms": {name: _milliseconds(values) for name, values in durations.items()},
     }
@@ -322,6 +428,8 @@ def main() -> None:
     parser.add_argument("--updates-per-cycle", type=_positive_int, default=300)
     parser.add_argument("--warmup-cycles", type=_non_negative_int, default=3)
     parser.add_argument("--measured-cycles", type=_positive_int, default=20)
+    parser.add_argument("--transports-per-provider", type=_positive_int, default=1)
+    parser.add_argument("--conflicting-slots", type=_non_negative_int, default=0)
     args = parser.parse_args()
     report = run_benchmark(
         events=args.events,
@@ -330,6 +438,8 @@ def main() -> None:
         updates_per_cycle=args.updates_per_cycle,
         warmup_cycles=args.warmup_cycles,
         measured_cycles=args.measured_cycles,
+        transports_per_provider=args.transports_per_provider,
+        conflicting_slots=args.conflicting_slots,
     )
     print(json.dumps(report, indent=2, sort_keys=True))
 
