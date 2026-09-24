@@ -108,6 +108,17 @@ class _ProviderCase:
     build: Callable[[], tuple[ProviderAdapter, Callable[[], int]]]
 
 
+@dataclass(frozen=True, slots=True)
+class _RunResult:
+    poll_ns: int
+    normalize_ns: int
+    requests: int
+    source_markets: int
+    source_selections: int
+    quotes: int
+    digest: str
+
+
 def _build_the_odds_api() -> tuple[ProviderAdapter, Callable[[], int]]:
     transport = TheOddsApiFixtureTransport()
     provider = TheOddsApiProvider(
@@ -298,7 +309,7 @@ def _milliseconds(values: list[int]) -> dict[str, float]:
     }
 
 
-async def _run_once(case: _ProviderCase) -> dict[str, object]:
+async def _run_once(case: _ProviderCase) -> _RunResult:
     provider, request_count = case.build()
 
     poll_started = perf_counter_ns()
@@ -332,20 +343,20 @@ async def _run_once(case: _ProviderCase) -> dict[str, object]:
     if not result.quotes:
         raise RuntimeError(f"{case.name} normalization produced no quotes")
 
-    return {
-        "poll_ns": poll_elapsed,
-        "normalize_ns": normalize_elapsed,
-        "requests": request_count(),
-        "source_markets": len(snapshot.markets),
-        "source_selections": sum(len(market.selections) for market in snapshot.markets),
-        "quotes": len(result.quotes),
-        "digest": _semantic_digest(
+    return _RunResult(
+        poll_ns=poll_elapsed,
+        normalize_ns=normalize_elapsed,
+        requests=request_count(),
+        source_markets=len(snapshot.markets),
+        source_selections=sum(len(market.selections) for market in snapshot.markets),
+        quotes=len(result.quotes),
+        digest=_semantic_digest(
             provider=provider,
             event=event,
             snapshot=snapshot,
             normalized_quotes=tuple(result.quotes),
         ),
-    }
+    )
 
 
 async def _measure_case(
@@ -357,7 +368,7 @@ async def _measure_case(
     expected_digest: str | None = None
     for _ in range(warmup_runs):
         warmup = await _run_once(case)
-        expected_digest = str(warmup["digest"])
+        expected_digest = warmup.digest
 
     polls: list[int] = []
     normalizations: list[int] = []
@@ -368,19 +379,19 @@ async def _measure_case(
 
     for _ in range(measured_runs):
         result = await _run_once(case)
-        digest = str(result["digest"])
+        digest = result.digest
         if expected_digest is None:
             expected_digest = digest
         elif digest != expected_digest:
             raise RuntimeError(f"{case.name} semantic digest changed between identical runs")
 
-        polls.append(int(result["poll_ns"]))
-        normalizations.append(int(result["normalize_ns"]))
+        polls.append(result.poll_ns)
+        normalizations.append(result.normalize_ns)
         current_counts = (
-            int(result["requests"]),
-            int(result["source_markets"]),
-            int(result["source_selections"]),
-            int(result["quotes"]),
+            result.requests,
+            result.source_markets,
+            result.source_selections,
+            result.quotes,
         )
         if requests is None:
             requests, source_markets, source_selections, quotes = current_counts
