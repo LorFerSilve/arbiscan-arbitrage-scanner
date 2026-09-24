@@ -27,14 +27,17 @@ class LoadProfile:
     def __post_init__(self) -> None:
         if not self.name.strip():
             raise ValueError("profile name must be non-empty")
-        if min(
-            self.events,
-            self.markets_per_event,
-            self.providers,
-            self.updates_per_cycle,
-            self.transports_per_provider,
-            self.measured_cycles,
-        ) < 1:
+        if (
+            min(
+                self.events,
+                self.markets_per_event,
+                self.providers,
+                self.updates_per_cycle,
+                self.transports_per_provider,
+                self.measured_cycles,
+            )
+            < 1
+        ):
             raise ValueError("profile workload dimensions and measured_cycles must be positive")
         if self.transports_per_provider < 2:
             raise ValueError("load-matrix profiles require at least two transports")
@@ -181,9 +184,7 @@ def run_load_matrix(
         profile = result["profile"]
         if not isinstance(profile, dict):
             raise AssertionError("profile payload must be a dictionary")
-        digest.update(
-            json.dumps(profile, sort_keys=True, separators=(",", ":")).encode("utf-8")
-        )
+        digest.update(json.dumps(profile, sort_keys=True, separators=(",", ":")).encode("utf-8"))
         digest.update(b"|")
         digest.update(str(result["result_digest"]).encode("ascii"))
         digest.update(b"\n")
@@ -226,9 +227,7 @@ def main() -> None:
         if not selected_names or profile.name in selected_names
     )
     if args.warmup_cycles is not None:
-        profiles = tuple(
-            replace(profile, warmup_cycles=args.warmup_cycles) for profile in profiles
-        )
+        profiles = tuple(replace(profile, warmup_cycles=args.warmup_cycles) for profile in profiles)
     if args.measured_cycles is not None:
         profiles = tuple(
             replace(profile, measured_cycles=args.measured_cycles) for profile in profiles
