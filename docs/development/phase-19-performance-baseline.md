@@ -215,31 +215,46 @@ uv run python -m scripts.benchmark_matching --events 500 --measured-runs 10
 
 The benchmark creates one football competition with unique participant pairs and
 one provider event per canonical event. Every provider event has exactly one valid
-canonical match. Its first run is deliberately cold: each evidence item executes the
-existing exhaustive candidate evaluation, so the default 250-event workload performs
-62,500 candidate comparisons and establishes the unchanged correctness baseline.
+canonical match. It now measures three distinct paths against the same semantic
+decision digest:
 
-Phase 19 now adds a bounded exact-evidence decision cache to `EventMatcher`. The key
-is the complete immutable `NormalizedEventEvidence`, so changes to provider identity,
-external event ID, sport, competition, participants/order policy, scheduled start,
-stage, or venue cannot reuse a stale decision. Cache capacity is explicit, zero
-disables caching, and least-recently-used entries are evicted once the bound is
-reached. Cached decisions are immutable `EventMatchDecision` values, so repeated
-polls of unchanged provider events can skip canonical candidate scoring entirely.
+1. an exhaustive cold baseline with the legacy full-registry diagnostic scan;
+2. an indexed cold lookup using canonical sport/competition/participant indexes;
+3. repeated exact-evidence cache hits after the indexed cold decisions are retained.
 
-The benchmark reports cold matching latency separately from repeated cached latency,
-the cold comparison count, cached comparison count, retained cache entries, events per
-second, and one decision digest shared by cold, warm-up, and measured cached runs.
-Any semantic drift between the cold result and a cached result fails the command.
-Unit regressions also compare full matched/ambiguous/rejected decision semantics with
-caching enabled versus disabled and verify bounded eviction behavior.
+For the default 250-event workload, the exhaustive cold path performs 62,500
+candidate evaluations. The indexed cold path performs 250 candidate evaluations:
+one hard-filter survivor per provider event. Repeated unchanged evidence performs
+zero candidate evaluations because the bounded exact-evidence cache can return the
+previous immutable decision directly.
 
-This optimization targets repeated event observations, not first-seen event matching.
-A genuinely new or changed evidence record still pays the existing exhaustive
-candidate cost. Candidate indexing for cold matches therefore remains a possible
-future Phase 19 optimization, but should only be introduced with an explicit decision
-about diagnostic semantics because the current matcher emits per-candidate rejection
-diagnostics. No production latency SLO is inferred from this credential-free workload.
+The canonical registry owns immutable indexes by sport, by sport/competition, and
+by sport/competition/unordered participant identity set. These keys correspond only
+to existing hard filters; time tolerance, participant ordering, provider-reference
+conflicts, stage/venue checks, confidence scoring, and ambiguity rejection still run
+through the production matcher for every indexed survivor.
+
+The indexed path uses compact diagnostics by default. If no event survives a hard
+filter, it retains the failing stage reason (sport, competition, or participant
+identity) without materializing one rejection record for every unrelated registry
+event. If an event survives the hard filters, candidate-specific rejection evidence
+and the final match/ambiguity explanation remain unchanged. Set
+`exhaustive_diagnostics=True` on `EventMatcher` when a debugging/audit workflow
+explicitly needs the legacy per-event rejection list. The benchmark checks that the
+exhaustive and indexed paths have identical status, matched event, confidence, and
+candidate semantics through a shared digest; diagnostic cardinality is deliberately
+not part of that parity contract.
+
+Phase 19 also keeps the bounded exact-evidence decision cache from the previous step.
+The cache key is the complete immutable `NormalizedEventEvidence`, so changes to
+provider identity, external event ID, sport, competition, participants/order policy,
+scheduled start, stage, or venue cannot reuse a stale decision. Cache capacity is
+explicit and zero disables caching.
+
+No production latency SLO is inferred from this credential-free workload. The
+remaining deployment work is to profile the exhaustive baseline, indexed cold path,
+and repeated cached path on the intended machine and then validate event matching
+against retained real multi-provider data.
 
 ## Provider polling and normalization workload
 
