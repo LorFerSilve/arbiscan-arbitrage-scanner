@@ -124,6 +124,23 @@ class SqliteAuditStore:
             dumps(quote),
         )
 
+    def persist_quotes(self, quotes: Iterable[OddsQuote]) -> None:
+        """Atomically persist quotes and their audit events in one transaction."""
+        try:
+            with closing(self._connect()) as connection, connection:
+                for quote in quotes:
+                    self._upsert(
+                        connection,
+                        "odds_quote",
+                        _id(quote.id),
+                        _id(quote.event_id),
+                        _id(quote.provider_id),
+                        quote.ingested_at,
+                        dumps(quote),
+                    )
+        except sqlite3.Error as exc:
+            raise PersistenceError("failed to persist canonical quote batch") from exc
+
     def persist_opportunity(
         self,
         opportunity: Opportunity,

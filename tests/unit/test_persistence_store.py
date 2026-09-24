@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import sqlite3
+from contextlib import closing
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
@@ -14,6 +16,7 @@ from arbiscan.domain.identifiers import (
     SelectionId,
 )
 from arbiscan.domain.models import OddsQuote, Opportunity
+from arbiscan.domain.serialization import dumps
 from arbiscan.persistence import PersistenceError, SqliteAuditStore
 
 
@@ -101,6 +104,44 @@ def test_same_id_with_different_payload_fails_closed(tmp_path: Path) -> None:
     _assert_persistence_error(
         lambda: store.persist_quote(_quote(1, at=now, price="2.20")), "ID collision"
     )
+
+
+def test_quote_batch_preserves_audit_and_idempotency(tmp_path: Path) -> None:
+    database = tmp_path / "arbiscan.db"
+    store = SqliteAuditStore(database)
+    store.migrate()
+    now = datetime(2026, 9, 15, 16, 0, tzinfo=UTC)
+    first, second, third = (_quote(number, at=now) for number in (1, 2, 3))
+
+    store.persist_quotes(iter((first, second, first)))
+    store.persist_quotes((second, third))
+
+    assert store.load_quotes() == (first, second, third)
+    with closing(sqlite3.connect(database)) as connection:
+        audit_rows = connection.execute(
+            "SELECT entity_id, action, payload FROM audit_events ORDER BY sequence"
+        ).fetchall()
+    assert audit_rows == [
+        (quote.id.value, "created", dumps(quote)) for quote in (first, second, third)
+    ]
+
+
+def test_quote_batch_rolls_back_every_write_on_id_collision(tmp_path: Path) -> None:
+    database = tmp_path / "arbiscan.db"
+    store = SqliteAuditStore(database)
+    store.migrate()
+    now = datetime(2026, 9, 15, 16, 0, tzinfo=UTC)
+    first = _quote(1, at=now)
+    conflicting = _quote(1, at=now, price="2.20")
+
+    _assert_persistence_error(
+        lambda: store.persist_quotes((first, conflicting, _quote(2, at=now))),
+        "ID collision",
+    )
+
+    assert store.load_quotes() == ()
+    with closing(sqlite3.connect(database)) as connection:
+        assert connection.execute("SELECT COUNT(*) FROM audit_events").fetchone() == (0,)
 
 
 def test_retention_preserves_quotes_referenced_by_opportunities(tmp_path: Path) -> None:

@@ -103,6 +103,7 @@ def _run_once(
     database: Path,
     quotes: tuple[OddsQuote, ...],
     *,
+    batch: bool,
     start_at: datetime,
     end_at: datetime,
     expected_filtered: tuple[OddsQuote, ...],
@@ -111,8 +112,11 @@ def _run_once(
     store.migrate()
 
     started = perf_counter_ns()
-    for quote in quotes:
-        store.persist_quote(quote)
+    if batch:
+        store.persist_quotes(quotes)
+    else:
+        for quote in quotes:
+            store.persist_quote(quote)
     written = perf_counter_ns()
     loaded = store.load_quotes()
     read_all = perf_counter_ns()
@@ -126,9 +130,11 @@ def _run_once(
     if loaded != quotes or filtered != expected_filtered:
         raise RuntimeError("persistence replay diverged from the fixed quote corpus")
     with closing(sqlite3.connect(database)) as connection:
-        audit_count = connection.execute("SELECT COUNT(*) FROM audit_events").fetchone()[0]
-    if audit_count != len(quotes):
-        raise RuntimeError("persistence audit-event count diverged from the quote corpus")
+        audit_rows = connection.execute(
+            "SELECT entity_id, payload FROM audit_events ORDER BY sequence"
+        ).fetchall()
+    if audit_rows != [(quote.id.value, dumps(quote)) for quote in quotes]:
+        raise RuntimeError("persistence audit events diverged from the fixed quote corpus")
 
     return {
         "write": written - started,
@@ -160,19 +166,28 @@ def run_benchmark(
         if start_at <= quote.ingested_at <= end_at
         and quote.provider_id == ProviderId("provider:persistence:00")
     )
-    durations: dict[str, list[int]] = {name: [] for name in ("write", "read_all", "read_filtered")}
+    durations: dict[str, list[int]] = {
+        name: [] for name in ("write", "write_batch", "read_all", "read_filtered")
+    }
     with TemporaryDirectory(prefix="arbiscan-persistence-") as directory:
         for run_number in range(warmup_runs + measured_runs):
-            sample = _run_once(
-                Path(directory) / f"run-{run_number}.sqlite3",
-                quotes,
-                start_at=start_at,
-                end_at=end_at,
-                expected_filtered=expected_filtered,
-            )
-            if run_number >= warmup_runs:
-                for name, duration in sample.items():
-                    durations[name].append(duration)
+            # Alternate order to reduce filesystem-cache bias between write modes.
+            modes = (False, True) if run_number % 2 == 0 else (True, False)
+            for batch in modes:
+                sample = _run_once(
+                    Path(directory)
+                    / f"run-{run_number}-{'batch' if batch else 'individual'}.sqlite3",
+                    quotes,
+                    batch=batch,
+                    start_at=start_at,
+                    end_at=end_at,
+                    expected_filtered=expected_filtered,
+                )
+                if run_number >= warmup_runs:
+                    durations["write_batch" if batch else "write"].append(sample["write"])
+                    if not batch:
+                        durations["read_all"].append(sample["read_all"])
+                        durations["read_filtered"].append(sample["read_filtered"])
 
     return {
         "workload": {
@@ -190,6 +205,10 @@ def run_benchmark(
         "write_quotes_per_second": round(
             len(quotes) * measured_runs * 1_000_000_000 / sum(durations["write"]), 1
         ),
+        "batch_write_quotes_per_second": round(
+            len(quotes) * measured_runs * 1_000_000_000 / sum(durations["write_batch"]), 1
+        ),
+        "batch_write_speedup": round(sum(durations["write"]) / sum(durations["write_batch"]), 2),
         "read_quotes_per_second": round(
             len(quotes) * measured_runs * 1_000_000_000 / sum(durations["read_all"]), 1
         ),
