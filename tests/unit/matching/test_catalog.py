@@ -42,7 +42,6 @@ def test_registry_exposes_complete_three_way_market_identity() -> None:
     )
 
 
-
 def test_registry_indexes_event_match_hard_filters() -> None:
     scenario = build_phase5_synthetic_scenario()
     event = scenario.registry.events[0]
