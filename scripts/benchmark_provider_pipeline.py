@@ -151,7 +151,7 @@ def _selection_role(event: SourceEvent, selection: SourceSelectionQuote) -> str:
         return "away"
     if label in {"draw", "x"}:
         return "draw"
-    raise RuntimeError(f"benchmark fixture has unsupported 1X2 selection label: {selection.label!r}")
+    raise RuntimeError(\n        f"benchmark fixture has unsupported 1X2 selection label: {selection.label!r}"\n    )
 
 
 def _canonical_context(event: SourceEvent, snapshot: OddsSnapshot) -> _CanonicalContext:
@@ -225,7 +225,7 @@ def _canonical_context(event: SourceEvent, snapshot: OddsSnapshot) -> _Canonical
         "away": away_selection_id,
     }
     for market in snapshot.markets:
-        if market.line is not None or market.period_index is not None or market.set_index is not None:
+        if (\n            market.line is not None\n            or market.period_index is not None\n            or market.set_index is not None\n        ):
             raise RuntimeError("benchmark fixture unexpectedly contains a parameterized market")
         market_ids[market.external_market_id] = market_id
         for selection in market.selections:
@@ -265,7 +265,7 @@ def _semantic_digest(
     for market in snapshot.markets:
         digest.update(market.external_market_id.encode("utf-8"))
         digest.update(b"|")
-        digest.update((market.source_timestamp.isoformat() if market.source_timestamp else "").encode("utf-8"))
+        digest.update(\n            (market.source_timestamp.isoformat() if market.source_timestamp else "").encode("utf-8")\n        )
         digest.update(b"\n")
         for selection in market.selections:
             digest.update(selection.external_selection_id.encode("utf-8"))
