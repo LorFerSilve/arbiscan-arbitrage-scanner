@@ -130,7 +130,6 @@ def test_conflicts_require_independent_transports() -> None:
         raise AssertionError("a conflict without independent transports must be rejected")
 
 
-
 def test_partial_transport_overlap_preserves_detection_semantics() -> None:
     single = run_benchmark(
         events=1,
