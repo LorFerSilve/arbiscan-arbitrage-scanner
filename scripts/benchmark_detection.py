@@ -297,10 +297,10 @@ def run_benchmark(
         raise ValueError("overlap_slots must be between zero and initial quote count")
     if resolved_overlap_slots and transports_per_provider < 2:
         raise ValueError("overlap_slots requires at least two transports per provider")
-    if conflicting_slots < 0 or conflicting_slots > resolved_overlap_slots:
-        raise ValueError("conflicting_slots must be between zero and overlap_slots")
     if conflicting_slots and transports_per_provider < 2:
         raise ValueError("conflicting_slots requires at least two transports per provider")
+    if conflicting_slots < 0 or conflicting_slots > resolved_overlap_slots:
+        raise ValueError("conflicting_slots must be between zero and overlap_slots")
 
     window = timedelta(seconds=max(300, warmup_cycles + measured_cycles + 1))
     policy = RealtimeIngestionPolicy(freshness_window=window)
