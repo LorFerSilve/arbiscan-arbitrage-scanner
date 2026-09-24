@@ -457,7 +457,6 @@ def test_event_match_cache_capacity_is_validated() -> None:
         raise AssertionError("negative cache capacity must fail closed")
 
 
-
 def test_indexed_cold_matching_preserves_core_decision_semantics() -> None:
     first = _participant("player-a", "Player A", Sport.TENNIS, ParticipantKind.INDIVIDUAL)
     second = _participant("player-b", "Player B", Sport.TENNIS, ParticipantKind.INDIVIDUAL)
