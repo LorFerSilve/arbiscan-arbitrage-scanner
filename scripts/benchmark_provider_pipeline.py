@@ -369,7 +369,12 @@ async def _measure_case(
     expected_digest: str | None = None
     for _ in range(warmup_runs):
         warmup = await _run_once(case)
-        expected_digest = warmup.digest
+        if expected_digest is None:
+            expected_digest = warmup.digest
+        elif warmup.digest != expected_digest:
+            raise RuntimeError(
+                f"{case.name} semantic digest changed between identical warm-up runs"
+            )
 
     polls: list[int] = []
     normalizations: list[int] = []
