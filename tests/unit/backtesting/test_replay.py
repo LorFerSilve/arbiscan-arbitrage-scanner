@@ -197,6 +197,37 @@ def test_replay_reproduces_theoretical_and_actionable_lifecycle_duration() -> No
     assert corpus.digest == HistoricalQuoteCorpus.from_quotes(quotes).digest
 
 
+def test_replay_rejects_live_events_and_detection_at_kickoff() -> None:
+    corpus = HistoricalQuoteCorpus.from_quotes(
+        (
+            _quote(P1, OVER, "2.20", at=T0, revision=1),
+            _quote(P2, UNDER, "2.20", at=T0, revision=1),
+        )
+    )
+    registry = _registry()
+    live_registry = replace(
+        registry,
+        events=(replace(registry.events[0], status=EventStatus.LIVE),),
+    )
+
+    for selected_registry, latency in (
+        (live_registry, timedelta(0)),
+        (registry, timedelta(hours=2)),
+    ):
+        report = run_backtest(
+            corpus,
+            registry=selected_registry,
+            config=BacktestConfig(
+                freshness_window=timedelta(hours=3),
+                detection_latency=latency,
+            ),
+        )
+
+        assert report.summary.evaluation_count == 0
+        assert report.detections == ()
+        assert report.stale_false_positives == ()
+
+
 def test_latency_sensitivity_can_remove_short_lived_opportunity() -> None:
     corpus = HistoricalQuoteCorpus.from_quotes(
         (
