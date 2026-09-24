@@ -128,3 +128,58 @@ def test_conflicts_require_independent_transports() -> None:
         assert "at least two transports" in str(error)
     else:
         raise AssertionError("a conflict without independent transports must be rejected")
+
+
+
+def test_partial_transport_overlap_preserves_detection_semantics() -> None:
+    single = run_benchmark(
+        events=1,
+        markets_per_event=1,
+        providers=2,
+        updates_per_cycle=2,
+        warmup_cycles=0,
+        measured_cycles=2,
+    )
+    partial = run_benchmark(
+        events=1,
+        markets_per_event=1,
+        providers=2,
+        updates_per_cycle=2,
+        warmup_cycles=0,
+        measured_cycles=2,
+        transports_per_provider=2,
+        overlap_slots=3,
+    )
+
+    assert single["market_books"] == partial["market_books"] == 2
+    assert single["opportunities"] == partial["opportunities"] == 2
+    assert single["result_digest"] == partial["result_digest"]
+    workload = partial["workload"]
+    assert isinstance(workload, dict)
+    assert workload["initial_quotes"] == 6
+    assert workload["overlap_slots"] == 3
+    assert workload["overlap_fraction"] == 0.5
+    assert workload["initial_observations"] == 9
+    assert workload["measured_update_observations"] == 5
+    assert workload["update_observations_per_cycle"] == 2.5
+    assert partial["equivalent_overlaps"] == 6
+    assert partial["conflicts"] == 0
+
+
+def test_conflicts_cannot_exceed_overlapping_slots() -> None:
+    try:
+        run_benchmark(
+            events=1,
+            markets_per_event=1,
+            providers=2,
+            updates_per_cycle=1,
+            warmup_cycles=0,
+            measured_cycles=1,
+            transports_per_provider=2,
+            overlap_slots=1,
+            conflicting_slots=2,
+        )
+    except ValueError as error:
+        assert "overlap_slots" in str(error)
+    else:
+        raise AssertionError("conflicts outside overlapping slots must be rejected")
