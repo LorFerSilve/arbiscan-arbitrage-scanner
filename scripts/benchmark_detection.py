@@ -231,9 +231,12 @@ def _observations(
     revision: int,
     transports_per_provider: int,
     conflicting: bool,
+    overlapping: bool = True,
 ) -> tuple[OddsQuote, ...]:
     if transports_per_provider == 1:
         return (_quote(spec, at=at, revision=revision),)
+    if not overlapping:
+        return (_quote(spec, at=at, revision=revision, transport_number=0),)
     return tuple(
         _quote(
             spec,
@@ -264,6 +267,7 @@ def run_benchmark(
     warmup_cycles: int,
     measured_cycles: int,
     transports_per_provider: int = 1,
+    overlap_slots: int | None = None,
     conflicting_slots: int = 0,
 ) -> dict[str, object]:
     """Return stage timings and a stable semantic digest for a fixed synthetic load."""
@@ -286,8 +290,15 @@ def run_benchmark(
     )
     if updates_per_cycle > len(specs):
         raise ValueError("updates_per_cycle cannot exceed initial quote count")
-    if conflicting_slots < 0 or conflicting_slots > len(specs):
-        raise ValueError("conflicting_slots must be between zero and initial quote count")
+    resolved_overlap_slots = (
+        len(specs) if overlap_slots is None and transports_per_provider > 1 else overlap_slots or 0
+    )
+    if resolved_overlap_slots < 0 or resolved_overlap_slots > len(specs):
+        raise ValueError("overlap_slots must be between zero and initial quote count")
+    if resolved_overlap_slots and transports_per_provider < 2:
+        raise ValueError("overlap_slots requires at least two transports per provider")
+    if conflicting_slots < 0 or conflicting_slots > resolved_overlap_slots:
+        raise ValueError("conflicting_slots must be between zero and overlap_slots")
     if conflicting_slots and transports_per_provider < 2:
         raise ValueError("conflicting_slots requires at least two transports per provider")
 
@@ -305,6 +316,7 @@ def run_benchmark(
             revision=0,
             transports_per_provider=transports_per_provider,
             conflicting=spec_index < conflicting_slots,
+            overlapping=spec_index < resolved_overlap_slots,
         )
     )
     store.apply(initial, observed_at=START)
@@ -318,6 +330,7 @@ def run_benchmark(
     executable_quote_count = 0
     equivalent_overlap_count = 0
     conflict_count = 0
+    measured_update_observations = 0
 
     for cycle in range(1, warmup_cycles + measured_cycles + 1):
         at = START + timedelta(seconds=cycle)
@@ -331,6 +344,7 @@ def run_benchmark(
                 revision=cycle,
                 transports_per_provider=transports_per_provider,
                 conflicting=spec_index % len(specs) < conflicting_slots,
+                overlapping=spec_index % len(specs) < resolved_overlap_slots,
             )
         )
         started = perf_counter_ns()
@@ -381,6 +395,7 @@ def run_benchmark(
             book_count += len(books)
             opportunity_count += cycle_opportunities
             executable_quote_count += len(fresh)
+            measured_update_observations += len(updates)
             if consolidation is not None:
                 equivalent_overlap_count += consolidation.equivalent_overlap_count
                 conflict_count += consolidation.conflict_count
@@ -394,9 +409,16 @@ def run_benchmark(
             "providers": providers,
             "initial_quotes": len(specs),
             "transports_per_provider": transports_per_provider,
-            "initial_observations": len(specs) * transports_per_provider,
+            "overlap_slots": resolved_overlap_slots,
+            "overlap_fraction": round(resolved_overlap_slots / len(specs), 4),
+            "initial_observations": len(specs)
+            + resolved_overlap_slots * (transports_per_provider - 1),
             "updates_per_cycle": updates_per_cycle,
-            "update_observations_per_cycle": updates_per_cycle * transports_per_provider,
+            "measured_update_observations": measured_update_observations,
+            "mean_update_observations_per_cycle": round(
+                measured_update_observations / measured_cycles,
+                2,
+            ),
             "conflicting_slots": conflicting_slots,
             "warmup_cycles": warmup_cycles,
             "measured_cycles": measured_cycles,
@@ -409,11 +431,7 @@ def run_benchmark(
         "opportunities": opportunity_count,
         "result_digest": digest.hexdigest(),
         "core_updates_per_second": round(
-            updates_per_cycle
-            * transports_per_provider
-            * measured_cycles
-            * 1_000_000_000
-            / sum(durations["apply"]),
+            measured_update_observations * 1_000_000_000 / sum(durations["apply"]),
             1,
         ),
         "stage_ms": {name: _milliseconds(values) for name, values in durations.items()},
@@ -429,6 +447,7 @@ def main() -> None:
     parser.add_argument("--warmup-cycles", type=_non_negative_int, default=3)
     parser.add_argument("--measured-cycles", type=_positive_int, default=20)
     parser.add_argument("--transports-per-provider", type=_positive_int, default=1)
+    parser.add_argument("--overlap-slots", type=_non_negative_int)
     parser.add_argument("--conflicting-slots", type=_non_negative_int, default=0)
     args = parser.parse_args()
     report = run_benchmark(
@@ -439,6 +458,7 @@ def main() -> None:
         warmup_cycles=args.warmup_cycles,
         measured_cycles=args.measured_cycles,
         transports_per_provider=args.transports_per_provider,
+        overlap_slots=args.overlap_slots,
         conflicting_slots=args.conflicting_slots,
     )
     print(json.dumps(report, indent=2, sort_keys=True))
