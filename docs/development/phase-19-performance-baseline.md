@@ -228,14 +228,43 @@ the baseline needed before introducing the roadmap's matching-cache or candidate
 optimizations; no latency target or optimization claim should be inferred until the
 benchmark is profiled on an intended deployment machine.
 
+## Provider polling and normalization workload
+
+Run the two real provider adapters against their existing schema-faithful local
+fixtures and feed the resulting snapshots through production strict normalization:
+
+```text
+uv run python -m scripts.benchmark_provider_pipeline
+uv run python -m scripts.benchmark_provider_pipeline --measured-runs 20
+```
+
+The workload covers The Odds API and OddsPapi football fixtures. Each measured run
+constructs a fresh adapter and fixture transport, discovers one competition and event,
+fetches its odds snapshot, builds the already-known canonical identity context outside
+the normalization timer, and then calls `normalize_source_snapshot()`. Polling and
+normalization timings are reported separately with median, nearest-rank p95, and
+maximum latency.
+
+The fixture transport performs local file reads instead of network I/O, so polling
+numbers measure adapter request orchestration, JSON decoding, schema validation, and
+source-record construction rather than internet latency or upstream service capacity.
+The Odds API workload performs four adapter requests and yields two source markets,
+six selections, and six canonical quotes. The OddsPapi workload performs five adapter
+requests and yields three source markets, three selections, and three canonical
+quotes. These counts are regression-checked.
+
+Every identical run must retain the same source/normalized semantic digest. The
+benchmark therefore establishes a safe profiling boundary for future connection
+pooling, parser, request-catalog caching, or normalization changes without treating
+fixture timing as a production SLO.
+
 ## Remaining Phase 19 work
 
-Measure provider polling and normalization against representative payloads, then
-profile the new event-matching workload and validate matching behavior against retained
-real multi-provider data. Persistence and historical replay still need representative
-retained-data measurements beyond their existing synthetic baselines. Extend the
-synthetic multi-source measurement to observed transport overlap and
-deployment-sized loads. Define
+Profile the new provider-pipeline and event-matching workloads on an intended
+deployment machine, then validate both against retained real multi-provider data.
+Persistence and historical replay still need representative retained-data measurements
+beyond their existing synthetic baselines. Extend the synthetic multi-source
+measurement to observed transport overlap and deployment-sized loads. Define
 operational latency/throughput targets from actual provider contracts and deployment
 capacity, then profile any further changes against fixed workloads and verify equal
 results before promoting them.
