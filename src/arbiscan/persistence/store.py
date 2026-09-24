@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import sqlite3
 from collections.abc import Iterable
+from contextlib import closing
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -92,7 +93,7 @@ class SqliteAuditStore:
     def migrate(self) -> None:
         """Apply all schema migrations exactly once."""
         try:
-            with self._connect() as connection:
+            with closing(self._connect()) as connection, connection:
                 connection.execute(
                     "CREATE TABLE IF NOT EXISTS schema_migrations ("
                     "version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL)"
@@ -141,7 +142,7 @@ class SqliteAuditStore:
             raise PersistenceError("stake plan belongs to a different opportunity")
 
         try:
-            with self._connect() as connection:
+            with closing(self._connect()) as connection, connection:
                 opportunity_id = _id(opportunity.id)
                 for quote_id in expected:
                     quote = quote_by_id[quote_id]
@@ -200,7 +201,7 @@ class SqliteAuditStore:
     def reconstruct_opportunity(self, opportunity_id: str) -> OpportunityEvidence:
         """Load and validate the complete canonical evidence for an opportunity."""
         try:
-            with self._connect() as connection:
+            with closing(self._connect()) as connection, connection:
                 opportunity = loads(
                     self._payload(connection, "opportunity", opportunity_id), Opportunity
                 )
@@ -265,7 +266,7 @@ class SqliteAuditStore:
             + " ORDER BY occurred_at, entity_id"
         )
         try:
-            with self._connect() as connection:
+            with closing(self._connect()) as connection, connection:
                 rows = connection.execute(query, tuple(parameters)).fetchall()
                 return tuple(loads(row[0], OddsQuote) for row in rows)
         except (sqlite3.Error, DomainValidationError) as exc:
@@ -274,7 +275,7 @@ class SqliteAuditStore:
     def purge_quotes_before(self, cutoff: datetime) -> int:
         """Delete old unreferenced quotes while preserving opportunity evidence."""
         try:
-            with self._connect() as connection:
+            with closing(self._connect()) as connection, connection:
                 cursor = connection.execute(
                     "DELETE FROM canonical_snapshots WHERE entity_type = 'odds_quote' "
                     "AND occurred_at < ? AND entity_id NOT IN (SELECT quote_id FROM opportunity_quotes)",
@@ -294,7 +295,7 @@ class SqliteAuditStore:
         payload: str,
     ) -> None:
         try:
-            with self._connect() as connection:
+            with closing(self._connect()) as connection, connection:
                 self._upsert(
                     connection, entity_type, entity_id, event_id, provider_id, occurred_at, payload
                 )
