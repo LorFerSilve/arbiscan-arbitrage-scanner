@@ -19,6 +19,7 @@ from arbiscan.domain import (
     Selection,
     SelectionId,
     SelectionKind,
+    Sport,
 )
 from arbiscan.providers.models import (
     CanonicalIdHooks,
@@ -52,6 +53,15 @@ class CanonicalRegistry:
     _selection_ids_by_market: Mapping[MarketId, tuple[SelectionId, ...]] = field(
         init=False, repr=False, compare=False
     )
+    _events_by_sport: Mapping[Sport, tuple[Event, ...]] = field(
+        init=False, repr=False, compare=False
+    )
+    _events_by_sport_competition: Mapping[
+        tuple[Sport, CompetitionId], tuple[Event, ...]
+    ] = field(init=False, repr=False, compare=False)
+    _events_by_match_key: Mapping[
+        tuple[Sport, CompetitionId, frozenset[ParticipantId]], tuple[Event, ...]
+    ] = field(init=False, repr=False, compare=False)
 
     def __post_init__(self) -> None:
         competitions = tuple(self.competitions)
@@ -79,6 +89,18 @@ class CanonicalRegistry:
         selection_ids_by_market: dict[MarketId, list[SelectionId]] = {}
         for selection in selections:
             selection_ids_by_market.setdefault(selection.market_id, []).append(selection.id)
+
+        events_by_sport: dict[Sport, list[Event]] = {}
+        events_by_sport_competition: dict[tuple[Sport, CompetitionId], list[Event]] = {}
+        events_by_match_key: dict[
+            tuple[Sport, CompetitionId, frozenset[ParticipantId]], list[Event]
+        ] = {}
+        for event in events:
+            events_by_sport.setdefault(event.sport, []).append(event)
+            competition_key = (event.sport, event.competition.id)
+            events_by_sport_competition.setdefault(competition_key, []).append(event)
+            participant_key = frozenset(participant.id for participant in event.participants)
+            events_by_match_key.setdefault((*competition_key, participant_key), []).append(event)
 
         if len(competition_map) != len(competitions):
             raise ValueError("registry competition IDs must be unique")
@@ -319,6 +341,25 @@ class CanonicalRegistry:
                 }
             ),
         )
+        object.__setattr__(
+            self,
+            "_events_by_sport",
+            MappingProxyType({key: tuple(values) for key, values in events_by_sport.items()}),
+        )
+        object.__setattr__(
+            self,
+            "_events_by_sport_competition",
+            MappingProxyType(
+                {key: tuple(values) for key, values in events_by_sport_competition.items()}
+            ),
+        )
+        object.__setattr__(
+            self,
+            "_events_by_match_key",
+            MappingProxyType(
+                {key: tuple(values) for key, values in events_by_match_key.items()}
+            ),
+        )
 
     def competition(self, competition_id: CompetitionId) -> Competition | None:
         """Return a canonical competition by opaque ID."""
@@ -343,6 +384,30 @@ class CanonicalRegistry:
     def selection_ids_for_market(self, market_id: MarketId) -> tuple[SelectionId, ...]:
         """Return deterministic expected outcomes for one canonical market."""
         return self._selection_ids_by_market.get(market_id, ())
+
+    def events_for_sport(self, sport: Sport) -> tuple[Event, ...]:
+        """Return canonical events for one sport in registry order."""
+        return self._events_by_sport.get(sport, ())
+
+    def events_for_competition(
+        self,
+        sport: Sport,
+        competition_id: CompetitionId,
+    ) -> tuple[Event, ...]:
+        """Return canonical events for one sport/competition pair in registry order."""
+        return self._events_by_sport_competition.get((sport, competition_id), ())
+
+    def event_match_candidates(
+        self,
+        sport: Sport,
+        competition_id: CompetitionId,
+        participant_ids: tuple[ParticipantId, ...],
+    ) -> tuple[Event, ...]:
+        """Return events surviving the sport, competition, and participant hard filters."""
+        return self._events_by_match_key.get(
+            (sport, competition_id, frozenset(participant_ids)),
+            (),
+        )
 
 
 @dataclass(frozen=True, slots=True)
