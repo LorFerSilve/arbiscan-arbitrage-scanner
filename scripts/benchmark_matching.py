@@ -26,8 +26,8 @@ from arbiscan.domain import (
 from arbiscan.matching import (
     CanonicalRegistry,
     EventMatchDecision,
-    EventMatchStatus,
     EventMatcher,
+    EventMatchStatus,
     NormalizedEventEvidence,
     ParticipantOrderPolicy,
 )
