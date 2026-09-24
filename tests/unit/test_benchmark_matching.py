@@ -10,8 +10,14 @@ def test_matching_benchmark_is_deterministic_and_reports_scale() -> None:
     assert isinstance(workload, dict)
     assert workload["canonical_events"] == 6
     assert workload["provider_events_per_run"] == 6
-    assert workload["candidate_comparisons_per_run"] == 36
+    assert workload["uncached_candidate_comparisons"] == 36
+    assert workload["cached_candidate_comparisons_per_run"] == 0
+    assert workload["cache_capacity"] == 6
+    assert workload["cached_decisions"] == 6
     assert workload["measured_runs"] == 2
+
+    cold = report["cold_matching_ms"]
+    assert isinstance(cold, float) and cold >= 0
 
     matching_ms = report["matching_ms"]
     assert isinstance(matching_ms, dict)

@@ -215,18 +215,31 @@ uv run python -m scripts.benchmark_matching --events 500 --measured-runs 10
 
 The benchmark creates one football competition with unique participant pairs and
 one provider event per canonical event. Every provider event has exactly one valid
-canonical match, while the current matcher still evaluates the complete registry for
-each lookup. The report therefore exposes the catalog-size cost directly through
-`candidate_comparisons_per_run`, matching latency, events per second, and a stable
-decision digest.
+canonical match. Its first run is deliberately cold: each evidence item executes the
+existing exhaustive candidate evaluation, so the default 250-event workload performs
+62,500 candidate comparisons and establishes the unchanged correctness baseline.
 
-This workload is intentionally separate from provider normalization. It measures the
-Phase-8 candidate-scoring boundary only, uses no credentials or randomness, and
-fails if repeated identical runs change any final match decision. The default
-250-event workload performs 62,500 candidate comparisons per run. This establishes
-the baseline needed before introducing the roadmap's matching-cache or candidate-index
-optimizations; no latency target or optimization claim should be inferred until the
-benchmark is profiled on an intended deployment machine.
+Phase 19 now adds a bounded exact-evidence decision cache to `EventMatcher`. The key
+is the complete immutable `NormalizedEventEvidence`, so changes to provider identity,
+external event ID, sport, competition, participants/order policy, scheduled start,
+stage, or venue cannot reuse a stale decision. Cache capacity is explicit, zero
+disables caching, and least-recently-used entries are evicted once the bound is
+reached. Cached decisions are immutable `EventMatchDecision` values, so repeated
+polls of unchanged provider events can skip canonical candidate scoring entirely.
+
+The benchmark reports cold matching latency separately from repeated cached latency,
+the cold comparison count, cached comparison count, retained cache entries, events per
+second, and one decision digest shared by cold, warm-up, and measured cached runs.
+Any semantic drift between the cold result and a cached result fails the command.
+Unit regressions also compare full matched/ambiguous/rejected decision semantics with
+caching enabled versus disabled and verify bounded eviction behavior.
+
+This optimization targets repeated event observations, not first-seen event matching.
+A genuinely new or changed evidence record still pays the existing exhaustive
+candidate cost. Candidate indexing for cold matches therefore remains a possible
+future Phase 19 optimization, but should only be introduced with an explicit decision
+about diagnostic semantics because the current matcher emits per-candidate rejection
+diagnostics. No production latency SLO is inferred from this credential-free workload.
 
 ## Provider polling and normalization workload
 

@@ -155,38 +155,44 @@ def run_benchmark(
         raise ValueError("measured_runs must be at least one")
 
     registry, evidences = _workload(events)
-    matcher = EventMatcher(registry)
+    matcher = EventMatcher(registry, cache_capacity=events)
+
+    cold_elapsed, cold_decisions = _run_once(matcher, evidences)
+    if any(decision.status is not EventMatchStatus.MATCHED for decision in cold_decisions):
+        raise RuntimeError("matching benchmark cold run produced an unexpected decision")
+    expected_digest = _decision_digest(cold_decisions)
+    if matcher.cached_decision_count != events:
+        raise RuntimeError("matching benchmark did not retain the complete evidence workload")
 
     for _ in range(warmup_runs):
         _, warmup = _run_once(matcher, evidences)
         if any(decision.status is not EventMatchStatus.MATCHED for decision in warmup):
             raise RuntimeError("matching benchmark warm-up produced an unexpected decision")
+        if _decision_digest(warmup) != expected_digest:
+            raise RuntimeError("matching benchmark warm-up changed cached decisions")
 
     durations: list[int] = []
-    expected_digest: str | None = None
     for _ in range(measured_runs):
         elapsed, decisions = _run_once(matcher, evidences)
         if any(decision.status is not EventMatchStatus.MATCHED for decision in decisions):
             raise RuntimeError("matching benchmark produced an unexpected decision")
-        digest = _decision_digest(decisions)
-        if expected_digest is None:
-            expected_digest = digest
-        elif digest != expected_digest:
-            raise RuntimeError("matching benchmark decisions changed between identical runs")
+        if _decision_digest(decisions) != expected_digest:
+            raise RuntimeError("matching benchmark decisions changed between cold and cached runs")
         durations.append(elapsed)
-
-    if expected_digest is None:
-        raise AssertionError("measured_runs validation failed")
 
     total_events = events * measured_runs
     return {
         "workload": {
             "canonical_events": events,
             "provider_events_per_run": events,
-            "candidate_comparisons_per_run": events * events,
+            "uncached_candidate_comparisons": events * events,
+            "cached_candidate_comparisons_per_run": 0,
+            "cache_capacity": matcher.cache_capacity,
+            "cached_decisions": matcher.cached_decision_count,
             "warmup_runs": warmup_runs,
             "measured_runs": measured_runs,
         },
+        "cold_matching_ms": round(cold_elapsed / 1_000_000, 3),
         "matching_ms": _milliseconds(durations),
         "events_per_second": round(
             total_events * 1_000_000_000 / sum(durations),

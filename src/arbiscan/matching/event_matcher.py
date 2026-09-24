@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections import OrderedDict
 from dataclasses import dataclass, field
 from datetime import timedelta
 
@@ -41,6 +42,12 @@ class EventMatcher:
     registry: CanonicalRegistry
     config: EventMatchConfig = field(default_factory=EventMatchConfig)
     metadata: tuple[CanonicalEventMatchMetadata, ...] = ()
+    cache_capacity: int = 4_096
+    _decision_cache: OrderedDict[NormalizedEventEvidence, EventMatchDecision] = field(
+        init=False,
+        repr=False,
+        compare=False,
+    )
 
     def __post_init__(self) -> None:
         if not isinstance(self.registry, CanonicalRegistry):
@@ -55,13 +62,36 @@ class EventMatcher:
             raise ValueError("metadata may contain at most one record per event")
         if any(self.registry.event(item.event_id) is None for item in metadata):
             raise ValueError("metadata references an event outside the registry")
+        if type(self.cache_capacity) is not int or self.cache_capacity < 0:
+            raise ValueError("cache_capacity must be a non-negative integer")
         object.__setattr__(self, "metadata", metadata)
+        object.__setattr__(self, "_decision_cache", OrderedDict())
+
+    @property
+    def cached_decision_count(self) -> int:
+        """Return the current bounded cache size for diagnostics and benchmarks."""
+        return len(self._decision_cache)
 
     def match(self, evidence: NormalizedEventEvidence) -> EventMatchDecision:
-        """Return a deterministic match, ambiguity, or rejection decision."""
+        """Return a deterministic match, reusing an exact evidence decision when cached."""
         if not isinstance(evidence, NormalizedEventEvidence):
             raise ValueError("evidence must be NormalizedEventEvidence")
 
+        if self.cache_capacity > 0:
+            cached = self._decision_cache.get(evidence)
+            if cached is not None:
+                self._decision_cache.move_to_end(evidence)
+                return cached
+
+        decision = self._match_uncached(evidence)
+        if self.cache_capacity > 0:
+            self._decision_cache[evidence] = decision
+            self._decision_cache.move_to_end(evidence)
+            while len(self._decision_cache) > self.cache_capacity:
+                self._decision_cache.popitem(last=False)
+        return decision
+
+    def _match_uncached(self, evidence: NormalizedEventEvidence) -> EventMatchDecision:
         diagnostics: list[EventMatchDiagnostic] = []
         candidates: list[EventMatchCandidate] = []
         metadata_by_id = {item.event_id: item for item in self.metadata}

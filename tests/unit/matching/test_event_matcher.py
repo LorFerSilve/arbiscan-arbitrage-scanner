@@ -377,3 +377,81 @@ def test_matching_configuration_is_explicit_and_validated() -> None:
         ambiguity_margin_bps=100,
     )
     assert config.minimum_confidence_bps == 9000
+
+
+def test_exact_evidence_cache_preserves_full_decision_semantics() -> None:
+    first = _participant("player-a", "Player A", Sport.TENNIS, ParticipantKind.INDIVIDUAL)
+    second = _participant("player-b", "Player B", Sport.TENNIS, ParticipantKind.INDIVIDUAL)
+    source_start = datetime(2026, 9, 21, 13, 2, tzinfo=UTC)
+    registry = _registry(
+        sport=Sport.TENNIS,
+        kind=ParticipantKind.INDIVIDUAL,
+        event_specs=(
+            ("match-one", source_start - timedelta(minutes=2), (first, second), ()),
+            ("match-two", source_start + timedelta(minutes=2), (first, second), ()),
+        ),
+    )
+    evidence = _evidence(
+        registry,
+        participant_ids=(second.id, first.id),
+        starts_at=source_start,
+        order_policy=ParticipantOrderPolicy.UNORDERED,
+    )
+
+    uncached = EventMatcher(registry, cache_capacity=0).match(evidence)
+    matcher = EventMatcher(registry, cache_capacity=1)
+    cold = matcher.match(evidence)
+    cached = matcher.match(evidence)
+
+    assert cold == uncached
+    assert cached == uncached
+    assert matcher.cached_decision_count == 1
+
+
+def test_event_match_cache_is_bounded_and_full_evidence_is_identity_bearing() -> None:
+    starts_at = datetime(2026, 9, 20, 18, 0, tzinfo=UTC)
+    home = _participant("home", "Home FC", Sport.FOOTBALL, ParticipantKind.TEAM)
+    away = _participant("away", "Away FC", Sport.FOOTBALL, ParticipantKind.TEAM)
+    registry = _registry(
+        sport=Sport.FOOTBALL,
+        kind=ParticipantKind.TEAM,
+        event_specs=(("fixture", starts_at, (home, away), ()),),
+    )
+    matcher = EventMatcher(registry, cache_capacity=1)
+    exact = _evidence(
+        registry,
+        participant_ids=(home.id, away.id),
+        starts_at=starts_at,
+        order_policy=ParticipantOrderPolicy.ORDERED,
+    )
+    shifted = _evidence(
+        registry,
+        participant_ids=(home.id, away.id),
+        starts_at=starts_at + timedelta(minutes=10),
+        order_policy=ParticipantOrderPolicy.ORDERED,
+    )
+
+    exact_decision = matcher.match(exact)
+    shifted_decision = matcher.match(shifted)
+
+    assert exact_decision.status is EventMatchStatus.MATCHED
+    assert shifted_decision.status is EventMatchStatus.REJECTED
+    assert matcher.cached_decision_count == 1
+
+
+def test_event_match_cache_capacity_is_validated() -> None:
+    starts_at = datetime(2026, 9, 20, 18, 0, tzinfo=UTC)
+    home = _participant("home", "Home FC", Sport.FOOTBALL, ParticipantKind.TEAM)
+    away = _participant("away", "Away FC", Sport.FOOTBALL, ParticipantKind.TEAM)
+    registry = _registry(
+        sport=Sport.FOOTBALL,
+        kind=ParticipantKind.TEAM,
+        event_specs=(("fixture", starts_at, (home, away), ()),),
+    )
+
+    try:
+        EventMatcher(registry, cache_capacity=-1)
+    except ValueError as error:
+        assert "cache_capacity" in str(error)
+    else:
+        raise AssertionError("negative cache capacity must fail closed")
