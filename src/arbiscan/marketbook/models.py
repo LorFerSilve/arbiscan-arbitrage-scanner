@@ -35,6 +35,7 @@ class MarketBookDiagnosticCode(StrEnum):
     FUTURE_INGESTION = "future_ingestion"
     FUTURE_QUOTE = "future_quote"
     STALE_QUOTE = "stale_quote"
+    EVENT_NOT_PREMATCH = "event_not_prematch"
     INSUFFICIENT_OUTCOMES = "insufficient_outcomes"
     INCOMPLETE_MARKET = "incomplete_market"
 

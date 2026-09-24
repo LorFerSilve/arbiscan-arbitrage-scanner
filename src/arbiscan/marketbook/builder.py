@@ -6,7 +6,7 @@ from collections import Counter, defaultdict
 from collections.abc import Iterable
 from datetime import datetime, timedelta
 
-from arbiscan.domain import MarketId, OddsQuote, QuoteId, QuoteStatus, SelectionId
+from arbiscan.domain import EventStatus, MarketId, OddsQuote, QuoteId, QuoteStatus, SelectionId
 from arbiscan.domain.validation import normalize_datetime
 from arbiscan.marketbook.models import (
     BestPriceOutcome,
@@ -85,7 +85,8 @@ def build_market_books(
 
     Quotes must survive canonical identity checks, provider policy, active-status
     checks and freshness checks before they can compete for best price. A market
-    is emitted only when every expected canonical selection has one eligible quote.
+    is emitted only when its event is still scheduled to start in the future and
+    every expected canonical selection has one eligible quote.
     """
     if not isinstance(registry, CanonicalRegistry):
         raise ValueError("registry must be CanonicalRegistry")
@@ -256,6 +257,21 @@ def build_market_books(
         event = registry.event(market.event_id)
         if event is None:
             raise AssertionError("validated canonical market must resolve its event")
+
+        if event.status is not EventStatus.SCHEDULED or event.scheduled_start <= now:
+            diagnostics.append(
+                MarketBookDiagnostic(
+                    code=MarketBookDiagnosticCode.EVENT_NOT_PREMATCH,
+                    event_id=event.id,
+                    market_id=market.id,
+                    detail=(
+                        f"event is not eligible for pre-match detection: status "
+                        f"{event.status.value!r}, scheduled start {event.scheduled_start.isoformat()}, "
+                        f"evaluation time {now.isoformat()}"
+                    ),
+                )
+            )
+            continue
 
         expected = registry.selection_ids_for_market(market.id)
         if len(expected) < 2:

@@ -77,6 +77,16 @@ At construction time `as_of`:
 
 Ingestion-time eligibility and freshness filtering occur before best-price selection and therefore before arbitrage mathematics.
 
+### 4a. The canonical event must still be pre-match
+
+The initial product scope is pre-match detection. At construction time `as_of`, a
+market book is emitted only when its canonical event has `EventStatus.SCHEDULED`
+and `scheduled_start` is strictly later than `as_of`. A live, postponed, cancelled,
+completed or unknown event is ineligible even when its quotes remain active and
+fresh. A stale `SCHEDULED` status does not keep a market eligible at or after
+kickoff. Ineligible markets emit `EVENT_NOT_PREMATCH` diagnostics and never reach
+arbitrage evaluation, including during historical replay.
+
 ### 5. Best-price selection is deterministic
 
 For each expected canonical selection, the winning eligible quote is selected by this ordered policy:

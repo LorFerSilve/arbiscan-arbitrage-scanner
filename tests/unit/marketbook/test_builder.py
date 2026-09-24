@@ -1,5 +1,6 @@
 """Adversarial tests for Phase-9 canonical market-book construction."""
 
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
@@ -180,6 +181,42 @@ def test_selects_best_valid_price_per_outcome_with_provider_attribution() -> Non
     assert tuple(outcome.selection.id for outcome in book.outcomes) == tuple(
         sorted((selection.id for selection in selections), key=lambda value: value.value)
     )
+
+
+def test_non_prematch_events_cannot_produce_books_from_fresh_active_quotes() -> None:
+    registry, event, market, selections = _winner_registry()
+    quotes = _complete_quotes(event, market, selections)
+
+    for status, scheduled_start in (
+        (EventStatus.LIVE, event.scheduled_start),
+        (EventStatus.POSTPONED, event.scheduled_start),
+        (EventStatus.CANCELLED, event.scheduled_start),
+        (EventStatus.COMPLETED, event.scheduled_start),
+        (EventStatus.UNKNOWN, event.scheduled_start),
+        (EventStatus.SCHEDULED, AS_OF),
+        (EventStatus.SCHEDULED, AS_OF - timedelta(seconds=1)),
+    ):
+        changed_event = replace(event, status=status, scheduled_start=scheduled_start)
+        changed_registry = CanonicalRegistry(
+            competitions=registry.competitions,
+            participants=registry.participants,
+            events=(changed_event,),
+            markets=registry.markets,
+            selections=registry.selections,
+        )
+        result = build_market_books(
+            quotes,
+            registry=changed_registry,
+            as_of=AS_OF,
+            freshness_window=WINDOW,
+            market_ids=(market.id,),
+        )
+
+        assert result.books == ()
+        assert tuple(item.code for item in result.diagnostics) == (
+            MarketBookDiagnosticCode.EVENT_NOT_PREMATCH,
+        )
+        assert result.diagnostics[0].market_id == market.id
 
 
 def test_stale_high_price_is_removed_before_best_price_selection() -> None:

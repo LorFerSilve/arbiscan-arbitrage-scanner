@@ -5,8 +5,9 @@ from collections.abc import AsyncIterator
 from dataclasses import replace
 from datetime import datetime, timedelta
 
-from arbiscan.domain import Provider, Sport
+from arbiscan.domain import EventStatus, Provider, Sport
 from arbiscan.ingestion import RealtimeIngestionPolicy
+from arbiscan.marketbook import MarketBookDiagnosticCode
 from arbiscan.providers.contract import ProviderAdapter
 from arbiscan.providers.models import (
     CanonicalIdHooks,
@@ -123,6 +124,30 @@ def test_realtime_scanner_expires_old_arbitrage_when_provider_data_stops_advanci
     assert second.evictions.evicted
     assert second.metrics.stale_quote_count == len(second.evictions.evicted)
     assert second.metrics.opportunity_count == 0
+
+
+def test_realtime_scanner_rejects_fresh_quotes_for_non_prematch_events() -> None:
+    scenario = build_phase5_synthetic_scenario()
+    registry = replace(
+        scenario.registry,
+        events=tuple(replace(event, status=EventStatus.LIVE) for event in scenario.registry.events),
+    )
+    scanner = RealtimeScanner(
+        adapters=scenario.adapters,
+        registry=registry,
+        sport=Sport.FOOTBALL,
+        policy=RealtimeIngestionPolicy(freshness_window=scenario.freshness_window),
+        clock=MutableClock(scenario.as_of),
+    )
+
+    cycle = asyncio.run(scanner.run_cycle())
+
+    assert cycle.fresh_quotes
+    assert cycle.market_books == ()
+    assert cycle.opportunities == ()
+    assert MarketBookDiagnosticCode.EVENT_NOT_PREMATCH in {
+        item.code for item in cycle.market_book_diagnostics
+    }
 
 
 def test_explicit_provider_suspension_invalidates_live_quotes_immediately() -> None:
