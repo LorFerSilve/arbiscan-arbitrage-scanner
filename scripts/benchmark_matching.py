@@ -112,9 +112,9 @@ def _decision_digest(decisions: tuple[EventMatchDecision, ...]) -> str:
         digest.update(decision.status.value.encode("utf-8"))
         digest.update(b"|")
         digest.update(
-            (decision.matched_event_id.value if decision.matched_event_id is not None else "").encode(
-                "utf-8"
-            )
+            (
+                decision.matched_event_id.value if decision.matched_event_id is not None else ""
+            ).encode("utf-8")
         )
         digest.update(b"|")
         digest.update(str(decision.confidence_bps).encode("ascii"))
