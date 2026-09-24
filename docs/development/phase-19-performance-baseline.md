@@ -203,10 +203,37 @@ about 0.50 of 1.06 profiled `run_backtest()` seconds to 44 market-book builds.
 The observed throughput decline at larger loads warrants a workload-specific
 target before any replay architecture change.
 
+## Event-matching scale workload
+
+Run the deterministic Phase-8 matcher against a canonical event catalog without
+provider I/O or alias preparation:
+
+```text
+uv run python -m scripts.benchmark_matching
+uv run python -m scripts.benchmark_matching --events 500 --measured-runs 10
+```
+
+The benchmark creates one football competition with unique participant pairs and
+one provider event per canonical event. Every provider event has exactly one valid
+canonical match, while the current matcher still evaluates the complete registry for
+each lookup. The report therefore exposes the catalog-size cost directly through
+`candidate_comparisons_per_run`, matching latency, events per second, and a stable
+decision digest.
+
+This workload is intentionally separate from provider normalization. It measures the
+Phase-8 candidate-scoring boundary only, uses no credentials or randomness, and
+fails if repeated identical runs change any final match decision. The default
+250-event workload performs 62,500 candidate comparisons per run. This establishes
+the baseline needed before introducing the roadmap's matching-cache or candidate-index
+optimizations; no latency target or optimization claim should be inferred until the
+benchmark is profiled on an intended deployment machine.
+
 ## Remaining Phase 19 work
 
-Measure provider polling and normalization, event matching, persistence, and
-historical replay against retained real data at representative loads. Extend the
+Measure provider polling and normalization against representative payloads, then
+profile the new event-matching workload and validate matching behavior against retained
+real multi-provider data. Persistence and historical replay still need representative
+retained-data measurements beyond their existing synthetic baselines. Extend the
 synthetic multi-source measurement to observed transport overlap and
 deployment-sized loads. Define
 operational latency/throughput targets from actual provider contracts and deployment
