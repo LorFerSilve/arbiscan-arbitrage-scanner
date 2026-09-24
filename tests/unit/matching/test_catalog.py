@@ -42,6 +42,34 @@ def test_registry_exposes_complete_three_way_market_identity() -> None:
     )
 
 
+
+def test_registry_indexes_event_match_hard_filters() -> None:
+    scenario = build_phase5_synthetic_scenario()
+    event = scenario.registry.events[0]
+    participant_ids = tuple(participant.id for participant in event.participants)
+
+    assert event in scenario.registry.events_for_sport(event.sport)
+    assert event in scenario.registry.events_for_competition(
+        event.sport,
+        event.competition.id,
+    )
+    assert scenario.registry.event_match_candidates(
+        event.sport,
+        event.competition.id,
+        participant_ids,
+    ) == (event,)
+    assert scenario.registry.event_match_candidates(
+        event.sport,
+        event.competition.id,
+        tuple(reversed(participant_ids)),
+    ) == (event,)
+    assert scenario.registry.event_match_candidates(
+        event.sport,
+        event.competition.id,
+        (ParticipantId("participant:unknown"),),
+    ) == ()
+
+
 def test_provider_hooks_do_not_guess_unmapped_lookalike_event() -> None:
     scenario = build_phase5_synthetic_scenario()
     beta = next(
