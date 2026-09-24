@@ -56,9 +56,9 @@ class CanonicalRegistry:
     _events_by_sport: Mapping[Sport, tuple[Event, ...]] = field(
         init=False, repr=False, compare=False
     )
-    _events_by_sport_competition: Mapping[
-        tuple[Sport, CompetitionId], tuple[Event, ...]
-    ] = field(init=False, repr=False, compare=False)
+    _events_by_sport_competition: Mapping[tuple[Sport, CompetitionId], tuple[Event, ...]] = field(
+        init=False, repr=False, compare=False
+    )
     _events_by_match_key: Mapping[
         tuple[Sport, CompetitionId, frozenset[ParticipantId]], tuple[Event, ...]
     ] = field(init=False, repr=False, compare=False)
@@ -356,9 +356,7 @@ class CanonicalRegistry:
         object.__setattr__(
             self,
             "_events_by_match_key",
-            MappingProxyType(
-                {key: tuple(values) for key, values in events_by_match_key.items()}
-            ),
+            MappingProxyType({key: tuple(values) for key, values in events_by_match_key.items()}),
         )
 
     def competition(self, competition_id: CompetitionId) -> Competition | None:
