@@ -455,3 +455,118 @@ def test_event_match_cache_capacity_is_validated() -> None:
         assert "cache_capacity" in str(error)
     else:
         raise AssertionError("negative cache capacity must fail closed")
+
+
+def test_indexed_cold_matching_preserves_core_decision_semantics() -> None:
+    first = _participant("player-a", "Player A", Sport.TENNIS, ParticipantKind.INDIVIDUAL)
+    second = _participant("player-b", "Player B", Sport.TENNIS, ParticipantKind.INDIVIDUAL)
+    source_start = datetime(2026, 9, 21, 13, 2, tzinfo=UTC)
+    registry = _registry(
+        sport=Sport.TENNIS,
+        kind=ParticipantKind.INDIVIDUAL,
+        event_specs=(
+            ("match-one", source_start - timedelta(minutes=2), (first, second), ()),
+            ("match-two", source_start + timedelta(minutes=2), (first, second), ()),
+        ),
+    )
+    evidence = _evidence(
+        registry,
+        participant_ids=(second.id, first.id),
+        starts_at=source_start,
+        order_policy=ParticipantOrderPolicy.UNORDERED,
+    )
+
+    indexed = EventMatcher(registry, cache_capacity=0).match(evidence)
+    exhaustive = EventMatcher(
+        registry,
+        cache_capacity=0,
+        exhaustive_diagnostics=True,
+    ).match(evidence)
+
+    assert indexed.status == exhaustive.status
+    assert indexed.matched_event_id == exhaustive.matched_event_id
+    assert indexed.confidence_bps == exhaustive.confidence_bps
+    assert indexed.candidates == exhaustive.candidates
+
+
+def test_compact_diagnostics_preserve_matching_explanation_without_registry_scan() -> None:
+    starts_at = datetime(2026, 9, 20, 18, 0, tzinfo=UTC)
+    home = _participant("home", "Home FC", Sport.FOOTBALL, ParticipantKind.TEAM)
+    away = _participant("away", "Away FC", Sport.FOOTBALL, ParticipantKind.TEAM)
+    other_home = _participant("other-home", "Other Home", Sport.FOOTBALL, ParticipantKind.TEAM)
+    other_away = _participant("other-away", "Other Away", Sport.FOOTBALL, ParticipantKind.TEAM)
+    registry = _registry(
+        sport=Sport.FOOTBALL,
+        kind=ParticipantKind.TEAM,
+        event_specs=(
+            ("fixture", starts_at, (home, away), ()),
+            ("other", starts_at, (other_home, other_away), ()),
+        ),
+    )
+    evidence = _evidence(
+        registry,
+        participant_ids=(home.id, away.id),
+        starts_at=starts_at,
+        order_policy=ParticipantOrderPolicy.ORDERED,
+    )
+
+    compact = EventMatcher(registry, cache_capacity=0).match(evidence)
+    exhaustive = EventMatcher(
+        registry,
+        cache_capacity=0,
+        exhaustive_diagnostics=True,
+    ).match(evidence)
+
+    assert compact.status is EventMatchStatus.MATCHED
+    assert tuple(diagnostic.reason for diagnostic in compact.diagnostics) == (
+        EventMatchReason.MATCHED,
+    )
+    assert EventMatchReason.PARTICIPANT_MISMATCH in {
+        diagnostic.reason for diagnostic in exhaustive.diagnostics
+    }
+    assert EventMatchReason.MATCHED in {diagnostic.reason for diagnostic in exhaustive.diagnostics}
+
+
+def test_compact_hard_filter_rejection_retains_stage_reason() -> None:
+    starts_at = datetime(2026, 9, 20, 18, 0, tzinfo=UTC)
+    home = _participant("home", "Home FC", Sport.FOOTBALL, ParticipantKind.TEAM)
+    away = _participant("away", "Away FC", Sport.FOOTBALL, ParticipantKind.TEAM)
+    registry = _registry(
+        sport=Sport.FOOTBALL,
+        kind=ParticipantKind.TEAM,
+        event_specs=(("fixture", starts_at, (home, away), ()),),
+    )
+
+    decision = EventMatcher(registry, cache_capacity=0).match(
+        _evidence(
+            registry,
+            participant_ids=(home.id, ParticipantId("participant:unknown")),
+            starts_at=starts_at,
+            order_policy=ParticipantOrderPolicy.ORDERED,
+        )
+    )
+
+    assert decision.status is EventMatchStatus.REJECTED
+    assert decision.candidates == ()
+    assert tuple(diagnostic.reason for diagnostic in decision.diagnostics) == (
+        EventMatchReason.PARTICIPANT_MISMATCH,
+    )
+    assert decision.diagnostics[0].candidate_event_id is None
+
+
+def test_exhaustive_diagnostics_flag_is_validated() -> None:
+    starts_at = datetime(2026, 9, 20, 18, 0, tzinfo=UTC)
+    home = _participant("home", "Home FC", Sport.FOOTBALL, ParticipantKind.TEAM)
+    away = _participant("away", "Away FC", Sport.FOOTBALL, ParticipantKind.TEAM)
+    registry = _registry(
+        sport=Sport.FOOTBALL,
+        kind=ParticipantKind.TEAM,
+        event_specs=(("fixture", starts_at, (home, away), ()),),
+    )
+
+    try:
+        EventMatcher(registry, exhaustive_diagnostics=1)  # type: ignore[arg-type]
+    except ValueError as error:
+        assert "exhaustive_diagnostics" in str(error)
+    else:
+        raise AssertionError("non-boolean exhaustive diagnostics must fail closed")

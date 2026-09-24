@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 from collections import OrderedDict
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import timedelta
+from types import MappingProxyType
 
 from arbiscan.domain import Event, EventId
 from arbiscan.matching.catalog import CanonicalRegistry
@@ -43,6 +45,12 @@ class EventMatcher:
     config: EventMatchConfig = field(default_factory=EventMatchConfig)
     metadata: tuple[CanonicalEventMatchMetadata, ...] = ()
     cache_capacity: int = 4_096
+    exhaustive_diagnostics: bool = False
+    _metadata_by_id: Mapping[EventId, CanonicalEventMatchMetadata] = field(
+        init=False,
+        repr=False,
+        compare=False,
+    )
     _decision_cache: OrderedDict[NormalizedEventEvidence, EventMatchDecision] = field(
         init=False,
         repr=False,
@@ -64,7 +72,14 @@ class EventMatcher:
             raise ValueError("metadata references an event outside the registry")
         if type(self.cache_capacity) is not int or self.cache_capacity < 0:
             raise ValueError("cache_capacity must be a non-negative integer")
+        if type(self.exhaustive_diagnostics) is not bool:
+            raise ValueError("exhaustive_diagnostics must be boolean")
         object.__setattr__(self, "metadata", metadata)
+        object.__setattr__(
+            self,
+            "_metadata_by_id",
+            MappingProxyType({item.event_id: item for item in metadata}),
+        )
         object.__setattr__(self, "_decision_cache", OrderedDict())
 
     @property
@@ -94,13 +109,23 @@ class EventMatcher:
     def _match_uncached(self, evidence: NormalizedEventEvidence) -> EventMatchDecision:
         diagnostics: list[EventMatchDiagnostic] = []
         candidates: list[EventMatchCandidate] = []
-        metadata_by_id = {item.event_id: item for item in self.metadata}
 
-        for event in self.registry.events:
+        if self.exhaustive_diagnostics:
+            candidate_events = self.registry.events
+        else:
+            candidate_events = self.registry.event_match_candidates(
+                evidence.sport,
+                evidence.competition_id,
+                evidence.participant_ids,
+            )
+            if not candidate_events:
+                diagnostics.append(self._hard_filter_diagnostic(evidence))
+
+        for event in candidate_events:
             candidate, rejected = self._evaluate_candidate(
                 evidence,
                 event,
-                metadata_by_id.get(event.id),
+                self._metadata_by_id.get(event.id),
             )
             if candidate is not None:
                 candidates.append(candidate)
@@ -179,6 +204,31 @@ class EventMatcher:
             confidence_bps=best.confidence_bps,
             candidates=eligible,
             diagnostics=tuple(diagnostics),
+        )
+
+    def _hard_filter_diagnostic(
+        self,
+        evidence: NormalizedEventEvidence,
+    ) -> EventMatchDiagnostic:
+        if not self.registry.events_for_sport(evidence.sport):
+            return EventMatchDiagnostic(
+                reason=EventMatchReason.SPORT_MISMATCH,
+                detail="no canonical event shares the provider sport",
+            )
+        if not self.registry.events_for_competition(
+            evidence.sport,
+            evidence.competition_id,
+        ):
+            return EventMatchDiagnostic(
+                reason=EventMatchReason.COMPETITION_MISMATCH,
+                detail="no canonical event shares the provider sport and competition",
+            )
+        return EventMatchDiagnostic(
+            reason=EventMatchReason.PARTICIPANT_MISMATCH,
+            detail=(
+                "no canonical event shares the provider sport, competition, "
+                "and participant identities"
+            ),
         )
 
     def _evaluate_candidate(
