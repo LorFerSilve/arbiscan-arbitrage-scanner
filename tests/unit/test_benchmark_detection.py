@@ -183,6 +183,7 @@ def test_conflicts_cannot_exceed_overlapping_slots() -> None:
     else:
         raise AssertionError("conflicts outside overlapping slots must be rejected")
 
+
 def test_distributed_unique_feed_coverage_preserves_detection_signature() -> None:
     params = {
         "events": 1,
