@@ -365,6 +365,108 @@ against an unchanged corpus before claiming a concrete speedup. The regression
 tests protect diagnostic attribution, input-order independence, and market
 scope; general quality gates are unchanged.
 
+## Phase 19 diagnostic-index before/after validation
+
+The diagnostic-heavy builder benchmark was run locally on Windows 10
+(`Windows-10-10.0.19045-SP0`, CPython 3.13.15) against the two relevant
+implementations:
+
+- Before: main commit `51e2620aed952c145c6d508ae0e6b2b66dbfc920`
+  (before PR #62). The same benchmark script was copied into a detached
+  worktree containing the previous builder.
+- After: main commit `e1314a9d4f6b4f603b853789d151fd17f84fce9d`
+  (PR #62, diagnostic indexing).
+
+Both executions used 100 events, three markets per event, three price
+providers, 2,100 valid quotes, and 4,200 additional suspended quotes.
+There were 300 complete books, 4,200 diagnostics, 10 warm-up runs, and
+100 measured runs, with the same semantic result digest:
+`cc41495cd6273cf36517f64113373275c3c0783178a548a04ee0dcb2a7bd1bbf`.
+
+| Market-book build time | Before | After | Reduction |
+| --- | ---: | ---: | ---: |
+| Median | 159.537 ms | 31.303 ms | 80.38% |
+| Nearest-rank p95 | 176.968 ms | 40.734 ms | 76.98% |
+| Maximum observed | 211.465 ms | 62.112 ms | 70.63% |
+
+Median speedup was **5.10x** on this particular diagnostic-heavy synthetic
+workload. The two runs were sequential rather than interleaved, so background
+machine load and thermal conditions were not controlled. This is not an
+end-to-end application speedup, a real-feed rejection distribution, or a
+production latency guarantee. The digest match proves equal coverage of the
+benchmark's recorded book/diagnostic identity fields, not equivalence of every
+possible source input.
+
+## Aggregate-calibrated multi-source load investigation
+
+The checked-in `benchmark_load_matrix` reference/scaled/safety-margin
+profiles are engineering assumptions, not observed traffic. A local aggregate
+profile can now replace their sizing without committing raw provider payloads,
+account identifiers, API credentials, or quote-level logs.
+
+Create a local `local_data/aggregate-load-profile.json` (this directory is
+Git-ignored). The following **illustrative** numbers are the pre-existing
+synthetic reference workload, **not observed provider statistics**:
+
+```json
+{
+  "name": "example_not_observed",
+  "events": 100,
+  "markets_per_event": 3,
+  "providers": 3,
+  "updates_per_cycle": 300,
+  "transports_per_provider": 2,
+  "overlap_bps": 2500,
+  "warmup_cycles": 2,
+  "measured_cycles": 10
+}
+```
+
+Calibrate these fields from a documented, permitted measurement window:
+- `events`: distinct pre-match events concurrently tracked, not cumulative
+  events throughout the day;
+- `markets_per_event`: a deliberately documented approximation of the tracked
+  market count per event; the fixture assumes one 3-way winner market and
+  `markets_per_event - 1` two-outcome totals per event;
+- `providers`: distinct **price providers** represented in that window;
+- `updates_per_cycle`: typical quote-slot updates over the scanner's
+  actual poll/evaluation interval, bounded by the fixture's quote slots;
+- `transports_per_provider`: number of modeled independent feeds per price
+  provider (the current load matrix requires at least two);
+- `overlap_bps`: percentage of price-provider-selection slots covered by
+  multiple transports, expressed in basis points, 0 to 10,000; for example,
+  2,500 means 25%;
+- `warmup_cycles` and `measured_cycles`: measurement settings, not traffic.
+
+Run from the repository root after `uv sync --locked`:
+
+```text
+uv run python -m scripts.benchmark_load_matrix --profile-file local_data/aggregate-load-profile.json
+uv run python -m scripts.benchmark_load_matrix --profile-file local_data/aggregate-load-profile.json --warmup-cycles 10 --measured-cycles 100
+uv run python scripts/quality.py --all
+```
+
+The JSON loader accepts **only** those nine aggregate fields and rejects
+unknown keys, credential fields, wrong types, and invalid dimensions.
+The existing load-matrix code still runs both a single-source control and
+a multi-source path for the same profile and fails on changed opportunity
+counts, market-book counts, or semantic detection digest. It reports
+per-stage median, p95, maximum, and overlap diagnostics.
+
+**Scope limit:** this calibrates the *shape* of a deterministic synthetic
+multi-source detector workload. It does not replay actual cross-provider
+odds, event-matching errors, cancellation rates, status changes, timestamp
+skew, network latency, or uneven market/provider distributions. The
+existing `benchmark_provider_pipeline` separately exercises the two
+fixture-backed provider adapters; their football fixtures refer to
+different events and are not representative matched live traffic.
+For an actual representative-data performance result, next obtain
+authorized, locally retained and privacy-reviewed multi-provider
+snapshots with shared event identities and measure matching,
+normalization, quote consolidation, and book construction together.
+Keep raw material local; publish only aggregate dimensions and
+non-sensitive timing results when permitted.
+
 ## Remaining Phase 19 work
 
 Profile the provider-pipeline, event-matching, and reference load-matrix workloads on
