@@ -249,6 +249,13 @@ def build_market_books(
 
         eligible_by_market_selection[quote.market_id][quote.selection_id].append(quote)
 
+    # Index quote-level diagnostics once instead of rescanning the full list
+    # for each completed market. Rejected quotes remain in the batch diagnostics.
+    diagnostics_by_market: dict[MarketId, list[MarketBookDiagnostic]] = defaultdict(list)
+    for diagnostic in diagnostics:
+        if diagnostic.market_id is not None:
+            diagnostics_by_market[diagnostic.market_id].append(diagnostic)
+
     books: list[CanonicalMarketBook] = []
     for market_id in scoped_market_ids:
         market = registry.market(market_id)
@@ -320,10 +327,7 @@ def build_market_books(
             quote_effective_timestamp(outcome.quote) for outcome in outcomes
         )
         market_diagnostics = tuple(
-            sorted(
-                (item for item in diagnostics if item.market_id == market.id),
-                key=_diagnostic_sort_key,
-            )
+            sorted(diagnostics_by_market.get(market.id, ()), key=_diagnostic_sort_key)
         )
         books.append(
             CanonicalMarketBook(

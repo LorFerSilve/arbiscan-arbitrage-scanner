@@ -333,6 +333,38 @@ benchmark therefore establishes a safe profiling boundary for future connection
 pooling, parser, request-catalog caching, or normalization changes without treating
 fixture timing as a production SLO.
 
+## Diagnostic-heavy market-book workload
+
+The Phase 19 market-book builder now groups quote-level diagnostics by canonical
+market once, instead of scanning all accumulated diagnostic records for every
+complete book. This removes the repeated cross-market scan when a feed supplies
+many inactive, stale, or otherwise rejected quotes. It does not relax quote
+eligibility, alter the globally sorted diagnostics, or change the sorted
+per-market `construction_diagnostics` attached to complete books. Incomplete
+markets still report their own diagnostics through the global batch.
+
+The original detection benchmark uses clean executable quotes and therefore
+cannot measure this specific bottleneck. Use the dedicated rejected-quote
+workload instead:
+
+```text
+uv run python -m scripts.benchmark_marketbook_diagnostics
+uv run python -m scripts.benchmark_marketbook_diagnostics --events 400 --rejected-per-valid 2
+```
+
+The default fixture includes 100 events, three markets per event, three
+providers, and two additional suspended quote versions per valid quote. It
+records median, p95, and maximum `build_market_books()` time after warm-up,
+plus market/diagnostic counts and a stable output digest. Each run validates
+that global diagnostics agree with every emitted book's per-market diagnostics.
+Use `--rejected-per-valid 0` as a clean-feed control.
+
+This is a synthetic CPU-only workload, **not** observed provider rejection
+rates or a service-level objective. Measure on the target deployment hardware
+against an unchanged corpus before claiming a concrete speedup. The regression
+tests protect diagnostic attribution, input-order independence, and market
+scope; general quality gates are unchanged.
+
 ## Remaining Phase 19 work
 
 Profile the provider-pipeline, event-matching, and reference load-matrix workloads on
