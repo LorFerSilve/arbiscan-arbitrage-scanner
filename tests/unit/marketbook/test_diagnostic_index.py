@@ -13,8 +13,7 @@ def test_diagnostic_index_preserves_global_and_per_market_results() -> None:
     registry, specs = _workload(events=3, markets_per_event=2, providers=2)
     valid = tuple(_quote(spec, at=START, revision=0) for spec in specs)
     inactive = tuple(
-        replace(_quote(spec, at=START, revision=1), status=QuoteStatus.SUSPENDED)
-        for spec in specs
+        replace(_quote(spec, at=START, revision=1), status=QuoteStatus.SUSPENDED) for spec in specs
     )
     unknown_event = replace(
         valid[0], id=QuoteId("quote:unknown-event"), event_id=EventId("event:unknown")
@@ -63,8 +62,7 @@ def test_diagnostic_index_preserves_global_and_per_market_results() -> None:
 def test_diagnostic_index_honors_market_scope() -> None:
     registry, specs = _workload(events=2, markets_per_event=2, providers=2)
     quotes = tuple(
-        replace(_quote(spec, at=START, revision=1), status=QuoteStatus.SUSPENDED)
-        for spec in specs
+        replace(_quote(spec, at=START, revision=1), status=QuoteStatus.SUSPENDED) for spec in specs
     )
     selected = registry.markets[0].id
     batch = build_market_books(
