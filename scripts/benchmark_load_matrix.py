@@ -6,6 +6,7 @@ import argparse
 import json
 from dataclasses import dataclass, replace
 from hashlib import sha256
+from pathlib import Path
 
 from scripts.benchmark_detection import run_benchmark
 
@@ -99,6 +100,53 @@ REFERENCE_PROFILES = (
         measured_cycles=5,
     ),
 )
+
+
+
+def load_profile_file(path: Path) -> LoadProfile:
+    """Read an aggregate-only local workload profile, never raw provider records."""
+    raw = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(raw, dict):
+        raise ValueError("load profile must be a JSON object")
+
+    numeric_fields = (
+        "events",
+        "markets_per_event",
+        "providers",
+        "updates_per_cycle",
+        "transports_per_provider",
+        "overlap_bps",
+        "warmup_cycles",
+        "measured_cycles",
+    )
+    expected = {"name", *numeric_fields}
+    if set(raw) != expected:
+        raise ValueError(
+            f"load profile fields must be exactly {sorted(expected)}; "
+            "raw provider records and credentials are not accepted"
+        )
+    name = raw["name"]
+    if not isinstance(name, str):
+        raise ValueError("load profile name must be a string")
+
+    numbers: dict[str, int] = {}
+    for field in numeric_fields:
+        value = raw[field]
+        if type(value) is not int:
+            raise ValueError(f"load profile {field} must be an integer")
+        numbers[field] = value
+
+    return LoadProfile(
+        name=name,
+        events=numbers["events"],
+        markets_per_event=numbers["markets_per_event"],
+        providers=numbers["providers"],
+        updates_per_cycle=numbers["updates_per_cycle"],
+        transports_per_provider=numbers["transports_per_provider"],
+        overlap_bps=numbers["overlap_bps"],
+        warmup_cycles=numbers["warmup_cycles"],
+        measured_cycles=numbers["measured_cycles"],
+    )
 
 
 def _semantic_signature(report: dict[str, object]) -> tuple[object, ...]:
@@ -199,11 +247,17 @@ def run_load_matrix(
 
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument(
+    source = parser.add_mutually_exclusive_group()
+    source.add_argument(
         "--profile",
         action="append",
         choices=tuple(profile.name for profile in REFERENCE_PROFILES),
         help="run only the named profile; repeat to select multiple profiles",
+    )
+    source.add_argument(
+        "--profile-file",
+        type=Path,
+        help="local JSON file with aggregate workload dimensions (no raw provider data)",
     )
     parser.add_argument(
         "--warmup-cycles",
@@ -220,12 +274,18 @@ def _parser() -> argparse.ArgumentParser:
 
 def main() -> None:
     args = _parser().parse_args()
-    selected_names = set(args.profile or ())
-    profiles = tuple(
-        profile
-        for profile in REFERENCE_PROFILES
-        if not selected_names or profile.name in selected_names
-    )
+    if args.profile_file is not None:
+        try:
+            profiles = (load_profile_file(args.profile_file),)
+        except (OSError, UnicodeError, ValueError) as error:
+            _parser().error(f"invalid --profile-file: {error}")
+    else:
+        selected_names = set(args.profile or ())
+        profiles = tuple(
+            profile
+            for profile in REFERENCE_PROFILES
+            if not selected_names or profile.name in selected_names
+        )
     if args.warmup_cycles is not None:
         profiles = tuple(replace(profile, warmup_cycles=args.warmup_cycles) for profile in profiles)
     if args.measured_cycles is not None:
