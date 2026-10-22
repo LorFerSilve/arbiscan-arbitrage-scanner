@@ -257,8 +257,9 @@ def run_load_matrix(
         digest.update(json.dumps(profile, sort_keys=True, separators=(",", ":")).encode("utf-8"))
         digest.update(b"|")
         digest.update(str(result["result_digest"]).encode("ascii"))
-        digest.update(b"|")
-        digest.update(json.dumps(result["coverage"], sort_keys=True).encode())
+        if coverage_mode != "primary" or missing_bps:
+            digest.update(b"|")
+            digest.update(json.dumps(result["coverage"], sort_keys=True).encode())
         digest.update(b"\n")
 
     return {
