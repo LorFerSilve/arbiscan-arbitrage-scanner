@@ -143,6 +143,7 @@ def test_local_profile_and_builtin_profiles_are_mutually_exclusive() -> None:
     else:
         raise AssertionError("profile selectors must be mutually exclusive")
 
+
 def test_distributed_missing_coverage_has_single_source_parity() -> None:
     profile = _tiny_profile()
     standard = run_load_matrix(profiles=(profile,))
