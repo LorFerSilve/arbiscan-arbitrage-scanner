@@ -571,6 +571,94 @@ provider APIs expose these same events, prices, transport overlaps, or
 missingness distributions. No raw captured provider records have been
 added to the repository.
 
+## Windows 10 distributed-feed and missing-coverage measurements (2026-10-23)
+
+After merging the optional distributed coverage scenario (PR #64, main
+commit `4ca2c8c6256926505ad422a4667814edbb3cbb2f`), the same
+Windows 10 machine running CPython 3.13.15 was used to profile two
+additional synthetic reference workloads. Both scenarios used 100 events,
+three markets per event, three price providers, two transports, 25%
+slot overlap, 300 requested updates per cycle, 10 warm-up cycles, and
+100 measured cycles.
+
+Commands:
+
+```text
+uv run python -m scripts.benchmark_load_matrix --profile reference --coverage-mode distributed --warmup-cycles 10 --measured-cycles 100
+uv run python -m scripts.benchmark_load_matrix --profile reference --coverage-mode distributed --missing-bps 1000 --warmup-cycles 10 --measured-cycles 100
+```
+
+| Measurement | Primary-only unique coverage (previous 100-cycle reference) | Distributed unique coverage | Distributed with 10% missing |
+| --- | ---: | ---: | ---: |
+| Active canonical quote slots | 2,100 | 2,100 | 1,890 |
+| Transport observations initially retained | 2,625 | 2,625 | 2,415 |
+| Unique-only slots by transport | (1,575, 0) | (787, 788) | (682, 683) |
+| Overlapping canonical slots | 525 | 525 | 525 |
+| Mean update observations per cycle | 373.5 | 373.5 | 344.1 |
+| Median full-cycle time | 32.169 ms | 32.433 ms | 29.173 ms |
+| Nearest-rank p95 full-cycle time | 43.613 ms | 39.936 ms | 34.145 ms |
+| Maximum full-cycle time | 49.702 ms | 45.130 ms | 41.525 ms |
+| Median apply | 2.579 ms | 2.655 ms | 2.540 ms |
+| Median fresh/consolidate | 6.479 ms | 6.578 ms | 5.610 ms |
+| Median market-book | 10.762 ms | 10.771 ms | 9.654 ms |
+| Median arbitrage evaluation | 11.960 ms | 11.805 ms | 10.470 ms |
+| Apply-stage observations per second | 115,549.0 | 113,048.7 | 115,506.8 |
+| Emitted books across 100 cycles | 30,000 | 30,000 | 27,000 |
+| Synthetic opportunities across 100 cycles | 30,000 | 30,000 | 27,000 |
+| Equivalent-overlap diagnostics across 100 cycles | 52,500 | 52,500 | 52,500 |
+| Conflicts | 0 | 0 | 0 |
+| Single-source/multi-source semantic parity | true | true | true |
+
+The no-missing distributed reference retained the **same
+result digest** as the earlier 100-cycle primary-coverage reference:
+`4d078909bf7239a937b4cef8604791f1f8d788b877686b2204e04a2fa6a77315`.
+The matrix digests differ because coverage mode is part of the matrix
+identity:
+
+- Distributed, zero missing:
+  `920cceda2f1784661cdfd47a9359f177775e23079d7e97d19565ebba9b0e9333`
+  (result digest:
+  `4d078909bf7239a937b4cef8604791f1f8d788b877686b2204e04a2fa6a77315`).
+- Distributed, 1,000 missing basis points:
+  `392f6837a48c6e7e2bf50f6de98b5d9eea66d93d1315e63e84447cdc42692db9`
+  (result digest:
+  `3799073bff5be853f836866315ac361097d11eb2db188be00cf104f5b09b4692`).
+
+The distributed, no-missing median was 0.264 ms (+0.82%) above the
+previous primary-coverage median; that is small relative to ordinary
+single-machine benchmark variation and is **not** evidence of a
+statistically significant regression. Moving from distributed full
+coverage to 10%-missing coverage lowered the median by 3.260 ms
+(10.05%) and reduced total emitted books by 10%. These are different
+amounts of work, so lower latency is not evidence that missing data
+improves the production algorithm.
+
+**Critical missing-data interpretation:** `missing_slots` currently
+removes the *tail* of the deterministically generated quote-slot
+sequence. The generator orders slots by event, then market, provider,
+and selection. With seven selections per event and three providers,
+each event contributes 21 canonical quote slots. Removing the final
+210 of 2,100 quote slots therefore removes **all provider quotes
+for the last ten events** (30 complete markets per cycle), not a
+randomly distributed 10% of individual selections across all events.
+The loss of exactly 3,000 books across 100 measured cycles reflects
+this scenario construction. The remaining 90 events still contain
+complete coverage, so this run does **not** validate partially missing
+selection legs, unbalanced bookmaker market coverage, or how missing
+data affects arbitrage completeness and false-positive rejection in
+those conditions. `all_semantic_parity` verifies equality between
+control and multi-source implementations under the **same** artificial
+missing-slot mask; it does not establish that missing markets are
+handled correctly for every possible sparsity pattern.
+
+**Recommended next validation:** add a reproducible dispersed-missing
+mask (for example, a seeded/permuted slot selection) alongside a
+market-level and event-level outage scenario. Report complete versus
+incomplete markets, absent selection legs, and per-provider coverage;
+verify fail-closed detection and semantic parity under each mask.
+Then measure actual allowed multi-provider data before defining
+production latency and throughput objectives.
+
 ## Remaining Phase 19 work
 
 Profile the provider-pipeline, event-matching, and reference load-matrix workloads on
