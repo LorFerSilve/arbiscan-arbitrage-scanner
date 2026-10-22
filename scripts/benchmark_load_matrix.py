@@ -172,7 +172,13 @@ def _profile_payload(profile: LoadProfile) -> dict[str, object]:
     }
 
 
-def _run_profile(profile: LoadProfile) -> dict[str, object]:
+def _run_profile(
+    profile: LoadProfile,
+    *,
+    coverage_mode: str,
+    missing_bps: int,
+) -> dict[str, object]:
+    missing_slots = profile.quote_slots * missing_bps // 10_000
     control = run_benchmark(
         events=profile.events,
         markets_per_event=profile.markets_per_event,
@@ -182,6 +188,7 @@ def _run_profile(profile: LoadProfile) -> dict[str, object]:
         measured_cycles=profile.measured_cycles,
         transports_per_provider=1,
         overlap_slots=0,
+        missing_slots=missing_slots,
     )
     multisource = run_benchmark(
         events=profile.events,
@@ -192,6 +199,8 @@ def _run_profile(profile: LoadProfile) -> dict[str, object]:
         measured_cycles=profile.measured_cycles,
         transports_per_provider=profile.transports_per_provider,
         overlap_slots=profile.overlap_slots,
+        missing_slots=missing_slots,
+        coverage_mode=coverage_mode,
     )
 
     if _semantic_signature(multisource) != _semantic_signature(control):
@@ -201,6 +210,11 @@ def _run_profile(profile: LoadProfile) -> dict[str, object]:
 
     return {
         "profile": _profile_payload(profile),
+        "coverage": {
+            "mode": coverage_mode,
+            "missing_bps": missing_bps,
+            "missing_slots": missing_slots,
+        },
         "semantic_parity": True,
         "result_digest": multisource["result_digest"],
         "market_books": multisource["market_books"],
@@ -217,15 +231,24 @@ def _run_profile(profile: LoadProfile) -> dict[str, object]:
 def run_load_matrix(
     *,
     profiles: tuple[LoadProfile, ...] = REFERENCE_PROFILES,
+    coverage_mode: str = "primary",
+    missing_bps: int = 0,
 ) -> dict[str, object]:
     """Run each profile and require single-source/multi-source semantic parity."""
     if not profiles:
         raise ValueError("profiles must not be empty")
+    if coverage_mode not in ("primary", "distributed"):
+        raise ValueError("coverage_mode must be 'primary' or 'distributed'")
+    if not 0 <= missing_bps < 10_000:
+        raise ValueError("missing_bps must be between 0 and 9999")
     names = [profile.name for profile in profiles]
     if len(set(names)) != len(names):
         raise ValueError("profile names must be unique")
 
-    results = tuple(_run_profile(profile) for profile in profiles)
+    results = tuple(
+        _run_profile(profile, coverage_mode=coverage_mode, missing_bps=missing_bps)
+        for profile in profiles
+    )
     digest = sha256()
     for result in results:
         profile = result["profile"]
@@ -234,6 +257,8 @@ def run_load_matrix(
         digest.update(json.dumps(profile, sort_keys=True, separators=(",", ":")).encode("utf-8"))
         digest.update(b"|")
         digest.update(str(result["result_digest"]).encode("ascii"))
+        digest.update(b"|")
+        digest.update(json.dumps(result["coverage"], sort_keys=True).encode())
         digest.update(b"\n")
 
     return {
@@ -257,6 +282,18 @@ def _parser() -> argparse.ArgumentParser:
         "--profile-file",
         type=Path,
         help="local JSON file with aggregate workload dimensions (no raw provider data)",
+    )
+    parser.add_argument(
+        "--coverage-mode",
+        choices=("primary", "distributed"),
+        default="primary",
+        help="assign unique, non-overlapping slots only to transport zero or distribute them",
+    )
+    parser.add_argument(
+        "--missing-bps",
+        type=int,
+        default=0,
+        help="fraction of canonical quote slots absent from all feeds, in basis points",
     )
     parser.add_argument(
         "--warmup-cycles",
@@ -292,7 +329,17 @@ def main() -> None:
         profiles = tuple(
             replace(profile, measured_cycles=args.measured_cycles) for profile in profiles
         )
-    print(json.dumps(run_load_matrix(profiles=profiles), indent=2, sort_keys=True))
+    print(
+        json.dumps(
+            run_load_matrix(
+                profiles=profiles,
+                coverage_mode=args.coverage_mode,
+                missing_bps=args.missing_bps,
+            ),
+            indent=2,
+            sort_keys=True,
+        )
+    )
 
 
 if __name__ == "__main__":
