@@ -190,10 +190,11 @@ def _quote(
     revision: int,
     transport_number: int | None = None,
     conflicting: bool = False,
+    stable_identity: bool = False,
 ) -> OddsQuote:
     transport_suffix = (
         ""
-        if transport_number is None or transport_number == 0
+        if stable_identity or transport_number is None or transport_number == 0
         else f":transport:{transport_number}"
     )
     return OddsQuote(
@@ -232,11 +233,22 @@ def _observations(
     transports_per_provider: int,
     conflicting: bool,
     overlapping: bool = True,
+    nonoverlap_transport_number: int = 0,
 ) -> tuple[OddsQuote, ...]:
     if transports_per_provider == 1:
         return (_quote(spec, at=at, revision=revision),)
     if not overlapping:
-        return (_quote(spec, at=at, revision=revision, transport_number=0),)
+        if not 0 <= nonoverlap_transport_number < transports_per_provider:
+            raise ValueError("nonoverlap transport index out of range")
+        return (
+            _quote(
+                spec,
+                at=at,
+                revision=revision,
+                transport_number=nonoverlap_transport_number,
+                stable_identity=True,
+            ),
+        )
     return tuple(
         _quote(
             spec,
@@ -269,6 +281,8 @@ def run_benchmark(
     transports_per_provider: int = 1,
     overlap_slots: int | None = None,
     conflicting_slots: int = 0,
+    coverage_mode: str = "primary",
+    missing_slots: int = 0,
 ) -> dict[str, object]:
     """Return stage timings and a stable semantic digest for a fixed synthetic load."""
     if (
@@ -301,6 +315,17 @@ def run_benchmark(
         raise ValueError("conflicting_slots requires at least two transports per provider")
     if conflicting_slots < 0 or conflicting_slots > resolved_overlap_slots:
         raise ValueError("conflicting_slots must be between zero and overlap_slots")
+    if coverage_mode not in ("primary", "distributed"):
+        raise ValueError("coverage_mode must be 'primary' or 'distributed'")
+    if missing_slots < 0 or missing_slots >= len(specs):
+        raise ValueError("missing_slots must be between zero and initial quote count - 1")
+
+    active_slots = len(specs) - missing_slots
+    active_overlap_slots = min(resolved_overlap_slots, active_slots)
+    unique_slots_by_transport = [0] * transports_per_provider
+    for index in range(active_overlap_slots, active_slots):
+        transport = index % transports_per_provider if coverage_mode == "distributed" else 0
+        unique_slots_by_transport[transport] += 1
 
     window = timedelta(seconds=max(300, warmup_cycles + measured_cycles + 1))
     policy = RealtimeIngestionPolicy(freshness_window=window)
@@ -310,6 +335,7 @@ def run_benchmark(
     initial = (
         quote
         for spec_index, spec in enumerate(specs)
+        if spec_index < active_slots
         for quote in _observations(
             spec,
             at=START,
@@ -317,6 +343,9 @@ def run_benchmark(
             transports_per_provider=transports_per_provider,
             conflicting=spec_index < conflicting_slots,
             overlapping=spec_index < resolved_overlap_slots,
+            nonoverlap_transport_number=(
+                spec_index % transports_per_provider if coverage_mode == "distributed" else 0
+            ),
         )
     )
     store.apply(initial, observed_at=START)
@@ -338,6 +367,7 @@ def run_benchmark(
         updates = tuple(
             quote
             for spec_index in range(offset, offset + updates_per_cycle)
+            if spec_index % len(specs) < active_slots
             for quote in _observations(
                 specs[spec_index % len(specs)],
                 at=at,
@@ -345,6 +375,11 @@ def run_benchmark(
                 transports_per_provider=transports_per_provider,
                 conflicting=spec_index % len(specs) < conflicting_slots,
                 overlapping=spec_index % len(specs) < resolved_overlap_slots,
+                nonoverlap_transport_number=(
+                    spec_index % len(specs) % transports_per_provider
+                    if coverage_mode == "distributed"
+                    else 0
+                ),
             )
         )
         started = perf_counter_ns()
@@ -408,11 +443,15 @@ def run_benchmark(
             "markets_per_event": markets_per_event,
             "providers": providers,
             "initial_quotes": len(specs),
+            "active_quote_slots": active_slots,
+            "missing_slots": missing_slots,
+            "coverage_mode": coverage_mode,
+            "unique_slots_by_transport": tuple(unique_slots_by_transport),
             "transports_per_provider": transports_per_provider,
             "overlap_slots": resolved_overlap_slots,
             "overlap_fraction": round(resolved_overlap_slots / len(specs), 4),
-            "initial_observations": len(specs)
-            + resolved_overlap_slots * (transports_per_provider - 1),
+            "initial_observations": active_slots
+            + active_overlap_slots * (transports_per_provider - 1),
             "updates_per_cycle": updates_per_cycle,
             "measured_update_observations": measured_update_observations,
             "update_observations_per_cycle": round(
@@ -453,6 +492,8 @@ def main() -> None:
     parser.add_argument("--transports-per-provider", type=_positive_int, default=1)
     parser.add_argument("--overlap-slots", type=_non_negative_int)
     parser.add_argument("--conflicting-slots", type=_non_negative_int, default=0)
+    parser.add_argument("--coverage-mode", choices=("primary", "distributed"), default="primary")
+    parser.add_argument("--missing-slots", type=_non_negative_int, default=0)
     args = parser.parse_args()
     report = run_benchmark(
         events=args.events,
@@ -464,6 +505,8 @@ def main() -> None:
         transports_per_provider=args.transports_per_provider,
         overlap_slots=args.overlap_slots,
         conflicting_slots=args.conflicting_slots,
+        coverage_mode=args.coverage_mode,
+        missing_slots=args.missing_slots,
     )
     print(json.dumps(report, indent=2, sort_keys=True))
 
