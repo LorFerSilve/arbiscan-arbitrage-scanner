@@ -1,6 +1,17 @@
 """Regression coverage for the Phase 19 deployment load matrix."""
 
-from scripts.benchmark_load_matrix import LoadProfile, run_load_matrix
+import json
+from dataclasses import asdict
+from pathlib import Path
+
+import pytest
+
+from scripts.benchmark_load_matrix import (
+    LoadProfile,
+    _parser,
+    load_profile_file,
+    run_load_matrix,
+)
 
 
 def _tiny_profile() -> LoadProfile:
@@ -62,3 +73,60 @@ def test_load_profile_rejects_invalid_overlap_basis_points() -> None:
         assert "overlap_bps" in str(error)
     else:
         raise AssertionError("invalid overlap basis points must be rejected")
+
+def test_local_aggregate_profile_matches_existing_load_matrix(tmp_path: Path) -> None:
+    profile = _tiny_profile()
+    path = tmp_path / "aggregate.json"
+    path.write_text(json.dumps(asdict(profile)), encoding="utf-8")
+
+    loaded = load_profile_file(path)
+    assert loaded == profile
+    assert run_load_matrix(profiles=(loaded,))["matrix_digest"] == run_load_matrix(
+        profiles=(profile,)
+    )["matrix_digest"]
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("events", True),
+        ("providers", 2.5),
+        ("overlap_bps", "2500"),
+        ("measured_cycles", 0),
+        ("name", ""),
+    ],
+)
+def test_local_profile_rejects_invalid_values(
+    tmp_path: Path, field: str, value: object
+) -> None:
+    payload = asdict(_tiny_profile())
+    payload[field] = value
+    path = tmp_path / "invalid.json"
+    path.write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(ValueError):
+        load_profile_file(path)
+
+
+def test_local_profile_rejects_secret_or_unexpected_fields(tmp_path: Path) -> None:
+    payload = asdict(_tiny_profile())
+    payload["api_key"] = "never-load-provider-credentials"
+    path = tmp_path / "unexpected.json"
+    path.write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="raw provider records and credentials"):
+        load_profile_file(path)
+
+
+def test_local_profile_rejects_non_object_json(tmp_path: Path) -> None:
+    path = tmp_path / "invalid.json"
+    path.write_text("[]", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="JSON object"):
+        load_profile_file(path)
+
+
+def test_local_profile_and_builtin_profiles_are_mutually_exclusive() -> None:
+    parser = _parser()
+    with pytest.raises(SystemExit):
+        parser.parse_args(["--profile", "reference", "--profile-file", "aggregate.json"])
