@@ -185,23 +185,22 @@ def test_conflicts_cannot_exceed_overlapping_slots() -> None:
 
 
 def test_distributed_unique_feed_coverage_preserves_detection_signature() -> None:
-    params = {
-        "events": 1,
-        "markets_per_event": 2,
-        "providers": 2,
-        "updates_per_cycle": 4,
-        "warmup_cycles": 0,
-        "measured_cycles": 2,
-        "missing_slots": 1,
-    }
-    control = run_benchmark(**params)
-    distributed = run_benchmark(
-        **params,
-        transports_per_provider=2,
-        overlap_slots=4,
-        coverage_mode="distributed",
-    )
+    def run(transport_count: int, mode: str) -> dict[str, object]:
+        return run_benchmark(
+            events=1,
+            markets_per_event=2,
+            providers=2,
+            updates_per_cycle=4,
+            warmup_cycles=0,
+            measured_cycles=2,
+            missing_slots=1,
+            transports_per_provider=transport_count,
+            overlap_slots=4 if transport_count > 1 else 0,
+            coverage_mode=mode,
+        )
 
+    control = run(1, "primary")
+    distributed = run(2, "distributed")
     assert distributed["result_digest"] == control["result_digest"]
     assert distributed["market_books"] == control["market_books"] == 4
     assert distributed["opportunities"] == control["opportunities"] == 4
@@ -219,6 +218,7 @@ def test_distributed_unique_feed_coverage_preserves_detection_signature() -> Non
         at=START,
         revision=0,
         transports_per_provider=2,
+        conflicting=False,
         overlapping=False,
         nonoverlap_transport_number=1,
     )[0]
@@ -227,6 +227,7 @@ def test_distributed_unique_feed_coverage_preserves_detection_signature() -> Non
         at=START,
         revision=0,
         transports_per_provider=1,
+        conflicting=False,
     )[0]
     assert quote.transport_provider_id is not None
     assert quote.transport_provider_id.value == "transport:benchmark:1"
@@ -234,20 +235,22 @@ def test_distributed_unique_feed_coverage_preserves_detection_signature() -> Non
 
 
 def test_distributed_coverage_preserves_fail_closed_conflict_handling() -> None:
-    params = {
-        "events": 1,
-        "markets_per_event": 1,
-        "providers": 2,
-        "updates_per_cycle": 2,
-        "warmup_cycles": 0,
-        "measured_cycles": 3,
-        "transports_per_provider": 2,
-        "overlap_slots": 2,
-        "conflicting_slots": 1,
-        "coverage_mode": "distributed",
-    }
-    first = run_benchmark(**params)
-    second = run_benchmark(**params)
+    def small_run() -> dict[str, object]:
+        return run_benchmark(
+            events=1,
+            markets_per_event=1,
+            providers=2,
+            updates_per_cycle=2,
+            warmup_cycles=0,
+            measured_cycles=3,
+            transports_per_provider=2,
+            overlap_slots=2,
+            conflicting_slots=1,
+            coverage_mode="distributed",
+        )
+
+    first = small_run()
+    second = small_run()
     assert first["result_digest"] == second["result_digest"]
     assert first["conflicts"] == second["conflicts"] == 3
     assert first["market_books"] == second["market_books"] == 3
@@ -255,23 +258,23 @@ def test_distributed_coverage_preserves_fail_closed_conflict_handling() -> None:
 
 
 def test_benchmark_rejects_invalid_feed_coverage_dimensions() -> None:
-    params = {
-        "events": 1,
-        "markets_per_event": 1,
-        "providers": 2,
-        "updates_per_cycle": 1,
-        "warmup_cycles": 0,
-        "measured_cycles": 1,
-        "transports_per_provider": 2,
-    }
-    for overrides in (
-        {"coverage_mode": "impossible"},
-        {"missing_slots": -1},
-        {"missing_slots": 6},
-    ):
+    def small_run(*, coverage_mode: str = "primary", missing_slots: int = 0) -> None:
+        run_benchmark(
+            events=1,
+            markets_per_event=1,
+            providers=2,
+            updates_per_cycle=1,
+            warmup_cycles=0,
+            measured_cycles=1,
+            transports_per_provider=2,
+            coverage_mode=coverage_mode,
+            missing_slots=missing_slots,
+        )
+
+    for mode, missing in (("impossible", 0), ("primary", -1), ("primary", 6)):
         try:
-            run_benchmark(**params, **overrides)
+            small_run(coverage_mode=mode, missing_slots=missing)
         except ValueError:
             pass
         else:
-            raise AssertionError(f"invalid coverage configuration accepted: {overrides}")
+            raise AssertionError(f"invalid feed configuration accepted: {mode}, {missing}")
