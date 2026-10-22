@@ -142,3 +142,43 @@ def test_local_profile_and_builtin_profiles_are_mutually_exclusive() -> None:
         assert error.code == 2
     else:
         raise AssertionError("profile selectors must be mutually exclusive")
+
+
+def test_distributed_missing_coverage_has_single_source_parity() -> None:
+    profile = _tiny_profile()
+    standard = run_load_matrix(profiles=(profile,))
+    distributed = run_load_matrix(
+        profiles=(profile,),
+        coverage_mode="distributed",
+        missing_bps=1_000,
+    )
+    assert standard["all_semantic_parity"] is True
+    assert distributed["all_semantic_parity"] is True
+    assert standard["matrix_digest"] != distributed["matrix_digest"]
+    cases = distributed["profiles"]
+    assert isinstance(cases, tuple)
+    result = cases[0]
+    assert isinstance(result, dict)
+    assert result["coverage"] == {
+        "mode": "distributed",
+        "missing_bps": 1_000,
+        "missing_slots": 2,
+    }
+    workload = result["workload"]
+    assert isinstance(workload, dict)
+    assert workload["initial_observations"] == 28
+    assert workload["unique_slots_by_transport"] == (4, 4)
+
+
+def test_load_matrix_rejects_invalid_missing_fraction_or_coverage_mode() -> None:
+    for settings in (
+        {"coverage_mode": "invalid"},
+        {"missing_bps": -1},
+        {"missing_bps": 10_000},
+    ):
+        try:
+            run_load_matrix(profiles=(_tiny_profile(),), **settings)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError(f"invalid matrix coverage accepted: {settings}")
