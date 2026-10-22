@@ -5,7 +5,6 @@ from dataclasses import asdict
 from pathlib import Path
 
 import pytest
-
 from scripts.benchmark_load_matrix import (
     LoadProfile,
     _parser,
