@@ -478,6 +478,99 @@ normalization, quote consolidation, and book construction together.
 Keep raw material local; publish only aggregate dimensions and
 non-sensitive timing results when permitted.
 
+## Windows 10 reference and scaled load-matrix observations (2026-10-23)
+
+These are **user-measured, synthetic** baseline results on Windows 10
+(`Windows-10-10.0.19045-SP0`, CPython 3.13.15), before introducing the
+optional distributed-feed model. They were taken with main at
+`6e4a25e1fc2d93d042a7c2fe64afc0e6b1da0271` (PR #63).
+
+| Metric | Reference (10 warm-up, 100 measured) | Scaled (2 warm-up, 8 measured) |
+| --- | ---: | ---: |
+| Events | 100 | 250 |
+| Markets per cycle | 300 | 750 |
+| Price providers | 3 | 4 |
+| Canonical quote slots | 2,100 | 7,000 |
+| Overlapping slots | 525 | 1,750 |
+| Updates requested per cycle | 300 | 750 |
+| Mean transport observations updated per cycle | 373.5 | 906.25 |
+| Median full-cycle latency | 32.169 ms | 92.644 ms |
+| Nearest-rank p95 full-cycle latency | 43.613 ms | 102.792 ms |
+| Maximum full-cycle latency | 49.702 ms | 102.792 ms |
+| Median apply | 2.579 ms | 6.421 ms |
+| Median fresh/consolidate | 6.479 ms | 22.000 ms |
+| Median market-book | 10.762 ms | 31.293 ms |
+| Median evaluate | 11.960 ms | 30.118 ms |
+| Reported core updates per second | 115,549.0 | 115,295.3 |
+| Detected market books across all measured cycles | 30,000 | 6,000 |
+| Synthetic opportunities across all measured cycles | 30,000 | 6,000 |
+| Equal-overlap diagnostics across all measured cycles | 52,500 | 14,000 |
+| Conflicts | 0 | 0 |
+| Single-source vs multi-source semantic parity | true | true |
+
+Reference matrix digest:
+`c309fdef3ae829de728a6bc076635ce24deff70710c6784916868694a9d78936`.
+Scaled matrix digest:
+`62c53f60a92bc71e399ffa29fde965d95bdde0a0cee7aa12e05426b559106c52`.
+The benchmark's result and matrix digests depend on the **workload and
+number of cycles**; digests from different profiles or different cycle
+counts should not be expected to match. Parity checks compare the same
+workload within each run.
+
+Scaled has 3.33x the canonical quote slots and 2.50x the events; its
+median full-cycle latency is 2.88x the reference median. Reported
+`core_updates_per_second` is based on the **apply stage only**, not
+end-to-end pipeline throughput. At 115,549.0 versus 115,295.3,
+the apply-stage rate differs by about 0.22%; this alone cannot establish
+linear scaling or a production SLO. The scaled profile has only eight
+measured cycles, so its nearest-rank p95 is necessarily its maximum
+observation and is **not** a robust tail-latency estimate.
+The reported opportunities are deliberately synthetic per-cycle detections,
+not real arbitrage opportunities or distinct trading signals.
+
+A comparable higher-sample scaled measurement can be obtained with:
+
+```text
+uv run python -m scripts.benchmark_load_matrix --profile scaled --warmup-cycles 10 --measured-cycles 100
+```
+
+## Optional independently covered and missing-feed scenarios
+
+The original load matrix retains its default semantics. New **opt-in**
+`--coverage-mode distributed` sends every overlapping canonical quote slot
+through all configured transport copies, but distributes each
+**non-overlapping** slot deterministically across transports rather
+than always assigning it to transport zero. This represents unique-only
+coverage on secondary feeds without changing the underlying price origin
+or canonical quote identity. `--missing-bps` removes a deterministic
+tail percentage of canonical quote slots from **every feed**, including
+update cycles; it models absent coverage rather than stale or suspended
+quotes.
+
+```text
+uv run python -m scripts.benchmark_load_matrix --profile reference --coverage-mode distributed
+uv run python -m scripts.benchmark_load_matrix --profile reference --coverage-mode distributed --missing-bps 1000 --warmup-cycles 10 --measured-cycles 100
+uv run python -m scripts.benchmark_load_matrix --profile-file local_data/aggregate-load-profile.json --coverage-mode distributed --missing-bps 1000
+```
+
+The first distributed command preserves all 2,100 canonical slots,
+with 525 overlapping slots and 1,575 unique-only slots divided
+deterministically between transport 0 and transport 1. The second
+command removes 10% of the slots completely. The benchmark compares
+single-source and distributed multi-source **under the same missing
+mask** and rejects diverging market books, opportunity counts, or
+opportunity digests. The report includes the effective coverage mode,
+missing-slot count, and per-transport unique-only slot counts.
+
+Conflicting overlap remains a **separate fail-closed test scenario**,
+using the existing `--conflicting-slots` option in the detection
+benchmark and dedicated unit tests; conflict-injected output is not
+required to match a conflict-free single-source baseline. This is a
+synthetic feed-coverage experiment, **not** a claim that the actual two
+provider APIs expose these same events, prices, transport overlaps, or
+missingness distributions. No raw captured provider records have been
+added to the repository.
+
 ## Remaining Phase 19 work
 
 Profile the provider-pipeline, event-matching, and reference load-matrix workloads on
