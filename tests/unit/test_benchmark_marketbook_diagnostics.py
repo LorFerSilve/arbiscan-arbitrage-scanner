@@ -4,16 +4,18 @@ from scripts.benchmark_marketbook_diagnostics import run_benchmark
 
 
 def test_diagnostic_benchmark_preserves_repeatable_semantics() -> None:
-    arguments = {
-        "events": 2,
-        "markets_per_event": 2,
-        "providers": 2,
-        "rejected_per_valid": 1,
-        "warmup_runs": 0,
-        "measured_runs": 2,
-    }
-    first = run_benchmark(**arguments)
-    second = run_benchmark(**arguments)
+    def small_run() -> dict[str, object]:
+        return run_benchmark(
+            events=2,
+            markets_per_event=2,
+            providers=2,
+            rejected_per_valid=1,
+            warmup_runs=0,
+            measured_runs=2,
+        )
+
+    first = small_run()
+    second = small_run()
 
     assert first["market_books"] == second["market_books"] == 4
     assert first["diagnostics"] == second["diagnostics"] == 20
