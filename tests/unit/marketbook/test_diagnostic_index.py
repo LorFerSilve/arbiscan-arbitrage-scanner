@@ -77,4 +77,6 @@ def test_diagnostic_index_honors_market_scope() -> None:
 
     assert not batch.books
     assert all(item.market_id == selected for item in batch.diagnostics)
-    assert any(item.code is MarketBookDiagnosticCode.INCOMPLETE_MARKET for item in batch.diagnostics)
+    assert any(
+        item.code is MarketBookDiagnosticCode.INCOMPLETE_MARKET for item in batch.diagnostics
+    )
