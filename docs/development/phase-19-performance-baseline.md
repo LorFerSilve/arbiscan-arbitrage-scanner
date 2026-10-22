@@ -431,8 +431,14 @@ Calibrate these fields from a documented, permitted measurement window:
 - `providers`: distinct **price providers** represented in that window;
 - `updates_per_cycle`: typical quote-slot updates over the scanner's
   actual poll/evaluation interval, bounded by the fixture's quote slots;
-- `transports_per_provider`: number of modeled independent feeds per price
-  provider (the current load matrix requires at least two);
+- `transports_per_provider`: maximum copies from synthetic transports
+  **for each overlapping quote slot** (the matrix requires at least two).
+  This is **not** the observed number of independent provider feeds. The
+  benchmark sends every non-overlapping slot through transport 0 only;
+  secondary transports have no unique-only coverage. With
+  `overlap_bps: 0`, the secondary transports contribute no observations.
+  To model independently covered/disjoint secondary feeds, a different
+  corpus or a real-data replay is necessary;
 - `overlap_bps`: percentage of price-provider-selection slots covered by
   multiple transports, expressed in basis points, 0 to 10,000; for example,
   2,500 means 25%;
@@ -452,6 +458,11 @@ The existing load-matrix code still runs both a single-source control and
 a multi-source path for the same profile and fails on changed opportunity
 counts, market-book counts, or semantic detection digest. It reports
 per-stage median, p95, maximum, and overlap diagnostics.
+
+**Scope limit:** `transports_per_provider` is a duplicate-overlap
+multiplier, not an independent-feed-count calibration. Using an observed
+number of feeds for this field may **underestimate** the actual load whenever
+secondary feeds carry their own non-overlapping markets or quotes.
 
 **Scope limit:** this calibrates the *shape* of a deterministic synthetic
 multi-source detector workload. It does not replay actual cross-provider
