@@ -234,6 +234,31 @@ def test_distributed_unique_feed_coverage_preserves_detection_signature() -> Non
     assert quote.id == primary.id
 
 
+def test_nonoverlapping_distributed_feeds_all_carry_unique_quotes() -> None:
+    def run(transports: int, mode: str) -> dict[str, object]:
+        return run_benchmark(
+            events=1,
+            markets_per_event=2,
+            providers=2,
+            updates_per_cycle=4,
+            warmup_cycles=0,
+            measured_cycles=2,
+            transports_per_provider=transports,
+            overlap_slots=0,
+            coverage_mode=mode,
+        )
+
+    single = run(1, "primary")
+    distributed = run(2, "distributed")
+    assert distributed["result_digest"] == single["result_digest"]
+    assert distributed["equivalent_overlaps"] == 0
+    assert distributed["conflicts"] == 0
+    workload = distributed["workload"]
+    assert isinstance(workload, dict)
+    assert workload["unique_slots_by_transport"] == (5, 5)
+    assert workload["initial_observations"] == 10
+
+
 def test_distributed_coverage_preserves_fail_closed_conflict_handling() -> None:
     def small_run() -> dict[str, object]:
         return run_benchmark(
