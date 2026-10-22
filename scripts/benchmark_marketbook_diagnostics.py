@@ -41,9 +41,7 @@ def _digest(batch: MarketBookBatch) -> str:
     for item in batch.diagnostics:
         market = "" if item.market_id is None else item.market_id.value
         quote = "" if item.quote_id is None else item.quote_id.value
-        digest.update(
-            f"diagnostic:{market}|{quote}|{item.code.value}|{item.detail}\n".encode()
-        )
+        digest.update(f"diagnostic:{market}|{quote}|{item.code.value}|{item.detail}\n".encode())
     return digest.hexdigest()
 
 
