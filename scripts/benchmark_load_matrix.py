@@ -102,7 +102,6 @@ REFERENCE_PROFILES = (
 )
 
 
-
 def load_profile_file(path: Path) -> LoadProfile:
     """Read an aggregate-only local workload profile, never raw provider records."""
     raw = json.loads(path.read_text(encoding="utf-8"))
