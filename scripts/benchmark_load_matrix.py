@@ -273,6 +273,7 @@ def _parser() -> argparse.ArgumentParser:
 
 def main() -> None:
     args = _parser().parse_args()
+    profiles: tuple[LoadProfile, ...]
     if args.profile_file is not None:
         try:
             profiles = (load_profile_file(args.profile_file),)
