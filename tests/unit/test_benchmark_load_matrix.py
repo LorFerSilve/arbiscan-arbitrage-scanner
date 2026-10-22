@@ -4,7 +4,6 @@ import json
 from dataclasses import asdict
 from pathlib import Path
 
-import pytest
 from scripts.benchmark_load_matrix import (
     LoadProfile,
     _parser,
@@ -87,24 +86,26 @@ def test_local_aggregate_profile_matches_existing_load_matrix(tmp_path: Path) ->
     )
 
 
-@pytest.mark.parametrize(
-    ("field", "value"),
-    [
+def test_local_profile_rejects_invalid_values(tmp_path: Path) -> None:
+    invalid_cases: tuple[tuple[str, object], ...] = (
         ("events", True),
         ("providers", 2.5),
         ("overlap_bps", "2500"),
         ("measured_cycles", 0),
         ("name", ""),
-    ],
-)
-def test_local_profile_rejects_invalid_values(tmp_path: Path, field: str, value: object) -> None:
-    payload = asdict(_tiny_profile())
-    payload[field] = value
+    )
     path = tmp_path / "invalid.json"
-    path.write_text(json.dumps(payload), encoding="utf-8")
+    for field, value in invalid_cases:
+        payload = asdict(_tiny_profile())
+        payload[field] = value
+        path.write_text(json.dumps(payload), encoding="utf-8")
 
-    with pytest.raises(ValueError):
-        load_profile_file(path)
+        try:
+            load_profile_file(path)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError(f"invalid value for {field} must be rejected")
 
 
 def test_local_profile_rejects_secret_or_unexpected_fields(tmp_path: Path) -> None:
@@ -113,19 +114,31 @@ def test_local_profile_rejects_secret_or_unexpected_fields(tmp_path: Path) -> No
     path = tmp_path / "unexpected.json"
     path.write_text(json.dumps(payload), encoding="utf-8")
 
-    with pytest.raises(ValueError, match="raw provider records and credentials"):
+    try:
         load_profile_file(path)
+    except ValueError as error:
+        assert "raw provider records and credentials" in str(error)
+    else:
+        raise AssertionError("credential and unknown fields must be rejected")
 
 
 def test_local_profile_rejects_non_object_json(tmp_path: Path) -> None:
     path = tmp_path / "invalid.json"
     path.write_text("[]", encoding="utf-8")
 
-    with pytest.raises(ValueError, match="JSON object"):
+    try:
         load_profile_file(path)
+    except ValueError as error:
+        assert "JSON object" in str(error)
+    else:
+        raise AssertionError("non-object JSON must be rejected")
 
 
 def test_local_profile_and_builtin_profiles_are_mutually_exclusive() -> None:
     parser = _parser()
-    with pytest.raises(SystemExit):
+    try:
         parser.parse_args(["--profile", "reference", "--profile-file", "aggregate.json"])
+    except SystemExit as error:
+        assert error.code == 2
+    else:
+        raise AssertionError("profile selectors must be mutually exclusive")
