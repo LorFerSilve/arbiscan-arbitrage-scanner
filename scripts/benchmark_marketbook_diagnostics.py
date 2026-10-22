@@ -13,10 +13,9 @@ from math import ceil
 from statistics import median
 from time import perf_counter_ns
 
-from scripts.benchmark_detection import START, _quote, _workload
-
 from arbiscan.domain import QuoteStatus
 from arbiscan.marketbook import MarketBookBatch, MarketBookDiagnosticCode, build_market_books
+from scripts.benchmark_detection import START, _quote, _workload
 
 
 def _positive_int(value: str) -> int:
@@ -36,14 +35,14 @@ def _non_negative_int(value: str) -> int:
 def _digest(batch: MarketBookBatch) -> str:
     digest = sha256()
     for book in batch.books:
-        digest.update(f"book:{book.market.id.value}\n".encode("utf-8"))
+        digest.update(f"book:{book.market.id.value}\n".encode())
         for quote in book.quotes:
-            digest.update(f"quote:{quote.id.value}\n".encode("utf-8"))
+            digest.update(f"quote:{quote.id.value}\n".encode())
     for item in batch.diagnostics:
         market = "" if item.market_id is None else item.market_id.value
         quote = "" if item.quote_id is None else item.quote_id.value
         digest.update(
-            f"diagnostic:{market}|{quote}|{item.code.value}|{item.detail}\n".encode("utf-8")
+            f"diagnostic:{market}|{quote}|{item.code.value}|{item.detail}\n".encode()
         )
     return digest.hexdigest()
 
