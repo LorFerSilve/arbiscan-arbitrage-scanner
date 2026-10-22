@@ -34,6 +34,9 @@ dist/
 .eggs/
 *.whl
 
+# Locally retained provider samples and aggregate benchmark profiles
+local_data/
+
 # Logs and local databases
 *.log
 *.sqlite
