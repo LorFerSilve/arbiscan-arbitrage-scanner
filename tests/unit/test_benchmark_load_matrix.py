@@ -74,6 +74,7 @@ def test_load_profile_rejects_invalid_overlap_basis_points() -> None:
     else:
         raise AssertionError("invalid overlap basis points must be rejected")
 
+
 def test_local_aggregate_profile_matches_existing_load_matrix(tmp_path: Path) -> None:
     profile = _tiny_profile()
     path = tmp_path / "aggregate.json"
@@ -81,9 +82,10 @@ def test_local_aggregate_profile_matches_existing_load_matrix(tmp_path: Path) ->
 
     loaded = load_profile_file(path)
     assert loaded == profile
-    assert run_load_matrix(profiles=(loaded,))["matrix_digest"] == run_load_matrix(
-        profiles=(profile,)
-    )["matrix_digest"]
+    assert (
+        run_load_matrix(profiles=(loaded,))["matrix_digest"]
+        == run_load_matrix(profiles=(profile,))["matrix_digest"]
+    )
 
 
 @pytest.mark.parametrize(
@@ -96,9 +98,7 @@ def test_local_aggregate_profile_matches_existing_load_matrix(tmp_path: Path) ->
         ("name", ""),
     ],
 )
-def test_local_profile_rejects_invalid_values(
-    tmp_path: Path, field: str, value: object
-) -> None:
+def test_local_profile_rejects_invalid_values(tmp_path: Path, field: str, value: object) -> None:
     payload = asdict(_tiny_profile())
     payload[field] = value
     path = tmp_path / "invalid.json"
