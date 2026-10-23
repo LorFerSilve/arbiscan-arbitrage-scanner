@@ -398,11 +398,15 @@ def run_benchmark(
         missing_seed=missing_seed,
     )
     active_slots = len(specs) - len(missing_indices)
-    active_overlap_slots = sum(
-        index < resolved_overlap_slots
-        for index in range(len(specs))
-        if index not in missing_indices
+    active_overlapping_indices = tuple(
+        index for index in range(resolved_overlap_slots) if index not in missing_indices
     )
+    if conflicting_slots > len(active_overlapping_indices):
+        raise ValueError(
+            "conflicting_slots cannot exceed unmasked overlapping quote slots"
+        )
+    conflicting_indices = frozenset(active_overlapping_indices[:conflicting_slots])
+    active_overlap_slots = len(active_overlapping_indices)
     unique_slots_by_transport = [0] * transports_per_provider
     for index in range(resolved_overlap_slots, len(specs)):
         if index in missing_indices:
@@ -425,7 +429,7 @@ def run_benchmark(
             at=START,
             revision=0,
             transports_per_provider=transports_per_provider,
-            conflicting=spec_index < conflicting_slots,
+            conflicting=spec_index in conflicting_indices,
             overlapping=spec_index < resolved_overlap_slots,
             nonoverlap_transport_number=(
                 spec_index % transports_per_provider if coverage_mode == "distributed" else 0
@@ -457,7 +461,7 @@ def run_benchmark(
                 at=at,
                 revision=cycle,
                 transports_per_provider=transports_per_provider,
-                conflicting=spec_index % len(specs) < conflicting_slots,
+                conflicting=spec_index % len(specs) in conflicting_indices,
                 overlapping=spec_index % len(specs) < resolved_overlap_slots,
                 nonoverlap_transport_number=(
                     spec_index % len(specs) % transports_per_provider
