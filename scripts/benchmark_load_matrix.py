@@ -177,6 +177,8 @@ def _run_profile(
     *,
     coverage_mode: str,
     missing_bps: int,
+    missing_pattern: str,
+    missing_seed: int,
 ) -> dict[str, object]:
     missing_slots = profile.quote_slots * missing_bps // 10_000
     control = run_benchmark(
@@ -189,6 +191,8 @@ def _run_profile(
         transports_per_provider=1,
         overlap_slots=0,
         missing_slots=missing_slots,
+        missing_pattern=missing_pattern,
+        missing_seed=missing_seed,
     )
     multisource = run_benchmark(
         events=profile.events,
@@ -201,6 +205,8 @@ def _run_profile(
         overlap_slots=profile.overlap_slots,
         missing_slots=missing_slots,
         coverage_mode=coverage_mode,
+        missing_pattern=missing_pattern,
+        missing_seed=missing_seed,
     )
 
     if _semantic_signature(multisource) != _semantic_signature(control):
@@ -208,13 +214,18 @@ def _run_profile(
             f"load profile {profile.name!r} changed detection semantics under transport overlap"
         )
 
+    coverage: dict[str, object] = {
+        "mode": coverage_mode,
+        "missing_bps": missing_bps,
+        "missing_slots": missing_slots,
+    }
+    if missing_pattern != "tail" or missing_seed:
+        coverage["missing_pattern"] = missing_pattern
+        coverage["missing_seed"] = missing_seed
+
     return {
         "profile": _profile_payload(profile),
-        "coverage": {
-            "mode": coverage_mode,
-            "missing_bps": missing_bps,
-            "missing_slots": missing_slots,
-        },
+        "coverage": coverage,
         "semantic_parity": True,
         "result_digest": multisource["result_digest"],
         "market_books": multisource["market_books"],
@@ -233,6 +244,8 @@ def run_load_matrix(
     profiles: tuple[LoadProfile, ...] = REFERENCE_PROFILES,
     coverage_mode: str = "primary",
     missing_bps: int = 0,
+    missing_pattern: str = "tail",
+    missing_seed: int = 0,
 ) -> dict[str, object]:
     """Run each profile and require single-source/multi-source semantic parity."""
     if not profiles:
@@ -241,12 +254,22 @@ def run_load_matrix(
         raise ValueError("coverage_mode must be 'primary' or 'distributed'")
     if not 0 <= missing_bps < 10_000:
         raise ValueError("missing_bps must be between 0 and 9999")
+    if missing_pattern not in ("tail", "dispersed", "selection"):
+        raise ValueError("missing_pattern must be 'tail', 'dispersed', or 'selection'")
+    if missing_seed < 0:
+        raise ValueError("missing_seed must be non-negative")
     names = [profile.name for profile in profiles]
     if len(set(names)) != len(names):
         raise ValueError("profile names must be unique")
 
     results = tuple(
-        _run_profile(profile, coverage_mode=coverage_mode, missing_bps=missing_bps)
+        _run_profile(
+            profile,
+            coverage_mode=coverage_mode,
+            missing_bps=missing_bps,
+            missing_pattern=missing_pattern,
+            missing_seed=missing_seed,
+        )
         for profile in profiles
     )
     digest = sha256()
@@ -297,6 +320,18 @@ def _parser() -> argparse.ArgumentParser:
         help="fraction of canonical quote slots absent from all feeds, in basis points",
     )
     parser.add_argument(
+        "--missing-pattern",
+        choices=("tail", "dispersed", "selection"),
+        default="tail",
+        help="mask missing quotes at the tail, dispersed per quote, or by whole selection leg",
+    )
+    parser.add_argument(
+        "--missing-seed",
+        type=int,
+        default=0,
+        help="non-negative deterministic seed for the missing quote mask",
+    )
+    parser.add_argument(
         "--warmup-cycles",
         type=int,
         help="override warm-up cycles for every selected profile",
@@ -336,6 +371,8 @@ def main() -> None:
                 profiles=profiles,
                 coverage_mode=args.coverage_mode,
                 missing_bps=args.missing_bps,
+                missing_pattern=args.missing_pattern,
+                missing_seed=args.missing_seed,
             ),
             indent=2,
             sort_keys=True,
