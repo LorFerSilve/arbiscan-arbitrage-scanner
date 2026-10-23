@@ -14,16 +14,17 @@ from datetime import datetime, timedelta
 from decimal import Decimal
 from hashlib import sha256
 
+from tests.integration import test_phase16_5_real_provider_semantics as reference
+from tests.integration import test_phase16_6_real_multisource_coexistence as fixtures
+
 from arbiscan.arbitrage import evaluate_market
-from arbiscan.domain import OddsQuote, SelectionId
+from arbiscan.domain import OddsQuote
 from arbiscan.ingestion import MultiSourceLiveQuoteStore, RealtimeIngestionPolicy
 from arbiscan.ingestion.realtime import QuoteStoreDiagnosticCode
 from arbiscan.marketbook import build_market_books
 from arbiscan.matching import CanonicalRegistry, EventMatchStatus
 from arbiscan.normalization import NormalizationIssueCode, normalize_source_snapshot
 from arbiscan.providers.oddspapi import ODDSPAPI_PROVIDER_ID
-from tests.integration import test_phase16_5_real_provider_semantics as reference
-from tests.integration import test_phase16_6_real_multisource_coexistence as fixtures
 
 FRESHNESS = timedelta(seconds=30)
 
@@ -186,20 +187,22 @@ def run_fixture_multi_poll_replay() -> dict[str, object]:
                 raise AssertionError(f"{phase.name}: incomplete selection book")
             evaluated.append(evaluate_market(book.quotes, book.expected_selection_ids))
 
-        if phase.name == "late_old_revision":
-            if applied.rejected_count != 1 or {d.code for d in applied.diagnostics} != {
-                QuoteStoreDiagnosticCode.OUT_OF_ORDER
-            }:
-                raise AssertionError("old delayed revision was not rejected")
-        if phase.name == "future_timestamp_rejected":
-            if tuple(issues) != (
-                NormalizationIssueCode.FUTURE_SNAPSHOT.value,
-                NormalizationIssueCode.FUTURE_SNAPSHOT.value,
-            ):
-                raise AssertionError("future timestamp must reject both API source markets")
-        if phase.name == "all_providers_expired":
-            if fresh:
-                raise AssertionError("absent provider snapshots retained eligible quotes")
+        if (
+            phase.name == "late_old_revision"
+            and (
+                applied.rejected_count != 1
+                or {d.code for d in applied.diagnostics}
+                != {QuoteStoreDiagnosticCode.OUT_OF_ORDER}
+            )
+        ):
+            raise AssertionError("old delayed revision was not rejected")
+        if phase.name == "future_timestamp_rejected" and tuple(issues) != (
+            NormalizationIssueCode.FUTURE_SNAPSHOT.value,
+            NormalizationIssueCode.FUTURE_SNAPSHOT.value,
+        ):
+            raise AssertionError("future timestamp must reject both API source markets")
+        if phase.name == "all_providers_expired" and fresh:
+            raise AssertionError("absent provider snapshots retained eligible quotes")
 
         outcomes.append(
             {
