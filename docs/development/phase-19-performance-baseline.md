@@ -968,7 +968,7 @@ data path without inventing a corresponding event for unrelated
 provider-benchmark fixtures. Run:
 
 ```text
-uv run python -m unittest tests.integration.test_phase19_fixture_backed_multi_provider_correctness
+uv run --with pytest==9.1.1 pytest -q tests/integration/test_phase19_fixture_backed_multi_provider_correctness.py
 uv run python scripts/quality.py --all
 ```
 
