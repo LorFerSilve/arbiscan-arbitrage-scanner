@@ -12,7 +12,7 @@ from datetime import timedelta
 from decimal import Decimal
 
 from arbiscan.arbitrage import evaluate_market
-from arbiscan.domain import OddsQuote, ProviderId, QuoteStatus, SelectionId
+from arbiscan.domain import OddsQuote, QuoteStatus, SelectionId
 from arbiscan.ingestion import MultiSourceLiveQuoteStore, RealtimeIngestionPolicy
 from arbiscan.ingestion.realtime import QuoteStoreDiagnosticCode
 from arbiscan.marketbook import build_market_books
