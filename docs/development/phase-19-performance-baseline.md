@@ -717,6 +717,99 @@ to inject the requested number of conflicts, rather than silently
 reporting fewer conflicts. Conflicting same-time overlap remains a
 separate fail-closed quote-consolidation behavior under test.
 
+## Windows 10 dispersed versus complete-selection outage results (2026-10-23)
+
+These local measurements were supplied after PR #66
+(`aada9fb2d043046457b837983c5dd07ecfe192be`) on Windows 10
+(`Windows-10-10.0.19045-SP0`, CPython 3.13.15). Both used the
+synthetic `reference` profile: 100 events, three markets per event,
+three price providers, two transports, 25% configured overlap
+(525 of 2,100 original slots), 300 requested updates per cycle,
+10 warm-up cycles, and 100 measured cycles. Both enabled
+`--coverage-mode distributed --missing-bps 1000 --missing-seed 42`.
+Only `--missing-pattern` differed.
+
+```text
+uv run python -m scripts.benchmark_load_matrix --profile reference --coverage-mode distributed --missing-bps 1000 --missing-pattern dispersed --missing-seed 42 --warmup-cycles 10 --measured-cycles 100
+uv run python -m scripts.benchmark_load_matrix --profile reference --coverage-mode distributed --missing-bps 1000 --missing-pattern selection --missing-seed 42 --warmup-cycles 10 --measured-cycles 100
+```
+
+| Metric | A: dispersed per-provider quote slots | B: whole selection legs |
+| --- | ---: | ---: |
+| Original / active canonical quote slots | 2,100 / 1,890 | 2,100 / 1,890 |
+| Missing quote slots | 210 (10%) | 210 (10%) |
+| Initially retained observations across transports | 2,347 | 2,382 |
+| Unique-only slots: transport 0 / 1 | 716 / 717 | 692 / 706 |
+| Events with at least one missing slot | 88 | 50 |
+| Partially covered selection legs | 185 | 0 |
+| Fully absent selection legs | 1 | 70 |
+| Complete / incomplete markets per cycle | 299 / 1 | 240 / 60 |
+| Market books across 100 cycles | 29,900 | 24,000 |
+| Synthetic opportunities across 100 cycles | 29,900 | 24,000 |
+| Equivalent-overlap diagnostics across 100 cycles | 45,700 | 49,200 |
+| Price conflicts | 0 | 0 |
+| Mean update observations / cycle | 333.97 | 338.77 |
+| Median apply time | 3.294 ms | 3.268 ms |
+| Median fresh/consolidate time | 8.021 ms | 8.246 ms |
+| Median book build time | 14.825 ms | 13.618 ms |
+| Median evaluation time | 16.481 ms | 13.219 ms |
+| Median full-cycle time | 43.884 ms | 40.191 ms |
+| Nearest-rank p95 full-cycle time | 52.968 ms | 133.334 ms |
+| Maximum full-cycle time | 68.389 ms | 171.464 ms |
+| Apply-stage observations / second | 82,455.8 | 57,208.4 |
+| Single-source versus multi-source parity | true | true |
+
+Provenance (reproducible semantic hashes):
+
+- A matrix digest:
+  `45c7b03b4bfe417b07dba8711bdab40b3a95d9a0b1e57cf0ce96d4a66e38e929`
+- A result digest:
+  `96532edec66f2d964354e7733b842103699d886cfb641f0323e515592cac11f3`
+- A missing-mask digest:
+  `3eb1af4ac7aeef5acd4f241ec7fe540d68df230d00d544e399ea18dc55343cd0`
+- B matrix digest:
+  `2f720d7fe5ccac42b91c546bf0bec25ef237d4f8d6a66ca6c68bd61c90a7fc9c`
+- B result digest:
+  `fe4e894379088434bfbd722c238c1fb2ea496d1ec03d206ececf426689d724cc`
+- B missing-mask digest:
+  `a6f13ae1ede80ba1c89291b78dc1fcd58e018f17e27e5db9afa9a60f93cf6038`
+
+**Correctness finding:** identical total missing quote count has a very
+different effect depending on the coverage pattern. A removed quotes
+from 88 events but left 299 of 300 markets complete: alternate price
+providers supplied at least one remaining quote for all but one
+selection leg. B removed 70 whole selection legs across every price
+provider and disabled 60 distinct markets (several legs can belong to
+the same market), leaving 240 of 300 complete. Its total opportunity
+count fell accordingly. These are **synthetic opportunity counts
+summed across cycles**, not unique real trading opportunities.
+`all_semantic_parity: true` confirms equivalent control and
+multi-source result semantics for each fixed mask. The benchmark's
+independent selection-completeness assertion checks that incomplete
+markets cannot emit books when no conflicts are injected.
+
+**Performance observation, not a speedup claim:** B's full-cycle median
+was 40.191 ms versus A's 43.884 ms (8.4% lower), consistent with
+building and evaluating fewer complete books. However, B's p95 was
+133.334 ms versus A's 52.968 ms (2.52x as large) and its maximum
+reached 171.464 ms. Its apply-stage observations/second was also
+lower even though median apply time was similar. These runs were
+measured at different times, with no recorded control of machine
+load, garbage collection, temperature, or scheduling. Thus the
+tail-latency difference is **not evidence of a production regression
+or of a particular algorithmic bottleneck**. Repeat each identical
+benchmark several times (preferably alternating A/B order), keep
+the semantic and mask digests fixed, and inspect the distribution of
+per-cycle timings before optimizing. These observations are still
+synthetic CPU-only timings, not end-to-end provider-network latency.
+
+**Next correctness milestone:** model a feed stopping and recovering
+during a sequence of cycles, including stale quote expiry, temporary
+market incompleteness, reconnection, and deterministic parity/fail-closed
+checks. Fixed missing-data masks cannot test recovery behavior.
+Once this behavior is validated, prioritize authorized, representative
+real multi-provider replay over further micro-optimization.
+
 ## Remaining Phase 19 work
 
 Profile the provider-pipeline, event-matching, and reference load-matrix workloads on
