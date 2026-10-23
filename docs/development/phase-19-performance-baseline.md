@@ -1007,6 +1007,65 @@ matched real-world multi-provider captures representing repeated polls,
 partial market availability and provider failures before production
 latency or reliability targets can be inferred.
 
+## Fixture-backed repeated-provider-poll correctness replay
+
+The Phase 19 fixture-backed integration checks are extended with a
+**multi-poll sequence**, rather than testing a single static response or a
+synthetic canonical quote stream. The implementation is
+`scripts/replay_fixture_provider_polls.py`, with regression tests in
+`tests/unit/test_fixture_provider_multi_poll_replay.py`. Run from the repo
+root:
+
+```text
+uv run python -m scripts.replay_fixture_provider_polls
+uv run --with pytest==9.1.1 pytest -q tests/unit/test_fixture_provider_multi_poll_replay.py
+```
+
+For each simulated poll, the script re-parses the checked-in, provider-shaped
+football responses using the **production The Odds API and OddsPapi
+adapters**. It matches their distinct external event identities to the
+same canonical football event, applies normalizer-enforced canonical
+selection mappings, and updates `MultiSourceLiveQuoteStore` before
+constructing a market book and evaluating any complete outcomes.
+
+| Poll offset | Injected source conditions | Expected complete books |
+| ---: | --- | ---: |
+| 0 s | Both providers return a full set of selections | 1 |
+| 10 s | Both provider responses omit draw but old draw quotes are still fresh | 1 |
+| 31 s | Only API updates the other selections; both older draw quotes have expired | 0 |
+| 32 s | Old-source-time, late-ingested draw revision arrives during outage | 0 |
+| 40 s | OddsPapi recovers a full market; API still omits draw | 1 |
+| 50 s | API source clock is in the future (rejected), OddsPapi remains healthy | 1 |
+| 81 s | No new snapshots, all previously valid quotes have expired | 0 |
+| 90 s | Both providers supply fresh complete snapshots again | 1 |
+
+The 30-second source freshness policy is explicitly checked. The test
+fails if expected incomplete markets are executable, if an out-of-order
+price revision is accepted or changes the executable quote digest, if
+a future-dated provider snapshot is accepted, or if recovery fails to
+rebuild the complete canonical market. Each phase records active transport
+modes, accepted/rejected updates, normalization issues, fresh/stale
+observations, executable canonical quote count, complete books,
+theoretical arbitrage evaluations, and a machine-independent
+quote-content digest. An aggregate result digest verifies exact replay
+stability across repeated runs. A complete market is **not necessarily
+profitable arbitrage**; profit detection counts are reported separately.
+
+**Data provenance:** the initial provider HTTP fixture bytes are unchanged.
+Each poll uses **new in-memory synthetic mutations** of the parsed
+responses (fresh timestamps, selective outcome removal, suppressed
+provider responses and future-skewed source times). This is a controlled
+fixture-backed *multi-poll simulation*, not a saved series of historical
+provider observations or proof of real-world provider behavior.
+No network I/O, credentials, alerts, executable trades or realized
+profit are involved.
+
+**Remaining correctness boundary:** obtain permitted multi-poll source
+captures with synchronized event identities, immutable source timestamps,
+provider outage signals and changing prices; validate matcher and
+normalizer outcomes with these captures using a privacy-reviewed local
+replay. Only then evaluate real operational performance targets.
+
 ## Remaining Phase 19 work
 
 Profile the provider-pipeline, event-matching, and reference load-matrix workloads on
