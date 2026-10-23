@@ -90,8 +90,8 @@ def _snapshot(
     if any(
         quote.status.value != "active"
         or quote.ingested_at > moment
-        or quote.source_timestamp is not None
-        and (quote.source_timestamp > moment or moment - quote.source_timestamp > FRESHNESS)
+        or (quote.source_timestamp or quote.ingested_at) > moment
+        or moment - (quote.source_timestamp or quote.ingested_at) > FRESHNESS
         for quote in fresh
     ):
         raise AssertionError(f"{scenario}/{phase}: stale/future quote became executable")
