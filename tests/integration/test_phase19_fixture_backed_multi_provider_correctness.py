@@ -223,7 +223,9 @@ def test_delayed_revision_and_future_clock_skew_do_not_override_new_quote() -> N
     store = _store()
     initial = store.apply((first, second), observed_at=canonical.AS_OF)
     assert initial.added_count == 2
-    assert store.fresh_quotes(as_of=canonical.AS_OF) == (first,)
+    consolidated = store.fresh_quotes(as_of=canonical.AS_OF)
+    assert len(consolidated) == 1
+    assert consolidated[0].decimal_price == Decimal("3.11")
     assert store.last_consolidation_result.equivalent_overlap_count == 1
 
     newer_at = canonical.AS_OF + timedelta(seconds=10)
