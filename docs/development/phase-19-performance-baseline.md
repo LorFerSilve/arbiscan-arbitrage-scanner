@@ -952,6 +952,61 @@ safe aggregate results. Investigate the separate high p95 previously
 seen with whole-selection loss only after correctness is established
 and repeat runs confirm the tail-latency effect.
 
+## Phase 19 provider-fixture cross-source correctness integration
+
+The repository already contains retained, non-live response fixtures
+for two independent production adapter implementations:
+`TheOddsApiProvider` and `OddsPapiProvider`. Their football fixture
+responses refer to the **same canonical Liverpool–Manchester United
+event** using different external event IDs and selection naming
+conventions. The existing Phase 16.5/16.6 tests exercise matching,
+normalization, mixed-provider best-price selection and several
+multi-transport protections.
+
+New Phase 19 integration regressions extend that actual adapter-backed
+data path without inventing a corresponding event for unrelated
+provider-benchmark fixtures. Run:
+
+```text
+uv run --with pytest==9.1.1 pytest -q tests/integration/test_phase19_fixture_backed_multi_provider_correctness.py
+uv run python scripts/quality.py --all
+```
+
+The tests use the production event matcher, matched canonical identity
+hooks, strict snapshot normalizer, `MultiSourceLiveQuoteStore`,
+market-book builder and arbitrage evaluator. They verify:
+
+- **Partial price coverage:** the source snapshot from one adapter
+  omits the `draw` outcome (represented differently between provider
+  schemas). The other adapter still supplies the required leg for
+  the same canonical event and market, so one complete book remains.
+- **Both feeds missing a required selection:** independently adapted
+  snapshots omit `draw` from every price provider. The market is
+  incomplete and produces **no executable book**. Restoring only the
+  absent selection via a fresh quote from a returning transport
+  makes the same market complete again.
+- **Stale/future source timestamps:** explicitly shifted, adapter-parsed
+  source-market timestamps are rejected by the strict normalizer,
+  while a separate well-timed provider's odds still produce a valid
+  market. Recently ingesting a stale market does not refresh its
+  source timestamp.
+- **Delayed price revisions and clock skew:** independently sourced
+  quotes for one bookmaker/selection share a canonical slot. After a
+  newer accepted revision, late old-source-time and excessively
+  future-dated packets are rejected by the real transport-isolated
+  live quote-store, never replacing the most recent executable price.
+  A single remaining selection by itself never forms a full market.
+
+The source fixture bytes remain unchanged and no live API key or
+network request is needed. Test-specific missing selections, timestamp
+shifts and recovery prices are synthetic mutations **after real
+adapter parsing**; they are **not** additional observed upstream
+responses. These are integration correctness tests rather than
+performance measurements. Future work still requires permissioned
+matched real-world multi-provider captures representing repeated polls,
+partial market availability and provider failures before production
+latency or reliability targets can be inferred.
+
 ## Remaining Phase 19 work
 
 Profile the provider-pipeline, event-matching, and reference load-matrix workloads on
