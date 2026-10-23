@@ -183,6 +183,7 @@ def test_load_matrix_rejects_invalid_missing_fraction_or_coverage_mode() -> None
         else:
             raise AssertionError(f"invalid matrix coverage accepted: {settings}")
 
+
 def test_load_matrix_dispersed_mask_keeps_control_parity_and_stable_digest() -> None:
     profile = _tiny_profile()
     first = run_load_matrix(
