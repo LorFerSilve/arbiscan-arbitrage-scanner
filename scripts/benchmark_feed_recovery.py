@@ -135,14 +135,10 @@ def _snapshot(
     }
 
 
-def _expect_stale(
-    states: list[dict[str, object]], *, expected: int, scenario: str
-) -> None:
+def _expect_stale(states: list[dict[str, object]], *, expected: int, scenario: str) -> None:
     observed = states[-1]["stale_versions"]
     if observed != expected:
-        raise AssertionError(
-            f"{scenario}: expected {expected} stale versions, got {observed}"
-        )
+        raise AssertionError(f"{scenario}: expected {expected} stale versions, got {observed}")
 
 
 def _run_dropout(*, redundant: bool) -> dict[str, object]:
