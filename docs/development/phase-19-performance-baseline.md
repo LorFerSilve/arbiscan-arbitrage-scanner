@@ -876,6 +876,82 @@ reconnection, event matching, retry/backoff orchestration, per-provider
 health dashboards, or real odds volatility. No claim of production
 uptime, SLO compliance or measured latency follows from this replay.
 
+## Windows 10 dynamic feed-dropout replay results (2026-10-23)
+
+The user executed the Phase-19 correctness replay on Windows 10
+(`Windows-10-10.0.19045-SP0`, CPython 3.13.15), using the version
+introduced in PR #68 at main commit
+`0824e05987e8b6f84090f8f05adbf5d21d6559bf`:
+
+```text
+uv run python -m scripts.benchmark_feed_recovery
+```
+
+The replay reports `all_invariants_passed: true` for three scenarios
+under a **30-second source freshness window**. Its environment-independent
+semantic digest is:
+
+```text
+9a6a4523bda6c227ba73112eb586b9e570f6a287fadf02593b3f20a4368fad3b
+```
+
+Per-phase observed state (book and opportunity counts refer to the
+two synthetic markets of one event, *not* real betting signals):
+
+| Scenario | Offset | Phase | Stored / fresh observations | Stale | Evicted in phase | Books / opportunities | Conflicts | Equivalent overlapping slots |
+| --- | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Essential feed | 0 s | healthy | 10 / 10 | 0 | 0 | 2 / 2 | 0 | 0 |
+| Essential feed | 10 s | silent_but_fresh | 10 / 10 | 0 | 0 | 2 / 2 | 0 | 0 |
+| Essential feed | 31 s | expired | 10 / 8 | 2 | 0 | 1 / 1 | 0 | 0 |
+| Essential feed | 31 s | evicted | 8 / 8 | 0 | 2 | 1 / 1 | 0 | 0 |
+| Essential feed | 32 s | late_stale_packet | 9 / 8 | 1 | 0 | 1 / 1 | 0 | 0 |
+| Essential feed | 40 s | recovered | 10 / 10 | 0 | 0 | 2 / 2 | 0 | 0 |
+| Redundant feed | 0 s | healthy | 12 / 10 | 0 | 0 | 2 / 2 | 0 | 2 |
+| Redundant feed | 10 s | silent_but_fresh | 12 / 10 | 0 | 0 | 2 / 2 | 0 | 0 |
+| Redundant feed | 31 s | expired | 12 / 10 | 2 | 0 | 2 / 2 | 0 | 0 |
+| Redundant feed | 31 s | evicted | 10 / 10 | 0 | 2 | 2 / 2 | 0 | 0 |
+| Redundant feed | 40 s | recovered | 12 / 10 | 0 | 0 | 2 / 2 | 0 | 2 |
+| Conflict then recovery | 0 s | healthy | 12 / 10 | 0 | 0 | 2 / 2 | 0 | 2 |
+| Conflict then recovery | 1 s | equal_time_conflict | 12 / 8 | 0 | 0 | 1 / 1 | 2 | 0 |
+| Conflict then recovery | 2 s | resolved | 12 / 10 | 0 | 0 | 2 / 2 | 0 | 0 |
+
+**Observed correctness outcomes:**
+
+- In the essential-feed scenario the winner market
+  `market:benchmark:0:0` disappears as soon as its only surviving
+  required selection leg expires (+31 s), while the unrelated market
+  `market:benchmark:0:1` remains available. Both markets return
+  only when valid source-time observations arrive at +40 s.
+- At +32 s, the delayed packet with an **old source timestamp** is
+  accepted into *stored observations* (8 to 9) but is still classified
+  as stale (stale: 0 to 1). It does **not** increase the executable
+  quote count (8) or resurrect the winner market. This distinguishes
+  storage acceptance from eligibility for execution.
+- With redundant transport coverage, the primary remains sufficient
+  for both markets while secondary observations become stale and
+  are evicted. On recovery, secondary observations are accepted:
+  stored observations return to 12, the number of executable
+  canonical quotes remains 10, and equivalent overlaps return to 2.
+- In the equal-time conflict case, both conflicting price slots are
+  excluded: executable quotes fall from 10 to 8 and winner-market
+  books from 2 to 1. At +2 s, newer primary observations supersede the
+  conflict and the market returns. The final overlap count remains 0,
+  which is expected because the refreshed primary quotes no longer
+  represent an equal-time duplicate of the older secondary quotes.
+
+**Scope and next validation:** the digest and assertions establish
+reproducibility for the modeled timeline. This does not show network
+outage discovery, actual provider reconnection, provider health-gating,
+runtime recovery under clock skew, or correct event/market matching in
+real heterogeneous source payloads. Correctness should next be checked
+with **authorized, privacy-reviewed multi-provider fixtures that
+share event/market identities**, including timestamp skew, delayed
+revisions, and sparse/temporarily unavailable outcomes. Keep raw
+payloads local or otherwise properly permissioned and document only
+safe aggregate results. Investigate the separate high p95 previously
+seen with whole-selection loss only after correctness is established
+and repeat runs confirm the tail-latency effect.
+
 ## Remaining Phase 19 work
 
 Profile the provider-pipeline, event-matching, and reference load-matrix workloads on
