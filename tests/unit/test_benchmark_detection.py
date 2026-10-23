@@ -2,7 +2,13 @@
 
 from datetime import timedelta
 
-from scripts.benchmark_detection import START, _observations, _workload, run_benchmark
+from scripts.benchmark_detection import (
+    START,
+    _missing_quote_indices,
+    _observations,
+    _workload,
+    run_benchmark,
+)
 
 from arbiscan.ingestion.multisource import ConsolidationDiagnosticCode, PriceSlotKey
 from arbiscan.ingestion.multisource_state import MultiSourceLiveQuoteStore
@@ -303,3 +309,172 @@ def test_benchmark_rejects_invalid_feed_coverage_dimensions() -> None:
             pass
         else:
             raise AssertionError(f"invalid feed configuration accepted: {mode}, {missing}")
+
+
+def test_dispersed_missing_mask_is_seeded_spread_and_reproducible() -> None:
+    _, specs = _workload(events=8, markets_per_event=3, providers=3)
+    first = _missing_quote_indices(
+        specs, missing_slots=42, missing_pattern="dispersed", missing_seed=19
+    )
+    second = _missing_quote_indices(
+        specs, missing_slots=42, missing_pattern="dispersed", missing_seed=19
+    )
+    changed = _missing_quote_indices(
+        specs, missing_slots=42, missing_pattern="dispersed", missing_seed=20
+    )
+    assert first == second
+    assert len(first) == 42
+    assert first != changed
+    assert first != frozenset(range(len(specs) - 42, len(specs)))
+    assert len({specs[index].event_id for index in first}) > 1
+    assert len({specs[index].provider_id for index in first}) > 1
+
+
+def test_dispersed_mask_preserves_parity_and_reports_partial_coverage() -> None:
+    def run(transports: int) -> dict[str, object]:
+        return run_benchmark(
+            events=8,
+            markets_per_event=3,
+            providers=3,
+            updates_per_cycle=15,
+            warmup_cycles=0,
+            measured_cycles=3,
+            transports_per_provider=transports,
+            overlap_slots=42 if transports > 1 else 0,
+            coverage_mode="distributed",
+            missing_slots=42,
+            missing_pattern="dispersed",
+            missing_seed=19,
+        )
+
+    control = run(1)
+    multisource = run(2)
+    assert control["result_digest"] == multisource["result_digest"]
+    assert control["market_books"] == multisource["market_books"]
+    assert control["opportunities"] == multisource["opportunities"]
+    workload = multisource["workload"]
+    assert isinstance(workload, dict)
+    assert workload["active_quote_slots"] == 126
+    assert workload["missing_slots"] == 42
+    assert workload["events_with_missing_slots"] > 1
+    assert workload["partially_covered_selection_legs"] > 0
+    assert workload["complete_markets_per_cycle"] + workload["incomplete_markets_per_cycle"] == 24
+    assert multisource["market_books"] == 3 * workload["complete_markets_per_cycle"]
+    assert multisource["opportunities"] == multisource["market_books"]
+
+
+def test_missing_selection_leg_suppresses_entire_market_and_opportunity() -> None:
+    _, specs = _workload(events=3, markets_per_event=2, providers=3)
+    masked = _missing_quote_indices(
+        specs, missing_slots=6, missing_pattern="selection", missing_seed=5
+    )
+    assert len(masked) == 6
+    missing_selections = {specs[index].selection_id for index in masked}
+    assert len(missing_selections) == 2
+    assert all(
+        sum(spec.selection_id == selection for spec in specs) == 3
+        for selection in missing_selections
+    )
+
+    def run(transports: int) -> dict[str, object]:
+        return run_benchmark(
+            events=3,
+            markets_per_event=2,
+            providers=3,
+            updates_per_cycle=5,
+            warmup_cycles=0,
+            measured_cycles=2,
+            transports_per_provider=transports,
+            overlap_slots=12 if transports > 1 else 0,
+            coverage_mode="distributed",
+            missing_slots=6,
+            missing_pattern="selection",
+            missing_seed=5,
+        )
+
+    control = run(1)
+    multisource = run(2)
+    assert multisource["result_digest"] == control["result_digest"]
+    workload = multisource["workload"]
+    assert isinstance(workload, dict)
+    assert workload["fully_missing_selection_legs"] == 2
+    assert workload["partially_covered_selection_legs"] == 0
+    incomplete = workload["incomplete_markets_per_cycle"]
+    assert isinstance(incomplete, int) and incomplete >= 1
+    books = multisource["market_books"]
+    complete = workload["complete_markets_per_cycle"]
+    assert isinstance(books, int) and isinstance(complete, int)
+    assert books == 2 * complete
+    assert multisource["opportunities"] == books
+    assert books < 12
+
+
+def test_missing_masks_reject_invalid_seed_and_partial_selection_mask() -> None:
+    _, specs = _workload(events=2, markets_per_event=2, providers=3)
+    for pattern, seed, missing in (
+        ("unrecognized", 0, 3),
+        ("dispersed", -1, 3),
+        ("selection", 0, 4),
+    ):
+        try:
+            _missing_quote_indices(
+                specs,
+                missing_slots=missing,
+                missing_pattern=pattern,
+                missing_seed=seed,
+            )
+        except ValueError:
+            pass
+        else:
+            raise AssertionError(f"invalid missing mask accepted: {pattern}/{seed}/{missing}")
+
+
+def test_conflict_injection_skips_masked_overlapping_quote_slots() -> None:
+    _, specs = _workload(events=1, markets_per_event=1, providers=2)
+    missing = _missing_quote_indices(
+        specs, missing_slots=1, missing_pattern="dispersed", missing_seed=10
+    )
+    assert missing == frozenset((0,))
+
+    result = run_benchmark(
+        events=1,
+        markets_per_event=1,
+        providers=2,
+        updates_per_cycle=2,
+        warmup_cycles=0,
+        measured_cycles=2,
+        transports_per_provider=2,
+        overlap_slots=2,
+        conflicting_slots=1,
+        coverage_mode="distributed",
+        missing_slots=1,
+        missing_pattern="dispersed",
+        missing_seed=10,
+    )
+    assert result["conflicts"] == 2
+    workload = result["workload"]
+    assert isinstance(workload, dict)
+    assert workload["conflicting_slots"] == 1
+    assert workload["missing_slots"] == 1
+
+
+def test_conflicts_reject_insufficient_unmasked_overlap() -> None:
+    try:
+        run_benchmark(
+            events=1,
+            markets_per_event=1,
+            providers=2,
+            updates_per_cycle=2,
+            warmup_cycles=0,
+            measured_cycles=2,
+            transports_per_provider=2,
+            overlap_slots=2,
+            conflicting_slots=2,
+            missing_slots=1,
+            missing_pattern="dispersed",
+            missing_seed=10,
+        )
+    except ValueError as error:
+        assert "unmasked overlapping" in str(error)
+    else:
+        raise AssertionError("insufficient active overlap must reject conflict injection")
