@@ -428,6 +428,7 @@ def test_missing_masks_reject_invalid_seed_and_partial_selection_mask() -> None:
         else:
             raise AssertionError(f"invalid missing mask accepted: {pattern}/{seed}/{missing}")
 
+
 def test_conflict_injection_skips_masked_overlapping_quote_slots() -> None:
     _, specs = _workload(events=1, markets_per_event=1, providers=2)
     missing = _missing_quote_indices(
