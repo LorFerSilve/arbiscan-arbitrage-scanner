@@ -313,9 +313,12 @@ def test_benchmark_rejects_invalid_feed_coverage_dimensions() -> None:
 
 def test_dispersed_missing_mask_is_seeded_spread_and_reproducible() -> None:
     _, specs = _workload(events=8, markets_per_event=3, providers=3)
-    params = {"missing_slots": 42, "missing_pattern": "dispersed", "missing_seed": 19}
-    first = _missing_quote_indices(specs, **params)
-    second = _missing_quote_indices(specs, **params)
+    first = _missing_quote_indices(
+        specs, missing_slots=42, missing_pattern="dispersed", missing_seed=19
+    )
+    second = _missing_quote_indices(
+        specs, missing_slots=42, missing_pattern="dispersed", missing_seed=19
+    )
     changed = _missing_quote_indices(
         specs, missing_slots=42, missing_pattern="dispersed", missing_seed=20
     )
@@ -396,7 +399,8 @@ def test_missing_selection_leg_suppresses_entire_market_and_opportunity() -> Non
     assert isinstance(workload, dict)
     assert workload["fully_missing_selection_legs"] == 2
     assert workload["partially_covered_selection_legs"] == 0
-    assert workload["incomplete_markets_per_cycle"] >= 1
+    incomplete = workload["incomplete_markets_per_cycle"]
+    assert isinstance(incomplete, int) and incomplete >= 1
     assert multisource["market_books"] == 2 * workload["complete_markets_per_cycle"]
     assert multisource["opportunities"] == multisource["market_books"]
     assert multisource["market_books"] < 12
