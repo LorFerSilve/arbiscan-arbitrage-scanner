@@ -848,7 +848,9 @@ The three scenarios are:
    the same required selection leg while transport 1 goes silent.
    Transport 1's stale observations expire and are evicted without
    removing the still-valid market. Fresh transport 1 quotes then
-   re-establish overlap on recovery.
+   re-establish overlap on recovery, verified by two newly accepted
+   secondary observations, 12 stored observations, and two equivalent
+   overlapping price slots after reconnection.
 3. **Equal-time material conflict:** both transports initially agree
    on the required leg; at +1 s both price providers receive same-time
    contradictory observations across the transports. Consolidation
