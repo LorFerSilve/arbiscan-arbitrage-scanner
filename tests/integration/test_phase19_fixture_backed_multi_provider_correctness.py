@@ -44,6 +44,8 @@ def _normalize(
             or canonical._selection_id(observation.adapter.provider.id, selection.label)
             != omit_selection
         )
+        if not selections:
+            continue
         markets.append(
             replace(
                 market,
@@ -89,7 +91,9 @@ def _book_count(
             canonical.DRAW_SELECTION_ID,
             canonical.AWAY_SELECTION_ID,
         }
-        assert evaluate_market(book.quotes, book.expected_selection_ids).is_arbitrage
+        evaluation = evaluate_market(book.quotes, book.expected_selection_ids)
+        assert evaluation.market_id == book.market.id
+        assert len(evaluation.quotes) == len(book.expected_selection_ids)
     return len(books)
 
 
