@@ -6,11 +6,11 @@ import argparse
 import json
 import platform
 import sys
+from collections import Counter
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from hashlib import sha256
-from collections import Counter
 from math import ceil
 from statistics import median
 from time import perf_counter_ns
