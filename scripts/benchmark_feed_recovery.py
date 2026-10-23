@@ -251,7 +251,9 @@ def _run_dropout(*, redundant: bool) -> dict[str, object]:
         )
         _expect_stale(states, expected=1, scenario=scenario)
 
-    store.apply(primary(40) + secondary(40), observed_at=_at(40))
+    recovery = store.apply(primary(40) + secondary(40), observed_at=_at(40))
+    if redundant and recovery.added_count != 2:
+        raise AssertionError("redundant transport recovery must accept two new observations")
     states.append(
         _snapshot(
             store,
@@ -264,6 +266,12 @@ def _run_dropout(*, redundant: bool) -> dict[str, object]:
         )
     )
     _expect_stale(states, expected=0, scenario=scenario)
+    if redundant and (
+        states[0]["equivalent_overlaps"] != 2
+        or states[-1]["equivalent_overlaps"] != 2
+        or states[-1]["stored_observations"] != 12
+    ):
+        raise AssertionError("redundant transport overlap must be restored on recovery")
     return {"name": scenario, "phases": states}
 
 
