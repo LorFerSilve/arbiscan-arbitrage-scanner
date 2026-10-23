@@ -140,9 +140,7 @@ def _run_dropout(*, redundant: bool) -> dict[str, object]:
     registry, specs = _workload(events=1, markets_per_event=2, providers=2)
     target = specs[0].selection_id
     market = specs[0].market_id.value
-    store = MultiSourceLiveQuoteStore(
-        RealtimeIngestionPolicy(freshness_window=FRESHNESS)
-    )
+    store = MultiSourceLiveQuoteStore(RealtimeIngestionPolicy(freshness_window=FRESHNESS))
 
     def primary(seconds: int) -> tuple[OddsQuote, ...]:
         return _primary_quotes(
@@ -166,8 +164,13 @@ def _run_dropout(*, redundant: bool) -> dict[str, object]:
     store.apply(primary(0) + secondary(0), observed_at=_at(0))
     states.append(
         _snapshot(
-            store, registry, scenario=scenario, phase="healthy",
-            seconds=0, target_market=market, expected_books=2,
+            store,
+            registry,
+            scenario=scenario,
+            phase="healthy",
+            seconds=0,
+            target_market=market,
+            expected_books=2,
         )
     )
 
@@ -176,15 +179,25 @@ def _run_dropout(*, redundant: bool) -> dict[str, object]:
     store.apply(primary(10), observed_at=_at(10))
     states.append(
         _snapshot(
-            store, registry, scenario=scenario, phase="silent_but_fresh",
-            seconds=10, target_market=market, expected_books=2,
+            store,
+            registry,
+            scenario=scenario,
+            phase="silent_but_fresh",
+            seconds=10,
+            target_market=market,
+            expected_books=2,
         )
     )
     store.apply(primary(31), observed_at=_at(31))
     states.append(
         _snapshot(
-            store, registry, scenario=scenario, phase="expired",
-            seconds=31, target_market=market, expected_books=2 if redundant else 1,
+            store,
+            registry,
+            scenario=scenario,
+            phase="expired",
+            seconds=31,
+            target_market=market,
+            expected_books=2 if redundant else 1,
         )
     )
     if states[-1]["stale_versions"] != 2:
@@ -195,8 +208,13 @@ def _run_dropout(*, redundant: bool) -> dict[str, object]:
         raise AssertionError(f"{scenario}: stale secondary observations were not evicted")
     states.append(
         _snapshot(
-            store, registry, scenario=scenario, phase="evicted",
-            seconds=31, target_market=market, expected_books=2 if redundant else 1,
+            store,
+            registry,
+            scenario=scenario,
+            phase="evicted",
+            seconds=31,
+            target_market=market,
+            expected_books=2 if redundant else 1,
             evicted=len(eviction.evicted),
         )
     )
@@ -217,8 +235,13 @@ def _run_dropout(*, redundant: bool) -> dict[str, object]:
             raise AssertionError("late packet must exercise stored-but-stale handling")
         states.append(
             _snapshot(
-                store, registry, scenario=scenario, phase="late_stale_packet",
-                seconds=32, target_market=market, expected_books=1,
+                store,
+                registry,
+                scenario=scenario,
+                phase="late_stale_packet",
+                seconds=32,
+                target_market=market,
+                expected_books=1,
             )
         )
         if states[-1]["stale_versions"] != 1:
@@ -227,8 +250,13 @@ def _run_dropout(*, redundant: bool) -> dict[str, object]:
     store.apply(primary(40) + secondary(40), observed_at=_at(40))
     states.append(
         _snapshot(
-            store, registry, scenario=scenario, phase="recovered",
-            seconds=40, target_market=market, expected_books=2,
+            store,
+            registry,
+            scenario=scenario,
+            phase="recovered",
+            seconds=40,
+            target_market=market,
+            expected_books=2,
         )
     )
     if states[-1]["stale_versions"] != 0:
@@ -240,35 +268,51 @@ def _run_conflict() -> dict[str, object]:
     registry, specs = _workload(events=1, markets_per_event=2, providers=2)
     target = specs[0].selection_id
     market = specs[0].market_id.value
-    store = MultiSourceLiveQuoteStore(
-        RealtimeIngestionPolicy(freshness_window=FRESHNESS)
-    )
+    store = MultiSourceLiveQuoteStore(RealtimeIngestionPolicy(freshness_window=FRESHNESS))
 
-    def primary(seconds: int) -> tuple:
+    def primary(seconds: int) -> tuple[OddsQuote, ...]:
         return _primary_quotes(
-            specs, seconds=seconds, revision=seconds,
-            target_selection=target, include_target=True,
+            specs,
+            seconds=seconds,
+            revision=seconds,
+            target_selection=target,
+            include_target=True,
         )
 
     def secondary(seconds: int, *, conflicting: bool) -> tuple[OddsQuote, ...]:
         return _target_quotes(
-            specs, seconds=seconds, revision=seconds,
-            transport=1, target_selection=target, conflicting=conflicting,
+            specs,
+            seconds=seconds,
+            revision=seconds,
+            transport=1,
+            target_selection=target,
+            conflicting=conflicting,
         )
 
     states: list[dict[str, object]] = []
     store.apply(primary(0) + secondary(0, conflicting=False), observed_at=_at(0))
     states.append(
         _snapshot(
-            store, registry, scenario="conflict_then_recovery", phase="healthy",
-            seconds=0, target_market=market, expected_books=2,
+            store,
+            registry,
+            scenario="conflict_then_recovery",
+            phase="healthy",
+            seconds=0,
+            target_market=market,
+            expected_books=2,
         )
     )
     store.apply(primary(1) + secondary(1, conflicting=True), observed_at=_at(1))
     states.append(
         _snapshot(
-            store, registry, scenario="conflict_then_recovery", phase="equal_time_conflict",
-            seconds=1, target_market=market, expected_books=1, expected_conflicts=2,
+            store,
+            registry,
+            scenario="conflict_then_recovery",
+            phase="equal_time_conflict",
+            seconds=1,
+            target_market=market,
+            expected_books=1,
+            expected_conflicts=2,
         )
     )
     # Later trustworthy observations supersede the conflicting equal-time
@@ -276,8 +320,13 @@ def _run_conflict() -> dict[str, object]:
     store.apply(primary(2), observed_at=_at(2))
     states.append(
         _snapshot(
-            store, registry, scenario="conflict_then_recovery", phase="resolved",
-            seconds=2, target_market=market, expected_books=2,
+            store,
+            registry,
+            scenario="conflict_then_recovery",
+            phase="resolved",
+            seconds=2,
+            target_market=market,
+            expected_books=2,
         )
     )
     return {"name": "conflict_then_recovery", "phases": states}
