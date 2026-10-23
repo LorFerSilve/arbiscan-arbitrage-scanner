@@ -810,6 +810,70 @@ checks. Fixed missing-data masks cannot test recovery behavior.
 Once this behavior is validated, prioritize authorized, representative
 real multi-provider replay over further micro-optimization.
 
+## Dynamic transport dropout, expiry, and recovery correctness replay
+
+The fixed missing-quote masks above describe one frozen coverage layout.
+To exercise **transitions**, run the new deterministic correctness replay
+against the real production `MultiSourceLiveQuoteStore`, its underlying
+`LiveQuoteStore` versioning/freshness and eviction methods, actual
+`build_market_books()`, and `evaluate_market()`:
+
+```text
+uv run python -m scripts.benchmark_feed_recovery
+uv run python scripts/quality.py --all
+```
+
+This is a **scenario assertion**, not a latency benchmark. It uses one
+synthetic football event with two markets and two price providers, a
+30-second freshness window, two independent transport IDs and a fixed
+clock starting at `2026-01-01T12:00:00Z`. The JSON report includes
+phase timestamps, fresh and stale observation counts, evicted revisions,
+complete market books, theoretical opportunity counts, equivalent
+overlaps, material conflicts and a reproducible semantic result digest.
+No live API credentials, networking, or private source captures are used.
+
+The three scenarios are:
+
+1. **Essential transport absent:** one required selection leg is sourced
+   *only* through transport 1 (across both price providers), while other
+   selections are refreshed on transport 0. At +10 s the silent feed's
+   values are still within policy and the market remains complete;
+   at +31 s they are **stale** and the market must disappear, even
+   before evicting the stale versions. Eviction removes the two stale
+   transport observations; a delayed packet with a recent ingestion
+   time but its original, expired source timestamp **must not**
+   resurrect the incomplete market. At +40 s fresh observations from
+   transport 1 restore the missing leg, market book and opportunity.
+2. **Redundant transport absent:** transport 0 independently refreshes
+   the same required selection leg while transport 1 goes silent.
+   Transport 1's stale observations expire and are evicted without
+   removing the still-valid market. Fresh transport 1 quotes then
+   re-establish overlap on recovery.
+3. **Equal-time material conflict:** both transports initially agree
+   on the required leg; at +1 s both price providers receive same-time
+   contradictory observations across the transports. Consolidation
+   suppresses both conflicted executable price slots and the market
+   must disappear. At +2 s newer unambiguous transport observations
+   resolve both slots and re-enable the market.
+
+The replay fails immediately if any phase's **actual** complete-book or
+opportunity count violates its expected outcome, an unavailable target
+market remains executable, an expected conflict is missed, or an expired
+quote becomes eligible. Unit tests check the exact ordered transitions,
+expiry/eviction counts, surviving fallback markets and recovery.
+Unlike the previous performance matrix, the replay simulates a
+*silent* transport by not updating that feed's state, rather than
+instantly deleting quote slots.
+
+**Safety and scope:** expiry is based on the configured source-timestamp
+freshness policy, not how recently a stale packet reached the scanner.
+One healthy redundant transport may preserve a market; there is no
+blanket global shutdown after a provider drops out. These synthetic
+checks do **not** test live provider outage discovery, actual network
+reconnection, event matching, retry/backoff orchestration, per-provider
+health dashboards, or real odds volatility. No claim of production
+uptime, SLO compliance or measured latency follows from this replay.
+
 ## Remaining Phase 19 work
 
 Profile the provider-pipeline, event-matching, and reference load-matrix workloads on
