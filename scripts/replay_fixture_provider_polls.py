@@ -187,13 +187,9 @@ def run_fixture_multi_poll_replay() -> dict[str, object]:
                 raise AssertionError(f"{phase.name}: incomplete selection book")
             evaluated.append(evaluate_market(book.quotes, book.expected_selection_ids))
 
-        if (
-            phase.name == "late_old_revision"
-            and (
-                applied.rejected_count != 1
-                or {d.code for d in applied.diagnostics}
-                != {QuoteStoreDiagnosticCode.OUT_OF_ORDER}
-            )
+        if phase.name == "late_old_revision" and (
+            applied.rejected_count != 1
+            or {d.code for d in applied.diagnostics} != {QuoteStoreDiagnosticCode.OUT_OF_ORDER}
         ):
             raise AssertionError("old delayed revision was not rejected")
         if phase.name == "future_timestamp_rejected" and tuple(issues) != (
