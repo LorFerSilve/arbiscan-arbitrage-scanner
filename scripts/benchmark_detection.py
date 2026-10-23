@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from hashlib import sha256
+from collections import Counter
 from math import ceil
 from statistics import median
 from time import perf_counter_ns
@@ -261,6 +262,91 @@ def _observations(
     )
 
 
+
+def _missing_quote_indices(
+    specs: tuple[QuoteSpec, ...],
+    *,
+    missing_slots: int,
+    missing_pattern: str,
+    missing_seed: int,
+) -> frozenset[int]:
+    """Build a reproducible source-coverage mask, shared by all transports."""
+    if missing_pattern not in ("tail", "dispersed", "selection"):
+        raise ValueError("missing_pattern must be 'tail', 'dispersed', or 'selection'")
+    if missing_seed < 0:
+        raise ValueError("missing_seed must be non-negative")
+    if missing_slots < 0 or missing_slots >= len(specs):
+        raise ValueError("missing_slots must be between zero and initial quote count - 1")
+    if missing_pattern == "tail":
+        return frozenset(range(len(specs) - missing_slots, len(specs)))
+
+    def rank(key: str) -> bytes:
+        return sha256(f"{missing_seed}:{key}".encode()).digest()
+
+    if missing_pattern == "dispersed":
+        ordered = sorted(range(len(specs)), key=lambda i: (rank(str(i)), i))
+        return frozenset(ordered[:missing_slots])
+
+    provider_count = len({spec.provider_id for spec in specs})
+    if missing_slots % provider_count:
+        raise ValueError("selection missing pattern requires a multiple of provider count")
+    selection_keys = tuple(
+        sorted({spec.selection_id for spec in specs}, key=lambda item: item.value)
+    )
+    ordered_selections = sorted(
+        selection_keys, key=lambda item: (rank(item.value), item.value)
+    )
+    masked_selections = set(ordered_selections[: missing_slots // provider_count])
+    return frozenset(
+        index for index, spec in enumerate(specs) if spec.selection_id in masked_selections
+    )
+
+
+def _coverage_summary(
+    registry: CanonicalRegistry,
+    specs: tuple[QuoteSpec, ...],
+    missing_indices: frozenset[int],
+    *,
+    provider_count: int,
+) -> dict[str, object]:
+    """Count absent selections separately from partially covered selections."""
+    available = tuple(
+        spec for index, spec in enumerate(specs) if index not in missing_indices
+    )
+    per_selection = Counter(spec.selection_id for spec in available)
+    missing_selections = {
+        item.id for item in registry.selections if per_selection[item.id] == 0
+    }
+    incomplete_market_ids = {
+        item.market_id
+        for item in registry.selections
+        if item.id in missing_selections
+    }
+    affected_events = {
+        specs[index].event_id for index in missing_indices
+    }
+    mask_digest = sha256()
+    for index in sorted(missing_indices):
+        spec = specs[index]
+        mask_digest.update(
+            f"{spec.provider_id.value}|{spec.selection_id.value}\n".encode()
+        )
+    return {
+        "complete_markets_per_cycle": len(registry.markets) - len(incomplete_market_ids),
+        "incomplete_markets_per_cycle": len(incomplete_market_ids),
+        "fully_missing_selection_legs": len(missing_selections),
+        "partially_covered_selection_legs": sum(
+            0 < count < provider_count for count in per_selection.values()
+        ),
+        "events_with_missing_slots": len(affected_events),
+        "providers_with_missing_slots": len(
+            {specs[index].provider_id for index in missing_indices}
+        ),
+        "missing_mask_digest": mask_digest.hexdigest(),
+    }
+
+
+
 def _milliseconds(values: list[int]) -> dict[str, float]:
     ordered = sorted(values)
     return {
@@ -283,6 +369,8 @@ def run_benchmark(
     conflicting_slots: int = 0,
     coverage_mode: str = "primary",
     missing_slots: int = 0,
+    missing_pattern: str = "tail",
+    missing_seed: int = 0,
 ) -> dict[str, object]:
     """Return stage timings and a stable semantic digest for a fixed synthetic load."""
     if (
@@ -317,15 +405,26 @@ def run_benchmark(
         raise ValueError("conflicting_slots must be between zero and overlap_slots")
     if coverage_mode not in ("primary", "distributed"):
         raise ValueError("coverage_mode must be 'primary' or 'distributed'")
-    if missing_slots < 0 or missing_slots >= len(specs):
-        raise ValueError("missing_slots must be between zero and initial quote count - 1")
-
-    active_slots = len(specs) - missing_slots
-    active_overlap_slots = min(resolved_overlap_slots, active_slots)
+    missing_indices = _missing_quote_indices(
+        specs,
+        missing_slots=missing_slots,
+        missing_pattern=missing_pattern,
+        missing_seed=missing_seed,
+    )
+    active_slots = len(specs) - len(missing_indices)
+    active_overlap_slots = sum(
+        index < resolved_overlap_slots for index in range(len(specs))
+        if index not in missing_indices
+    )
     unique_slots_by_transport = [0] * transports_per_provider
-    for index in range(active_overlap_slots, active_slots):
+    for index in range(resolved_overlap_slots, len(specs)):
+        if index in missing_indices:
+            continue
         transport = index % transports_per_provider if coverage_mode == "distributed" else 0
         unique_slots_by_transport[transport] += 1
+    coverage_summary = _coverage_summary(
+        registry, specs, missing_indices, provider_count=providers
+    )
 
     window = timedelta(seconds=max(300, warmup_cycles + measured_cycles + 1))
     policy = RealtimeIngestionPolicy(freshness_window=window)
@@ -335,7 +434,7 @@ def run_benchmark(
     initial = (
         quote
         for spec_index, spec in enumerate(specs)
-        if spec_index < active_slots
+        if spec_index not in missing_indices
         for quote in _observations(
             spec,
             at=START,
@@ -367,7 +466,7 @@ def run_benchmark(
         updates = tuple(
             quote
             for spec_index in range(offset, offset + updates_per_cycle)
-            if spec_index % len(specs) < active_slots
+            if spec_index % len(specs) not in missing_indices
             for quote in _observations(
                 specs[spec_index % len(specs)],
                 at=at,
@@ -417,6 +516,13 @@ def run_benchmark(
                     f"{book.market.id.value}:{','.join(value.value for value in opportunity.quote_ids)}"
                 )
         evaluated = perf_counter_ns()
+        complete_markets = coverage_summary["complete_markets_per_cycle"]
+        if not isinstance(complete_markets, int):
+            raise AssertionError("coverage summary must report complete markets")
+        if len(books) > complete_markets or (
+            conflicting_slots == 0 and len(books) != complete_markets
+        ):
+            raise RuntimeError("incomplete synthetic market produced an executable book")
 
         if cycle > warmup_cycles:
             for name, duration in (
@@ -445,6 +551,9 @@ def run_benchmark(
             "initial_quotes": len(specs),
             "active_quote_slots": active_slots,
             "missing_slots": missing_slots,
+            "missing_pattern": missing_pattern,
+            "missing_seed": missing_seed,
+            **coverage_summary,
             "coverage_mode": coverage_mode,
             "unique_slots_by_transport": tuple(unique_slots_by_transport),
             "transports_per_provider": transports_per_provider,
@@ -494,6 +603,10 @@ def main() -> None:
     parser.add_argument("--conflicting-slots", type=_non_negative_int, default=0)
     parser.add_argument("--coverage-mode", choices=("primary", "distributed"), default="primary")
     parser.add_argument("--missing-slots", type=_non_negative_int, default=0)
+    parser.add_argument(
+        "--missing-pattern", choices=("tail", "dispersed", "selection"), default="tail"
+    )
+    parser.add_argument("--missing-seed", type=_non_negative_int, default=0)
     args = parser.parse_args()
     report = run_benchmark(
         events=args.events,
@@ -507,6 +620,8 @@ def main() -> None:
         conflicting_slots=args.conflicting_slots,
         coverage_mode=args.coverage_mode,
         missing_slots=args.missing_slots,
+        missing_pattern=args.missing_pattern,
+        missing_seed=args.missing_seed,
     )
     print(json.dumps(report, indent=2, sort_keys=True))
 
