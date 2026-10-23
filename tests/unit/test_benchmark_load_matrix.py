@@ -182,3 +182,71 @@ def test_load_matrix_rejects_invalid_missing_fraction_or_coverage_mode() -> None
             pass
         else:
             raise AssertionError(f"invalid matrix coverage accepted: {settings}")
+
+def test_load_matrix_dispersed_mask_keeps_control_parity_and_stable_digest() -> None:
+    profile = _tiny_profile()
+    first = run_load_matrix(
+        profiles=(profile,),
+        coverage_mode="distributed",
+        missing_bps=1_000,
+        missing_pattern="dispersed",
+        missing_seed=17,
+    )
+    second = run_load_matrix(
+        profiles=(profile,),
+        coverage_mode="distributed",
+        missing_bps=1_000,
+        missing_pattern="dispersed",
+        missing_seed=17,
+    )
+    assert first["all_semantic_parity"] is True
+    assert first["matrix_digest"] == second["matrix_digest"]
+    result = first["profiles"]
+    assert isinstance(result, tuple)
+    assert result[0]["coverage"] == {
+        "mode": "distributed",
+        "missing_bps": 1_000,
+        "missing_slots": 2,
+        "missing_pattern": "dispersed",
+        "missing_seed": 17,
+    }
+
+
+def test_load_matrix_missing_selection_leg_is_fail_closed() -> None:
+    profile = _tiny_profile()
+    result = run_load_matrix(
+        profiles=(profile,),
+        coverage_mode="distributed",
+        missing_bps=1_000,
+        missing_pattern="selection",
+        missing_seed=17,
+    )
+    assert result["all_semantic_parity"] is True
+    runs = result["profiles"]
+    assert isinstance(runs, tuple)
+    measured = runs[0]
+    assert measured["market_books"] < 8
+    assert measured["opportunities"] == measured["market_books"]
+    workload = measured["workload"]
+    assert isinstance(workload, dict)
+    assert workload["fully_missing_selection_legs"] == 1
+    assert workload["incomplete_markets_per_cycle"] == 1
+
+
+def test_matrix_rejects_invalid_selection_mask_and_missing_seed() -> None:
+    for missing_bps, pattern, seed in (
+        (1_500, "selection", 0),
+        (1_000, "unknown", 0),
+        (1_000, "dispersed", -1),
+    ):
+        try:
+            run_load_matrix(
+                profiles=(_tiny_profile(),),
+                missing_bps=missing_bps,
+                missing_pattern=pattern,
+                missing_seed=seed,
+            )
+        except ValueError:
+            pass
+        else:
+            raise AssertionError(f"invalid mask accepted: {missing_bps}/{pattern}/{seed}")
