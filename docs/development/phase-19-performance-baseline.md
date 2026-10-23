@@ -710,8 +710,12 @@ They do not model dynamically recovering quotes, late provider
 revisions, real missingness correlations, timestamp skew, or
 unavailable network responses. Per-market completeness applies to
 canonical **selection legs**, not a requirement that *all* providers
-cover all markets. Conflicting same-time overlap remains a separate
-fail-closed quote-consolidation behavior under test.
+cover all markets. For conflict-injection benchmarks, the configured conflicting slots
+are chosen from **unmasked overlapping quote slots**. The benchmark
+rejects a configuration that does not retain enough overlapping slots
+to inject the requested number of conflicts, rather than silently
+reporting fewer conflicts. Conflicting same-time overlap remains a
+separate fail-closed quote-consolidation behavior under test.
 
 ## Remaining Phase 19 work
 
