@@ -65,6 +65,10 @@ def test_redundant_transport_preserves_market_during_secondary_outage() -> None:
     assert phases[3]["evicted_versions"] == 2
     assert phases[2]["fresh_quotes"] == 10
     assert phases[4]["fresh_quotes"] == 10
+    assert phases[0]["equivalent_overlaps"] == 2
+    assert phases[3]["equivalent_overlaps"] == 0
+    assert phases[4]["equivalent_overlaps"] == 2
+    assert phases[4]["stored_observations"] == 12
     assert phases[0]["market_ids"] == phases[4]["market_ids"]
 
 
