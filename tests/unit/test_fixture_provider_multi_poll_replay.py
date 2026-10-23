@@ -26,6 +26,12 @@ def _phases() -> list[dict[str, object]]:
     return phases
 
 
+def _count(row: dict[str, object], key: str) -> int:
+    value = row[key]
+    assert isinstance(value, int)
+    return value
+
+
 def test_fixture_multi_poll_replay_has_stable_semantic_digest() -> None:
     first = run_fixture_multi_poll_replay()
     second = run_fixture_multi_poll_replay()
@@ -43,13 +49,13 @@ def test_missing_selection_expires_before_market_is_rebuilt() -> None:
         "the_odds_api": "no_draw",
         "oddspapi": "no_draw",
     }
-    assert rows[2]["stale_observations"] > 0
-    assert rows[2]["executable_quotes"] > 0
+    assert _count(rows[2], "stale_observations") > 0
+    assert _count(rows[2], "executable_quotes") > 0
     assert rows[2]["arbitrages"] == 0
     assert rows[3]["books"] == 0
-    assert rows[6]["executable_quotes"] == 0
-    assert rows[6]["stale_observations"] > 0
-    assert rows[7]["executable_quotes"] > 0
+    assert _count(rows[6], "executable_quotes") == 0
+    assert _count(rows[6], "stale_observations") > 0
+    assert _count(rows[7], "executable_quotes") > 0
     assert rows[7]["books"] == 1
 
 
@@ -64,4 +70,4 @@ def test_late_source_revision_and_skewed_snapshot_cannot_poison_live_state() -> 
     )
     assert rows[5]["books"] == 1
     assert rows[5]["material_conflicts"] == 0
-    assert all(phase["arbitrages"] <= phase["books"] for phase in rows)
+    assert all(_count(phase, "arbitrages") <= _count(phase, "books") for phase in rows)
