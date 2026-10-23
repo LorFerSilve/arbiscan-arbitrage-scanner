@@ -135,6 +135,16 @@ def _snapshot(
     }
 
 
+def _expect_stale(
+    states: list[dict[str, object]], *, expected: int, scenario: str
+) -> None:
+    observed = states[-1]["stale_versions"]
+    if observed != expected:
+        raise AssertionError(
+            f"{scenario}: expected {expected} stale versions, got {observed}"
+        )
+
+
 def _run_dropout(*, redundant: bool) -> dict[str, object]:
     scenario = "redundant_feed" if redundant else "essential_feed"
     registry, specs = _workload(events=1, markets_per_event=2, providers=2)
@@ -200,8 +210,7 @@ def _run_dropout(*, redundant: bool) -> dict[str, object]:
             expected_books=2 if redundant else 1,
         )
     )
-    if states[-1]["stale_versions"] != 2:
-        raise AssertionError(f"{scenario}: two secondary observations must expire")
+    _expect_stale(states, expected=2, scenario=scenario)
 
     eviction = store.evict_stale(as_of=_at(31))
     if len(eviction.evicted) != 2:
@@ -244,8 +253,7 @@ def _run_dropout(*, redundant: bool) -> dict[str, object]:
                 expected_books=1,
             )
         )
-        if states[-1]["stale_versions"] != 1:
-            raise AssertionError("late old packet must remain stale")
+        _expect_stale(states, expected=1, scenario=scenario)
 
     store.apply(primary(40) + secondary(40), observed_at=_at(40))
     states.append(
@@ -259,8 +267,7 @@ def _run_dropout(*, redundant: bool) -> dict[str, object]:
             expected_books=2,
         )
     )
-    if states[-1]["stale_versions"] != 0:
-        raise AssertionError(f"{scenario}: recovered feed must have no stale versions")
+    _expect_stale(states, expected=0, scenario=scenario)
     return {"name": scenario, "phases": states}
 
 
