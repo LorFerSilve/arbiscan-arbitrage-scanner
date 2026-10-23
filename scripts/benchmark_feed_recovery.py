@@ -10,10 +10,11 @@ import json
 import platform
 import sys
 from dataclasses import replace
-from datetime import timedelta
+from datetime import datetime, timedelta
 from hashlib import sha256
 
 from arbiscan.arbitrage import evaluate_market
+from arbiscan.domain import OddsQuote, SelectionId
 from arbiscan.ingestion.multisource_state import MultiSourceLiveQuoteStore
 from arbiscan.ingestion.realtime import RealtimeIngestionPolicy
 from arbiscan.marketbook import build_market_books
@@ -23,7 +24,7 @@ from scripts.benchmark_detection import START, QuoteSpec, _quote, _workload
 FRESHNESS = timedelta(seconds=30)
 
 
-def _at(seconds: int):
+def _at(seconds: int) -> datetime:
     return START + timedelta(seconds=seconds)
 
 
@@ -33,9 +34,9 @@ def _target_quotes(
     seconds: int,
     revision: int,
     transport: int,
-    target_selection: object,
+    target_selection: SelectionId,
     conflicting: bool = False,
-) -> tuple:
+) -> tuple[OddsQuote, ...]:
     return tuple(
         _quote(
             spec,
@@ -55,9 +56,9 @@ def _primary_quotes(
     *,
     seconds: int,
     revision: int,
-    target_selection: object,
+    target_selection: SelectionId,
     include_target: bool,
-) -> tuple:
+) -> tuple[OddsQuote, ...]:
     return tuple(
         _quote(
             spec,
@@ -143,7 +144,7 @@ def _run_dropout(*, redundant: bool) -> dict[str, object]:
         RealtimeIngestionPolicy(freshness_window=FRESHNESS)
     )
 
-    def primary(seconds: int) -> tuple:
+    def primary(seconds: int) -> tuple[OddsQuote, ...]:
         return _primary_quotes(
             specs,
             seconds=seconds,
@@ -152,7 +153,7 @@ def _run_dropout(*, redundant: bool) -> dict[str, object]:
             include_target=redundant,
         )
 
-    def secondary(seconds: int) -> tuple:
+    def secondary(seconds: int) -> tuple[OddsQuote, ...]:
         return _target_quotes(
             specs,
             seconds=seconds,
@@ -249,7 +250,7 @@ def _run_conflict() -> dict[str, object]:
             target_selection=target, include_target=True,
         )
 
-    def secondary(seconds: int, *, conflicting: bool) -> tuple:
+    def secondary(seconds: int, *, conflicting: bool) -> tuple[OddsQuote, ...]:
         return _target_quotes(
             specs, seconds=seconds, revision=seconds,
             transport=1, target_selection=target, conflicting=conflicting,
