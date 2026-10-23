@@ -651,13 +651,67 @@ control and multi-source implementations under the **same** artificial
 missing-slot mask; it does not establish that missing markets are
 handled correctly for every possible sparsity pattern.
 
-**Recommended next validation:** add a reproducible dispersed-missing
-mask (for example, a seeded/permuted slot selection) alongside a
-market-level and event-level outage scenario. Report complete versus
-incomplete markets, absent selection legs, and per-provider coverage;
-verify fail-closed detection and semantic parity under each mask.
-Then measure actual allowed multi-provider data before defining
-production latency and throughput objectives.
+**Next validation after dispersed masks:** exercise a distinct
+market-level outage scenario and changing quote availability over
+multiple cycles, then validate authorized real multi-provider data.
+A static seeded mask is necessary, but not sufficient, to establish
+production fail-closed behavior.
+
+## Deterministic dispersed and missing-selection-leg scenarios
+
+In addition to the original `--missing-bps` **tail** mask, Phase 19 can now
+choose a missing-data pattern with `--missing-pattern` and a non-negative
+`--missing-seed`. The mask is fixed for all warm-up and measured cycles and
+applies to the *same canonical price-provider slots* in the single-source
+control and multi-source runs; a masked slot is absent from **every**
+transport. This isolates the effect of missing coverage from transport
+overlap and avoids accidental differences in detection semantics.
+
+- `tail` (default): remove the last N generated slots, preserving the
+  behavior and previously recorded reference digests.
+- `dispersed`: rank quote slots with a reproducible SHA-256 key derived
+  from the slot index and seed; remove the N lowest-ranked slots,
+  spreading missing quotes across events, markets, outcomes and providers.
+  An unavailable quote from one provider may still be replaced by an
+  available quote from another provider, so this often leaves markets
+  complete.
+- `selection`: rank canonical selection IDs and remove the selected
+  outcomes **from all providers and transports**. One missing required
+  outcome makes its entire market incomplete and must prevent an
+  executable market book and an arbitrage opportunity. The requested
+  missing slot count must be divisible by the number of price providers;
+  otherwise the benchmark fails rather than silently rounding a partial
+  selection group.
+
+For the measured reference profile (three price providers, 2,100 price
+slots), `--missing-bps 1000` removes exactly 210 slots, equivalent to
+70 complete selection legs in `selection` mode.
+
+```text
+uv run python -m scripts.benchmark_load_matrix --profile reference --coverage-mode distributed --missing-bps 1000 --missing-pattern dispersed --missing-seed 42 --warmup-cycles 10 --measured-cycles 100
+uv run python -m scripts.benchmark_load_matrix --profile reference --coverage-mode distributed --missing-bps 1000 --missing-pattern selection --missing-seed 42 --warmup-cycles 10 --measured-cycles 100
+```
+
+The workload report now includes `missing_pattern`, `missing_seed`,
+`missing_mask_digest`, `complete_markets_per_cycle`,
+`incomplete_markets_per_cycle`, `fully_missing_selection_legs`,
+`partially_covered_selection_legs`, and affected event/provider counts.
+The complete-market count is calculated independently from canonical
+selection coverage, not derived from the market-book builder output.
+For workloads with no injected price conflicts, a runtime check
+requires the emitted book count to equal the independently expected
+complete-market count. With injected conflicts, it can only decrease,
+never exceed that count. A book cannot be built from an absent required
+selection leg, even if an independent transport still serves other
+outcomes.
+
+These scenarios remain synthetic and use **static** missing masks.
+They do not model dynamically recovering quotes, late provider
+revisions, real missingness correlations, timestamp skew, or
+unavailable network responses. Per-market completeness applies to
+canonical **selection legs**, not a requirement that *all* providers
+cover all markets. Conflicting same-time overlap remains a separate
+fail-closed quote-consolidation behavior under test.
 
 ## Remaining Phase 19 work
 
