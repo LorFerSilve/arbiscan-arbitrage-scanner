@@ -41,9 +41,8 @@ def _normalize(
             selection
             for selection in market.selections
             if omit_selection is None
-            or canonical._selection_id(
-                observation.adapter.provider.id, selection.label
-            ) != omit_selection
+            or canonical._selection_id(observation.adapter.provider.id, selection.label)
+            != omit_selection
         )
         markets.append(
             replace(
@@ -105,19 +104,13 @@ def test_fixture_backed_partial_coverage_is_recovered_by_other_real_adapter() ->
     api, papi = existing._load_observations()
     assert api.event.external_id != papi.event.external_id
 
-    api_sparse, api_issues = _normalize(
-        api, registry, omit_selection=canonical.DRAW_SELECTION_ID
-    )
+    api_sparse, api_issues = _normalize(api, registry, omit_selection=canonical.DRAW_SELECTION_ID)
     papi_complete, papi_issues = _normalize(papi, registry)
     assert api_issues == papi_issues == ()
     assert len(api_sparse) == 4
     assert len(papi_complete) == 6
-    assert {quote.event_id for quote in (*api_sparse, *papi_complete)} == {
-        canonical.EVENT_ID
-    }
-    assert {quote.market_id for quote in (*api_sparse, *papi_complete)} == {
-        canonical.MARKET_ID
-    }
+    assert {quote.event_id for quote in (*api_sparse, *papi_complete)} == {canonical.EVENT_ID}
+    assert {quote.market_id for quote in (*api_sparse, *papi_complete)} == {canonical.MARKET_ID}
     assert not any(quote.selection_id == canonical.DRAW_SELECTION_ID for quote in api_sparse)
     assert any(quote.selection_id == canonical.DRAW_SELECTION_ID for quote in papi_complete)
 
@@ -160,9 +153,7 @@ def test_missing_selection_in_both_adapter_payloads_fails_closed_then_recovers()
         if quote.selection_id == canonical.DRAW_SELECTION_ID
     )
     assert len(returning) == 2
-    recovery = store.apply(
-        returning, observed_at=canonical.AS_OF + timedelta(seconds=20)
-    )
+    recovery = store.apply(returning, observed_at=canonical.AS_OF + timedelta(seconds=20))
     assert recovery.added_count == 2
     assert recovery.rejected_count == 0
     assert _book_count(registry, store, at_offset_seconds=20) == 1
