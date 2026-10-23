@@ -1120,10 +1120,12 @@ No material conflicts were reported at any replay phase.
   leaving the executable quote digest **identical** to +31 s:
   `1ffd1ad6adae8f08ca7f4deda3b3756ac3a85e696791498fd91e089fc379f0d9`.
   The missing selection does not become executable.
-- At +40 s, the returning OddsPapi snapshots replace ten stored
-  transport observations with valid updates and restore the full
-  selection set. Eight executable quotes suffice for one complete
-  market book and one theoretical arbitrage.
+- At +40 s, the **combined** poll updates ten stored transport
+  observations: four non-draw updates from The Odds API and six
+  complete-market updates from the returning OddsPapi transport.
+  The latter restores the missing draw selection. Eight executable
+  canonical quotes suffice for one complete market book and one
+  theoretical arbitrage.
 - At +50 s, the malformed future-dated The Odds API snapshots yield
   two `future_snapshot` **normalization** issues before reaching the
   live quote-store. This correctly coexists with `rejected: 0` at the
