@@ -402,9 +402,7 @@ def run_benchmark(
         index for index in range(resolved_overlap_slots) if index not in missing_indices
     )
     if conflicting_slots > len(active_overlapping_indices):
-        raise ValueError(
-            "conflicting_slots cannot exceed unmasked overlapping quote slots"
-        )
+        raise ValueError("conflicting_slots cannot exceed unmasked overlapping quote slots")
     conflicting_indices = frozenset(active_overlapping_indices[:conflicting_slots])
     active_overlap_slots = len(active_overlapping_indices)
     unique_slots_by_transport = [0] * transports_per_provider
