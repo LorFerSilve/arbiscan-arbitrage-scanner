@@ -262,7 +262,6 @@ def _observations(
     )
 
 
-
 def _missing_quote_indices(
     specs: tuple[QuoteSpec, ...],
     *,
@@ -293,9 +292,7 @@ def _missing_quote_indices(
     selection_keys = tuple(
         sorted({spec.selection_id for spec in specs}, key=lambda item: item.value)
     )
-    ordered_selections = sorted(
-        selection_keys, key=lambda item: (rank(item.value), item.value)
-    )
+    ordered_selections = sorted(selection_keys, key=lambda item: (rank(item.value), item.value))
     masked_selections = set(ordered_selections[: missing_slots // provider_count])
     return frozenset(
         index for index, spec in enumerate(specs) if spec.selection_id in masked_selections
@@ -310,27 +307,17 @@ def _coverage_summary(
     provider_count: int,
 ) -> dict[str, object]:
     """Count absent selections separately from partially covered selections."""
-    available = tuple(
-        spec for index, spec in enumerate(specs) if index not in missing_indices
-    )
+    available = tuple(spec for index, spec in enumerate(specs) if index not in missing_indices)
     per_selection = Counter(spec.selection_id for spec in available)
-    missing_selections = {
-        item.id for item in registry.selections if per_selection[item.id] == 0
-    }
+    missing_selections = {item.id for item in registry.selections if per_selection[item.id] == 0}
     incomplete_market_ids = {
-        item.market_id
-        for item in registry.selections
-        if item.id in missing_selections
+        item.market_id for item in registry.selections if item.id in missing_selections
     }
-    affected_events = {
-        specs[index].event_id for index in missing_indices
-    }
+    affected_events = {specs[index].event_id for index in missing_indices}
     mask_digest = sha256()
     for index in sorted(missing_indices):
         spec = specs[index]
-        mask_digest.update(
-            f"{spec.provider_id.value}|{spec.selection_id.value}\n".encode()
-        )
+        mask_digest.update(f"{spec.provider_id.value}|{spec.selection_id.value}\n".encode())
     return {
         "complete_markets_per_cycle": len(registry.markets) - len(incomplete_market_ids),
         "incomplete_markets_per_cycle": len(incomplete_market_ids),
@@ -344,7 +331,6 @@ def _coverage_summary(
         ),
         "missing_mask_digest": mask_digest.hexdigest(),
     }
-
 
 
 def _milliseconds(values: list[int]) -> dict[str, float]:
@@ -413,7 +399,8 @@ def run_benchmark(
     )
     active_slots = len(specs) - len(missing_indices)
     active_overlap_slots = sum(
-        index < resolved_overlap_slots for index in range(len(specs))
+        index < resolved_overlap_slots
+        for index in range(len(specs))
         if index not in missing_indices
     )
     unique_slots_by_transport = [0] * transports_per_provider
@@ -422,9 +409,7 @@ def run_benchmark(
             continue
         transport = index % transports_per_provider if coverage_mode == "distributed" else 0
         unique_slots_by_transport[transport] += 1
-    coverage_summary = _coverage_summary(
-        registry, specs, missing_indices, provider_count=providers
-    )
+    coverage_summary = _coverage_summary(registry, specs, missing_indices, provider_count=providers)
 
     window = timedelta(seconds=max(300, warmup_cycles + measured_cycles + 1))
     policy = RealtimeIngestionPolicy(freshness_window=window)
