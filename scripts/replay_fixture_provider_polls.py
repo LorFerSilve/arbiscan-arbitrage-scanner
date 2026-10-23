@@ -67,7 +67,11 @@ def _normalize_poll(
     skew = timedelta(seconds=7) if mode == "future" else timedelta(0)
     # The source-time offset prevents artificial equal-time conflict
     # between genuinely different transport fixtures with shared bookmakers.
-    transport_offset = timedelta(seconds=1) if observation.adapter.provider.id == ODDSPAPI_PROVIDER_ID else timedelta(0)
+    transport_offset = (
+        timedelta(seconds=1)
+        if observation.adapter.provider.id == ODDSPAPI_PROVIDER_ID
+        else timedelta(0)
+    )
     source_time = at + skew - transport_offset
 
     changed_markets = []
@@ -76,15 +80,12 @@ def _normalize_poll(
             selection
             for selection in market.selections
             if mode != "no_draw"
-            or reference._selection_id(
-                observation.adapter.provider.id, selection.label
-            ) != reference.DRAW_SELECTION_ID
+            or reference._selection_id(observation.adapter.provider.id, selection.label)
+            != reference.DRAW_SELECTION_ID
         )
         if not selections:
             continue
-        changed_markets.append(
-            replace(market, selections=selections, source_timestamp=source_time)
-        )
+        changed_markets.append(replace(market, selections=selections, source_timestamp=source_time))
     snapshot = replace(
         observation.snapshot,
         markets=tuple(changed_markets),
@@ -138,9 +139,7 @@ def run_fixture_multi_poll_replay() -> dict[str, object]:
         for observation, mode in observations:
             if mode == "offline":
                 continue
-            normalized, rejected = _normalize_poll(
-                observation, registry, at=moment, mode=mode
-            )
+            normalized, rejected = _normalize_poll(observation, registry, at=moment, mode=mode)
             incoming.extend(normalized)
             issues.extend(code.value for code in rejected)
             if phase.seconds == 0 and observation.adapter.provider.id == ODDSPAPI_PROVIDER_ID:
@@ -175,8 +174,7 @@ def run_fixture_multi_poll_replay() -> dict[str, object]:
         ).books
         if len(books) != phase.expected_books:
             raise AssertionError(
-                f"{phase.name}: expected {phase.expected_books} complete books; "
-                f"got {len(books)}"
+                f"{phase.name}: expected {phase.expected_books} complete books; got {len(books)}"
             )
         evaluated = []
         for book in books:
@@ -189,9 +187,9 @@ def run_fixture_multi_poll_replay() -> dict[str, object]:
             evaluated.append(evaluate_market(book.quotes, book.expected_selection_ids))
 
         if phase.name == "late_old_revision":
-            if applied.rejected_count != 1 or {
-                d.code for d in applied.diagnostics
-            } != {QuoteStoreDiagnosticCode.OUT_OF_ORDER}:
+            if applied.rejected_count != 1 or {d.code for d in applied.diagnostics} != {
+                QuoteStoreDiagnosticCode.OUT_OF_ORDER
+            }:
                 raise AssertionError("old delayed revision was not rejected")
         if phase.name == "future_timestamp_rejected":
             if tuple(issues) != (
