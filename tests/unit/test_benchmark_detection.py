@@ -427,3 +427,53 @@ def test_missing_masks_reject_invalid_seed_and_partial_selection_mask() -> None:
             pass
         else:
             raise AssertionError(f"invalid missing mask accepted: {pattern}/{seed}/{missing}")
+
+def test_conflict_injection_skips_masked_overlapping_quote_slots() -> None:
+    _, specs = _workload(events=1, markets_per_event=1, providers=2)
+    missing = _missing_quote_indices(
+        specs, missing_slots=1, missing_pattern="dispersed", missing_seed=10
+    )
+    assert missing == frozenset((0,))
+
+    result = run_benchmark(
+        events=1,
+        markets_per_event=1,
+        providers=2,
+        updates_per_cycle=2,
+        warmup_cycles=0,
+        measured_cycles=2,
+        transports_per_provider=2,
+        overlap_slots=2,
+        conflicting_slots=1,
+        coverage_mode="distributed",
+        missing_slots=1,
+        missing_pattern="dispersed",
+        missing_seed=10,
+    )
+    assert result["conflicts"] == 2
+    workload = result["workload"]
+    assert isinstance(workload, dict)
+    assert workload["conflicting_slots"] == 1
+    assert workload["missing_slots"] == 1
+
+
+def test_conflicts_reject_insufficient_unmasked_overlap() -> None:
+    try:
+        run_benchmark(
+            events=1,
+            markets_per_event=1,
+            providers=2,
+            updates_per_cycle=2,
+            warmup_cycles=0,
+            measured_cycles=2,
+            transports_per_provider=2,
+            overlap_slots=2,
+            conflicting_slots=2,
+            missing_slots=1,
+            missing_pattern="dispersed",
+            missing_seed=10,
+        )
+    except ValueError as error:
+        assert "unmasked overlapping" in str(error)
+    else:
+        raise AssertionError("insufficient active overlap must reject conflict injection")
