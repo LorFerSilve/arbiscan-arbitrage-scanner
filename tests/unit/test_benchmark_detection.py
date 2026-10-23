@@ -401,9 +401,12 @@ def test_missing_selection_leg_suppresses_entire_market_and_opportunity() -> Non
     assert workload["partially_covered_selection_legs"] == 0
     incomplete = workload["incomplete_markets_per_cycle"]
     assert isinstance(incomplete, int) and incomplete >= 1
-    assert multisource["market_books"] == 2 * workload["complete_markets_per_cycle"]
-    assert multisource["opportunities"] == multisource["market_books"]
-    assert multisource["market_books"] < 12
+    books = multisource["market_books"]
+    complete = workload["complete_markets_per_cycle"]
+    assert isinstance(books, int) and isinstance(complete, int)
+    assert books == 2 * complete
+    assert multisource["opportunities"] == books
+    assert books < 12
 
 
 def test_missing_masks_reject_invalid_seed_and_partial_selection_mask() -> None:
