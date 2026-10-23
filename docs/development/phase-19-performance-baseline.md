@@ -1066,6 +1066,91 @@ provider outage signals and changing prices; validate matcher and
 normalizer outcomes with these captures using a privacy-reviewed local
 replay. Only then evaluate real operational performance targets.
 
+## Windows 10 fixture-backed multi-poll replay validation (2026-10-23)
+
+The user independently ran the Phase 19 eight-phase replay introduced
+by PR #71 (main commit `20018f6c5722ed5cfea5fa50f09658a82af6ae00`)
+on Windows 10, using CPython 3.13.15, and also ran the three specific
+regression tests:
+
+```text
+uv run python -m scripts.replay_fixture_provider_polls
+uv run --with pytest==9.1.1 pytest -q tests/unit/test_fixture_provider_multi_poll_replay.py
+```
+
+The replay returned `all_invariants_passed: true`, `phase_count: 8`,
+`includes_network_io: false`, and `freshness_seconds: 30`. Its
+machine-independent semantic result digest was:
+
+```text
+fe2d9d133e1fe7d32efceb816f08971377b8f90eaa049bcc942b2f107090ff3a
+```
+
+The specific regression suite completed with **3 passed in 0.40 s**
+on that Windows environment.
+
+The per-poll summary below records the observed rather than merely
+expected values. All book and arbitrage counts refer to one
+fixture-backed canonical football market, not a real trading session.
+
+| Time / phase | API / OddsPapi mode | Added / updated / store-rejected | Fresh transport observations | Executable canonical quotes | Stale stored observations | Complete books / theoretical arbitrages | Normalization issues |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | --- |
+| 0 s — healthy | full / full | 12 / 0 / 0 | 12 | 9 | 0 | 1 / 1 | none |
+| 10 s — partial_coverage | no_draw / no_draw | 0 / 8 / 0 | 12 | 9 | 0 | 1 / 1 | none |
+| 31 s — essential_leg_expired | no_draw / offline | 0 / 4 / 0 | 8 | 6 | 4 | 0 / 0 | none |
+| 32 s — late_old_revision | offline / offline | 0 / 0 / 1 | 8 | 6 | 4 | 0 / 0 | none |
+| 40 s — provider_recovered | no_draw / full | 0 / 10 / 0 | 10 | 8 | 2 | 1 / 1 | none |
+| 50 s — future_timestamp_rejected | future / full | 0 / 6 / 0 | 10 | 8 | 2 | 1 / 1 | 2 future_snapshot |
+| 81 s — all_providers_expired | offline / offline | 0 / 0 / 0 | 0 | 0 | 12 | 0 / 0 | none |
+| 90 s — both_recovered | full / full | 0 / 12 / 0 | 12 | 9 | 0 | 1 / 1 | none |
+
+No material conflicts were reported at any replay phase.
+
+### Correctness interpretation
+
+- At +10 s, previously accepted `draw` prices remain source-fresh even
+  though both adapters' newly constructed snapshots omit that outcome.
+  A missing selection from an individual later poll does **not** by
+  itself delete earlier prices; the 30-second freshness policy determines
+  when the selection becomes ineligible.
+- At +31 s, all four old required-selection observations are stale.
+  There are still six executable canonical quotes for other outcomes,
+  but no complete market book and no arbitrage is emitted.
+- At +32 s, the deliberately late quote is rejected by the live store,
+  leaving the executable quote digest **identical** to +31 s:
+  `1ffd1ad6adae8f08ca7f4deda3b3756ac3a85e696791498fd91e089fc379f0d9`.
+  The missing selection does not become executable.
+- At +40 s, the returning OddsPapi snapshots replace ten stored
+  transport observations with valid updates and restore the full
+  selection set. Eight executable quotes suffice for one complete
+  market book and one theoretical arbitrage.
+- At +50 s, the malformed future-dated The Odds API snapshots yield
+  two `future_snapshot` **normalization** issues before reaching the
+  live quote-store. This correctly coexists with `rejected: 0` at the
+  *store* layer. A timely OddsPapi snapshot keeps the market usable.
+- At +81 s, every stored observation is stale, and **zero**
+  executable quotes, books or arbitrages remain. At +90 s, twelve
+  existing transport quote slots are updated; nine distinct executable
+  canonical quotes and the complete market return.
+
+**Scope and limitations:** these results confirm correctness for
+controlled simulated changes to the two checked-in provider response
+fixtures, parsed anew on each step by the production adapters. The
+eight timestamp/availability variations are **constructed in memory**,
+not captured sequential real-world provider polls. No network I/O,
+provider credentials or real money are involved. The fixture produces
+a synthetic theoretical arbitrage in each complete-market phase;
+this does not imply an executable live opportunity.
+
+The next distinct validation milestone is to obtain authorized
+**historical matched multi-provider poll sequences**, verify their
+provenance/permissions, and replay them locally without committing
+private raw quotes or credentials. Validate real event matching,
+timestamp skew, changing book coverage, price revisions, provider
+errors and stale-data fail-closed behavior. Only after those
+correctness checks should the currently separate p95 performance
+outlier investigation and any new optimizations resume.
+
 ## Remaining Phase 19 work
 
 Profile the provider-pipeline, event-matching, and reference load-matrix workloads on
