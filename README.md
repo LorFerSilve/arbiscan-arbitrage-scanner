@@ -4,12 +4,18 @@ ArbiScan is a multi-bookmaker sports-odds aggregation and arbitrage-detection en
 
 ## Current status
 
-Phases 0 through 18 of [`roadmap.md`](roadmap.md) are technically implemented on
-the current development branch.
+Phases 0 through 18 of [`roadmap.md`](roadmap.md) are technically implemented
+and merged to `main`. **Phase 19 — performance and scalability engineering — is
+in progress, not complete.**
 
-Phase 18 adds deterministic historical replay and backtesting over canonical quote
-history. The next implementation dependency is **Phase 19 — performance and
-scalability engineering**.
+Phase 19 has reproducible synthetic benchmarks for detection, matching, provider
+polling, multi-source consolidation, SQLite persistence and historical replay.
+Profiling-driven indexing, matching-cache, batch-persistence and diagnostic
+improvements have landed. The most recent completed milestone (PRs #70–#72)
+validated an eight-step, fixture-backed two-provider replay for partial coverage,
+source expiry, late revisions, clock skew and recovery. These repeated polls are
+**simulated mutations of retained single-response fixtures**, not captured real
+provider traffic or evidence of production latency.
 
 The implemented core includes:
 
@@ -39,7 +45,8 @@ The implemented core includes:
 
 The project remains development software. OddsPapi is technically integrated but
 remains blocked from production activation pending the documented provider-rights
-clarifications.
+clarifications. Phase 19 exit criteria are not met without permissioned real-world
+multi-poll validation and representative deployment-load measurements.
 
 ## Current market scope
 
@@ -59,6 +66,23 @@ Enabled advanced semantics remain intentionally narrow:
 6. exchange BACK/LAY payout semantics are modeled separately from bookmaker quotes,
    including lay liability, visible matched liquidity and commission on positive net
    exchange-market winnings. No live exchange transport is enabled yet.
+
+## Next Phase 19 gate
+
+1. Confirm each provider permits the required local capture, retention and offline
+   replay. Do not collect or commit payloads where permission is unclear.
+2. Obtain **authorized, time-ordered observations from both sources for matching
+   events**, covering price changes, outcome loss, source skew, outages and recovery.
+   Keep raw captures and credentials outside the repository.
+3. Validate matching and normalization, then freshness, consolidation and
+   fail-closed book construction against those sequences. Record only permitted,
+   non-sensitive aggregate results and reproducible semantic digests.
+4. After correctness passes, profile on the intended deployment hardware, establish
+   measured latency/throughput targets, and recheck any optimization for parity.
+
+See [the Phase 19 baseline](docs/development/phase-19-performance-baseline.md)
+for existing measurements, limitations and commands. No real-capture data is yet
+available in the repository.
 
 ## Development
 

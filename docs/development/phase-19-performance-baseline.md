@@ -1153,6 +1153,37 @@ errors and stale-data fail-closed behavior. Only after those
 correctness checks should the currently separate p95 performance
 outlier investigation and any new optimizations resume.
 
+## Next external-data validation gate
+
+Do **not** treat the eight in-memory polls as a real-world replay. Before recording
+any new provider payload, confirm in writing or applicable provider terms that the
+specific access, local retention period, derived-data processing and offline replay
+are permitted. OddsPapi is still production-blocked by its separate rights gate.
+
+For a first paired multi-poll capture, the minimum evidence is:
+
+- independent transport/source IDs, bookmaker price-origin IDs, source event IDs,
+  matching sport/competition/participants/start time and market/outcome semantics;
+- each observation's source timestamp, local ingest timestamp, quote/selection
+  availability, status and decimal price (retained privately only where allowed);
+- consecutive polls that demonstrate price revisions, temporarily missing outcomes,
+  source skew, at least one interrupted feed and subsequent recovery;
+- explicit failure/error or absent-poll markers, distinguishing provider silence
+  from successful empty responses.
+
+Retain any permissioned raw data **locally and outside Git**; never commit API keys,
+unredacted responses, or contractual data that cannot be published. Validate
+cross-source canonical matching and settlement-equivalent market identity first,
+then rerun the production normalization, multi-source consolidation, freshness and
+market-book gates across the time-ordered observations. A mismatch or unsupported
+source semantics must remain fail-closed. Publish only approved aggregate
+measurements, validation coverage and reproducible digests. Do not infer
+execution profitability or claim a real-data pass from synthetic fixtures.
+
+**Dependency:** no legally cleared, matched sequential provider captures are present
+in the repository. New production-feed, latency or resilience claims cannot proceed
+until they exist. This does not block running the existing deterministic CI suite.
+
 ## Remaining Phase 19 work
 
 Profile the provider-pipeline, event-matching, and reference load-matrix workloads on

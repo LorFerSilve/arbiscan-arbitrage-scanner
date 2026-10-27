@@ -1551,11 +1551,20 @@ The critical architectural rule is that **provider integrations do not define th
 - `main` is protected by an active ruleset.
 - Pull requests, resolved review conversations, linear history, and squash merges are
   required for default-branch changes.
-- Phases 0 through 17 are merged to `main`.
-- Phase 18 historical replay/backtesting is implemented on its feature branch and
-  subject to the normal PR/CI merge gate.
+- Phases 0 through 18 are merged to `main`.
+- Phase 19 is **partially implemented**: synthetic performance baselines and
+  profiling-driven improvements are merged; PRs #70–#72 added fixture-backed
+  cross-provider correctness checks and deterministic simulated multi-poll replay.
+- The last completed development milestone is PR #72 (2026-10-23). The eight replay
+  polls mutate checked-in responses; they are **not real sequential feed captures**.
+- Phase 19 is not complete: its next dependency is authorized, time-ordered,
+  matching-event observations from independent providers. Validate real source-time
+  semantics, partial coverage, delayed revisions, outage/recovery and fail-closed
+  behavior before investigating remaining p95 outliers or declaring production SLOs.
+- Representative provider/load distributions, a chosen deployment target and
+  deployment-hardware measurements are still needed for Phase 19 exit criteria.
 - OddsPapi remains production-blocked by the documented rights/compliance gate.
 - The product remains scanner-only; no automated wager execution is enabled.
 
-**Next milestone after Phase 18 merge: Phase 19 — Performance and scalability
-engineering.**
+**Next milestone: complete Phase 19 real-data correctness and measured-scale
+validation before Phase 20 security hardening.**
