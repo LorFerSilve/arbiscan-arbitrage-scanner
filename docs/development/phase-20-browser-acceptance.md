@@ -19,8 +19,7 @@ arbitrage engine. Real odds and wagering remain blocked by Phase 19.
   expected quote IDs/providers/prices and the absent external evidence.
   This is **not** a real usable/guaranteed bet and all amounts are
   labeled fictional model outputs.
-- The demo uses EUR 100,01? **No:** the fixed demo bankroll is exactly
-  **EUR 100.00**; stakes use the core's EUR 0.01 increments, payouts
+- The fixed demo bankroll is **EUR 100.00**; stakes use the core's EUR 0.01 increments, payouts
   round down conservatively, and the combined stake cannot exceed
   bankroll. No trading fees, tax, bookmaker stake limits, void/abandonment
   difference or jurisdiction-specific constraints are assumed satisfied.
