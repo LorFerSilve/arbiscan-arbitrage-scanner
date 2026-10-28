@@ -167,9 +167,7 @@ def create_local_http_server(
             # Do not emit URL/query parameters or secrets into access logs.
             return
 
-        def _send_bytes(
-            self, status: HTTPStatus, data: bytes, content_type: str
-        ) -> None:
+        def _send_bytes(self, status: HTTPStatus, data: bytes, content_type: str) -> None:
             self.send_response(status)
             self.send_header("Content-Type", content_type)
             self.send_header("Content-Length", str(len(data)))
