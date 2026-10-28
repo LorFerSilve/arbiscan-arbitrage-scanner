@@ -14,7 +14,8 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from threading import Thread
 
-from playwright.sync_api import Page, expect as browser_expect, sync_playwright
+from playwright.sync_api import Page, sync_playwright
+from playwright.sync_api import expect as browser_expect
 
 from arbiscan.api.http import create_local_http_server
 from arbiscan.api.service import ArbiScanApi
