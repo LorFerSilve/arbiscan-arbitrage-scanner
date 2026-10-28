@@ -210,7 +210,7 @@ async def run_discovery(
         source = "The Odds API" if error.provider_id == odds.provider.id else "OddsPapi"
         # Source adapters return sanitized messages; expose only an HTTP code,
         # not raw provider response content or credential-bearing request URLs.
-        http_status = re.search(r"\\bHTTP ([1-5][0-9]{2})\\b", str(error))
+        http_status = re.search(r"HTTP ([1-5][0-9]{2})", str(error))
         detail = f"; HTTP {http_status.group(1)}" if http_status else ""
         print(f"Discovery stopped: {source} {error.operation} ({error.kind.value}{detail}).")
         return 1
