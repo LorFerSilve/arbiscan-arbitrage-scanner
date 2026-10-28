@@ -64,9 +64,7 @@ class ReadinessEvidence:
         return tuple(reasons)
 
 
-def quota_ready(
-    odds: RateLimitSnapshot | None, papi: RateLimitSnapshot | None
-) -> bool:
+def quota_ready(odds: RateLimitSnapshot | None, papi: RateLimitSnapshot | None) -> bool:
     """Missing/unknown balances fail closed; no quota is reserved or consumed."""
     return (
         odds is not None
@@ -116,9 +114,7 @@ class MetadataOnlyTransport:
         ):
             raise HttpTransportError("preflight blocked a non-allowlisted metadata request")
         self.attempts += 1
-        return await self.upstream.get(
-            url=url, query=query, timeout_seconds=timeout_seconds
-        )
+        return await self.upstream.get(url=url, query=query, timeout_seconds=timeout_seconds)
 
 
 class QuoteProbeSource(StrEnum):
@@ -144,9 +140,7 @@ class QuoteProbeTransport:
     ) -> None:
         if not isinstance(provider, QuoteProbeSource):
             raise ValueError("invalid quote probe provider")
-        if not isinstance(external_event_id, str) or not _EVENT_ID.fullmatch(
-            external_event_id
-        ):
+        if not isinstance(external_event_id, str) or not _EVENT_ID.fullmatch(external_event_id):
             raise ValueError("external event id must be a safe opaque identifier")
         self.provider = provider
         self.external_event_id = external_event_id
@@ -162,11 +156,13 @@ class QuoteProbeTransport:
         if not isinstance(query.get("apiKey"), str) or not query["apiKey"]:
             raise HttpTransportError("quote probe requires provider authentication")
         if self.provider is QuoteProbeSource.THE_ODDS_API:
-            expected_path = (
-                f"/v4/sports/soccer_epl/events/{self.external_event_id}/odds"
-            )
+            expected_path = f"/v4/sports/soccer_epl/events/{self.external_event_id}/odds"
             allowed = {
-                "apiKey", "regions", "markets", "dateFormat", "oddsFormat",
+                "apiKey",
+                "regions",
+                "markets",
+                "dateFormat",
+                "oddsFormat",
                 "includeSids",
             }
             permitted = (
@@ -190,9 +186,7 @@ class QuoteProbeTransport:
                 )
                 or (
                     expected_path == "/v4/odds"
-                    and set(query) == {
-                        "apiKey", "fixtureId", "oddsFormat", "language", "verbosity"
-                    }
+                    and set(query) == {"apiKey", "fixtureId", "oddsFormat", "language", "verbosity"}
                     and query["fixtureId"] == self.external_event_id
                     and query["oddsFormat"] == "decimal"
                     and query["language"] == "en"
@@ -205,9 +199,7 @@ class QuoteProbeTransport:
             raise HttpTransportError("quote probe denied route, scope or quota")
         # Reserve before forwarding: upstream failure might still consume credits.
         self.attempts[expected_path] = self.attempts.get(expected_path, 0) + 1
-        return await self.upstream.get(
-            url=url, query=query, timeout_seconds=timeout_seconds
-        )
+        return await self.upstream.get(url=url, query=query, timeout_seconds=timeout_seconds)
 
 
 async def check_unmetered_quotas(
@@ -218,18 +210,10 @@ async def check_unmetered_quotas(
     papi_upstream: AsyncHttpTransport | None = None,
 ) -> bool:
     """Use only the official unmetered quotas, without fetching events or prices."""
-    odds_transport = MetadataOnlyTransport(
-        provider="the_odds_api", upstream=odds_upstream
-    )
-    papi_transport = MetadataOnlyTransport(
-        provider="oddspapi", upstream=papi_upstream
-    )
-    odds = TheOddsApiProvider(
-        config=TheOddsApiConfig(api_key=odds_key), transport=odds_transport
-    )
-    papi = OddsPapiProvider(
-        config=OddsPapiConfig(api_key=papi_key), transport=papi_transport
-    )
+    odds_transport = MetadataOnlyTransport(provider="the_odds_api", upstream=odds_upstream)
+    papi_transport = MetadataOnlyTransport(provider="oddspapi", upstream=papi_upstream)
+    odds = TheOddsApiProvider(config=TheOddsApiConfig(api_key=odds_key), transport=odds_transport)
+    papi = OddsPapiProvider(config=OddsPapiConfig(api_key=papi_key), transport=papi_transport)
     try:
         odds_remaining = await odds.rate_limit()
         papi_remaining = await papi.rate_limit()
@@ -238,14 +222,11 @@ async def check_unmetered_quotas(
         else:
             print("Quota reserve BLOCKED: insufficient or unknown provider balances.")
         print(
-            "Quota check only: no billable routes, odds, events, prices, "
-            "persistence or arbitrage."
+            "Quota check only: no billable routes, odds, events, prices, persistence or arbitrage."
         )
         return quota_ready(odds_remaining, papi_remaining)
     except ProviderError as error:
-        source = (
-            "The Odds API" if error.provider_id == odds.provider.id else "OddsPapi"
-        )
+        source = "The Odds API" if error.provider_id == odds.provider.id else "OddsPapi"
         print(f"Quota check stopped: {source} ({error.kind.value}).")
         return False
     finally:
