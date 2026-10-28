@@ -16,9 +16,7 @@ from tests.support.oddspapi import FixtureHttpTransport
 
 
 def _adapter(sports: list[dict[str, object]]) -> OddsPapiProvider:
-    transport = FixtureHttpTransport(
-        body_overrides={"/sports": json.dumps(sports).encode("utf-8")}
-    )
+    transport = FixtureHttpTransport(body_overrides={"/sports": json.dumps(sports).encode("utf-8")})
     return OddsPapiProvider(
         config=OddsPapiConfig(api_key="synthetic-not-a-secret"),
         transport=transport,
@@ -78,9 +76,7 @@ def test_known_football_slug_still_rejects_missing_display_name() -> None:
 
 
 def test_unknown_slug_cannot_hide_missing_identity() -> None:
-    sports = _catalogue_with_bad_unmapped_record(
-        {"sportId": 999, "slug": None, "sportName": None}
-    )
+    sports = _catalogue_with_bad_unmapped_record({"sportId": 999, "slug": None, "sportName": None})
     adapter = _adapter(sports)
     try:
         asyncio.run(adapter.discover_competitions(Sport.FOOTBALL))
