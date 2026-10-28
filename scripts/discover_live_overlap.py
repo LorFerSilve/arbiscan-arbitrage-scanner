@@ -147,9 +147,9 @@ async def run_discovery(
         upstream=papi_upstream,
     )
     odds = TheOddsApiProvider(config=TheOddsApiConfig(api_key=odds_key), transport=odds_transport)
-    papi = None if odds_only else OddsPapiProvider(
-        config=OddsPapiConfig(api_key=papi_key), transport=papi_transport
-    )
+    papi: OddsPapiProvider | None = None
+    if not odds_only:
+        papi = OddsPapiProvider(config=OddsPapiConfig(api_key=papi_key), transport=papi_transport)
     now = datetime.now(UTC)
     ends = now + timedelta(days=7)
 
