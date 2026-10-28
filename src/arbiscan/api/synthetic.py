@@ -6,14 +6,15 @@ accidentally present a real, unverified football fixture as actionable.
 
 from __future__ import annotations
 
-from arbiscan.api.demo_stakes import calculate_demo_projection
 from arbiscan.api.contracts import (
     EventSummaryResponse,
     OddsResponse,
     OpportunityDetailResponse,
+    OpportunitySummaryResponse,
     ProviderStatusResponse,
     SportResponse,
 )
+from arbiscan.api.demo_stakes import calculate_demo_projection
 
 _DEMO_EVENT = EventSummaryResponse(
     event_id="synthetic-event-1",
