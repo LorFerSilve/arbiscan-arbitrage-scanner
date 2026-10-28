@@ -284,15 +284,15 @@ async function openDetails(id) {
       " · " + stampText(event?.scheduled_start) + " · SYNTHETISCHE DEMO"),
   );
   const warning = node("div", "drawer-note");
-  append(warning, node("strong", "", "Geen gevalideerde inzetmogelijkheid"),
-    node("span", "", "Deze odds en ROI zijn fictief. De backend heeft geen uitvoerbaar inzetplan aangeleverd; inzet, uitbetaling en gegarandeerde winst worden daarom niet verzonnen."));
+  append(warning, node("strong", "", "Synthetisch scenario — niet uitvoerbaar"),
+    node("span", "", "De prijzen zijn fictief. Alleen een door Python geleverd inzetplan mag hieronder worden weergegeven. Geen aanbieder of settlement is voor live handel goedgekeurd."));
   content.append(warning);
   content.append(detailCard("Markt & analyse", [
     ["Markt-ID", opp.market_id],
     ["Theoretische ROI", pctText(opp.guaranteed_profit_rate)],
     ["Impliciete som", opp.implied_probability_sum],
     ["Gedetecteerd", stampText(opp.detected_at)],
-    ["Inzetplan", "Niet beschikbaar"],
+    ["Inzetplan", "Synthetisch — details laden"],
     ["Status", "NIET UITVOERBAAR / DEMO"],
   ]));
   const card = append(node("section", "drawer-card"), node("h3", "", "Quotes en herkomst"));
@@ -311,6 +311,46 @@ async function openDetails(id) {
   try {
     const detail = await requestJson(API + "/opportunities/" + encodeURIComponent(id));
     if (state.selected !== id) return;
+    const plan = detail.stake_plan;
+    const validMoney = (value) => typeof value === "string" && /^\d+(?:\.\d{1,2})?$/.test(value);
+    const safePlan = plan && plan.synthetic === true && plan.currency === "EUR" &&
+      ["bankroll", "total_staked", "guaranteed_payout", "guaranteed_profit"].every(
+        (key) => validMoney(plan[key])) &&
+      Array.isArray(plan.allocations) && plan.allocations.length === 3 &&
+      Array.isArray(plan.assumptions) && !detail.evidence_available;
+    if (safePlan) {
+      content.append(detailCard("Python-berekening · fictieve €100", [
+        ["Rekenbudget", plan.bankroll + " " + plan.currency],
+        ["Totale inzet", plan.total_staked + " " + plan.currency],
+        ["Minimale modeluitbetaling", plan.guaranteed_payout + " " + plan.currency],
+        ["Modelwinst na afronding", plan.guaranteed_profit + " " + plan.currency],
+        ["Uitvoerbaarheid", "NIET UITVOERBAAR · SYNTHETISCH"],
+      ]));
+      const legs = append(node("section", "drawer-card"), node("h3", "", "Inzet per uitkomst (Python)"));
+      for (const leg of plan.allocations) {
+        if (!validMoney(leg.stake) || !validMoney(leg.expected_payout) ||
+            !state.quotes.some((q) => q.quote_id === leg.quote_id &&
+              q.selection_id === leg.selection_id && q.provider_id === leg.provider_id &&
+              q.decimal_price === leg.decimal_price && quoteMatches(opp, q))) {
+          legs.replaceChildren(node("p", "muted-line", "Inconsistente backendprojectie; inzetplan verborgen."));
+          break;
+        }
+        const left = append(node("div"), node("strong", "", leg.selection_id),
+          node("span", "", leg.provider_id + " · odds " + leg.decimal_price),
+          node("small", "", "Modeluitbetaling: " + leg.expected_payout + " EUR"));
+        legs.append(append(node("div", "drawer-leg"), left, node("b", "", leg.stake + " EUR")));
+      }
+      content.append(legs);
+      const assumptions = append(node("section", "drawer-card"), node("h3", "", "Modelaannames"));
+      const list = node("ul", "drawer-assumptions");
+      for (const assumption of plan.assumptions) list.append(node("li", "", assumption));
+      assumptions.append(list);
+      content.append(assumptions);
+    } else {
+      content.append(detailCard("Inzetverdeling", [
+        ["Status", "Geen geldig door Python berekend fictief inzetplan beschikbaar"],
+      ]));
+    }
     const evidence = Boolean(detail.evidence_available);
     content.append(detailCard("Verificatie", [
       ["Bewijsmateriaal", evidence ? "Beschikbaar" : "Niet beschikbaar"],

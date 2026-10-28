@@ -121,6 +121,25 @@ and a backend-first stake projection where justified.
 
 See [Phase 20.2 launch and UI security](docs/development/phase-20-browser-dashboard.md).
 
+### Phase 20.3: browser acceptance and backend-calculated demo stake plan
+
+The browser now shows a **synthetic EUR 100 stake plan** computed by
+ArbiScan's existing Python arbitrage and allocation engine, including
+individual stakes, conservatively rounded payouts, model profit and
+explicit assumptions. **The amounts are fictional, not actionable.**
+The UI never recomputes stake amounts in JavaScript.
+
+CI also runs **actual Chromium browser acceptance** on desktop/mobile
+viewports, filters, detail navigation, failed-refresh handling and
+external-request blocking. No provider API requests are made.
+
+```powershell
+uv run python -m scripts.serve_dashboard_api --demo
+uv run --with pytest==9.1.1 pytest tests/unit/test_phase20_stake_projection.py
+```
+
+See [Phase 20.3 testing and accessibility checklist](docs/development/phase-20-browser-acceptance.md).
+
 ## Current market scope
 
 Enabled advanced semantics remain intentionally narrow:

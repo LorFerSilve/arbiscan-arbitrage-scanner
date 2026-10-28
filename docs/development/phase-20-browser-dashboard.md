@@ -94,6 +94,15 @@ A different loopback port is supported with `--port 8010`.
 - Browser actions are data reads or local filters, not provider
   commands or state-changing endpoints.
 
+**Phase 20.3 update:** the detail drawer can now render a synthetic
+stake projection **only** when the Python backend supplies an explicit
+`synthetic=true` plan, matching expected quote IDs and odds. It
+shows the model's stake per outcome, conservatively rounded expected
+payout, total staked, minimum model payout and model profit with
+assumptions. No live stake plan is ever inferred. Chromium E2E
+coverage and Windows manual accessibility checks are documented in
+[Phase 20.3 browser acceptance](phase-20-browser-acceptance.md).
+
 ## Tests and remaining work
 
 ```powershell

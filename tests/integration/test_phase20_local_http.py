@@ -192,9 +192,17 @@ def test_opportunity_detail_uses_phase13_model_and_marks_evidence_missing() -> N
     with _server(demo=True) as port:
         status, detail, _ = _request(port, "/api/v1/opportunities/synthetic-opportunity-1")
         assert status == 200
-        assert detail["opportunity"]["implied_probability_sum"] == "0.90"
+        assert float(detail["opportunity"]["implied_probability_sum"]) == 0.9
         assert len(detail["quote_ids"]) == 3
         assert detail["evidence_available"] is False
+        plan = detail["stake_plan"]
+        assert plan["synthetic"] is True
+        assert plan["currency"] == "EUR"
+        assert plan["bankroll"] == "100.00"
+        assert len(plan["allocations"]) == 3
+        assert 0 < float(plan["total_staked"]) <= 100.00
+        assert float(plan["guaranteed_profit"]) > 0
+        assert "Geen transactiekosten" in " ".join(plan["assumptions"])
         status, error, _ = _request(port, "/api/v1/opportunities/not-present")
         assert status == 404
         assert error["code"] == "not_found"
