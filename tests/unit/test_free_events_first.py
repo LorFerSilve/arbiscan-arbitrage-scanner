@@ -133,4 +133,3 @@ def test_local_window_filters_out_past_and_future_events() -> None:
         "middle",
         "end",
     )
-
