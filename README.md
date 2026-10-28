@@ -168,6 +168,25 @@ candidate rather than guessing. One-to-one candidates are **not canonical
 event matching proof**; source event identity and settlement semantics must
 still be verified before a later controlled odds comparison.
 
+### Phase 19: football 1X2 market-side and settlement contract
+
+The offline Phase-19 rules now explicitly recognize OddsPapi **soccer market
+101**, outcome **101=home**, **102=draw**, **103=away**, and
+`fulltime` as the **regulation-time** result. All other 1X2 market variants
+fail closed unless separately approved. The code can check 90-minute score
+consistency against a complete WIN/LOSE settlement triplet, but does not
+make any provider requests to do so. The OddsPapi fixture
+`participant1/participant2` fields are not treated as an independently
+verified home/away ordering, nor as proof of any bookmaker's void rules.
+**No automatic odds comparison or quote authorization is enabled.**
+Read [the Phase-19 1X2 contract](docs/markets/football-1x2-identity-settlement.md).
+
+To test the source contract offline (without installing pytest permanently):
+
+```text
+uv run --with pytest==9.1.1 pytest tests/unit/test_football_1x2_semantics.py tests/unit/test_phase19_canonical_event_validation.py
+```
+
 ### Phase 19: read-only canonical identity review
 
 After the discovery candidate lines, the same bounded script now performs a
