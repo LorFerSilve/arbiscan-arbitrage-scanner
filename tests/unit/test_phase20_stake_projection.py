@@ -5,11 +5,12 @@ from __future__ import annotations
 from dataclasses import replace
 from decimal import Decimal
 
+from arbiscan.api.contracts import OpportunityDetailResponse
 from arbiscan.api.demo_stakes import calculate_demo_projection
 from arbiscan.api.synthetic import SyntheticApiDataSource
 
 
-def _fixture():
+def _fixture() -> tuple[SyntheticApiDataSource, OpportunityDetailResponse]:
     source = SyntheticApiDataSource(demo=True)
     detail = source.opportunity("synthetic-opportunity-1")
     assert detail is not None
