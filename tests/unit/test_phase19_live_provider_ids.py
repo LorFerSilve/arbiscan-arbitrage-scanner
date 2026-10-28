@@ -82,9 +82,7 @@ class _OddsEventsTransport:
                 headers={"x-requests-remaining": "400", "x-requests-used": "0"},
                 body=json.dumps(self.events).encode("utf-8"),
             )
-        return await self.fixture.get(
-            url=url, query=query, timeout_seconds=timeout_seconds
-        )
+        return await self.fixture.get(url=url, query=query, timeout_seconds=timeout_seconds)
 
 
 def _raw_odds_event(*, home: str = "Chelsea", away: str = "Manchester United") -> dict[str, object]:
@@ -98,7 +96,9 @@ def _raw_odds_event(*, home: str = "Chelsea", away: str = "Manchester United") -
     }
 
 
-def _raw_papi_event(*, participant1: str = "Chelsea FC", participant2: str = "Manchester United") -> dict[str, object]:
+def _raw_papi_event(
+    *, participant1: str = "Chelsea FC", participant2: str = "Manchester United"
+) -> dict[str, object]:
     return {
         "fixtureId": "id1000001761309999",
         "participant1Id": 35,
@@ -142,7 +142,12 @@ def _run(
 
 
 def test_official_reference_reports_real_source_ids_without_quote_approval() -> None:
-    a = _event(odds=True, source_id="real-odds-api-123", home_id="name:Chelsea", away_id="name:Manchester United")
+    a = _event(
+        odds=True,
+        source_id="real-odds-api-123",
+        home_id="name:Chelsea",
+        away_id="name:Manchester United",
+    )
     b = _event(odds=False, source_id="id1000001761309999")
     review = validate_epl_identity(_ODDS_COMP, (a,), _PAPI_COMP, (b,))
     report = observed_provider_ids_for_official_fixture(review)
@@ -194,7 +199,10 @@ def test_live_metadata_inspection_success_is_three_calls_and_zero_odds() -> None
     assert "secret-papi-key" not in output
     assert len([call for call in odds.calls if call.endswith("/events")]) == 1
     assert [item.path for item in papi.requests] == [
-        "/account", "/sports", "/tournaments", "/fixtures"
+        "/account",
+        "/sports",
+        "/tournaments",
+        "/fixtures",
     ]
 
 
