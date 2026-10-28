@@ -4,6 +4,7 @@ from decimal import Decimal
 from typing import cast
 
 from arbiscan.domain import MarketKind, MarketPeriod, ParticipantId, Sport
+from arbiscan.domain.football_1x2_contract import is_documented_oddspapi_football_1x2
 from arbiscan.normalization.football_1x2 import (
     FOOTBALL_REGULATION_1X2,
     FixtureSideAlignment,
@@ -11,7 +12,6 @@ from arbiscan.normalization.football_1x2 import (
     assess_oddspapi_fixture_order,
     consistent_oddspapi_regulation_1x2_settlement,
     football_regulation_1x2_winner,
-    is_documented_oddspapi_football_1x2,
     oddspapi_1x2_side,
     the_odds_api_soccer_h2h_sides,
 )
