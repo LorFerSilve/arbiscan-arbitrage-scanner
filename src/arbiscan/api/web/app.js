@@ -312,7 +312,7 @@ async function openDetails(id) {
     const detail = await requestJson(API + "/opportunities/" + encodeURIComponent(id));
     if (state.selected !== id) return;
     const plan = detail.stake_plan;
-    const validMoney = (value) => typeof value === "string" && /^\\d+(?:\\.\\d{1,2})?$/.test(value);
+    const validMoney = (value) => typeof value === "string" && /^\d+(?:\.\d{1,2})?$/.test(value);
     const safePlan = plan && plan.synthetic === true && plan.currency === "EUR" &&
       ["bankroll", "total_staked", "guaranteed_payout", "guaranteed_profit"].every(
         (key) => validMoney(plan[key])) &&
