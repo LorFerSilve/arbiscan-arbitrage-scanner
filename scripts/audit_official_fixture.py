@@ -17,8 +17,7 @@ from scripts.validate_epl_identity import CanonicalReview
 
 OFFICIAL_MATCH_ID = "2645278"
 OFFICIAL_MATCH_URL = (
-    "https://www.premierleague.com/en/match/2645278/"
-    "chelsea-vs-manchester-united/info"
+    "https://www.premierleague.com/en/match/2645278/chelsea-vs-manchester-united/info"
 )
 OFFICIAL_HOME = "Chelsea"
 OFFICIAL_AWAY = "Manchester United"
@@ -91,9 +90,7 @@ def audit_official_chelsea_manchester_united(
     Do not call with arbitrary unreviewed pairs to authorize event identity.
     """
     pairs = tuple(
-        (odds, papi)
-        for odds, papi in review.provisional_pairs
-        if _odds_matches_official(odds)
+        (odds, papi) for odds, papi in review.provisional_pairs if _odds_matches_official(odds)
     )
     if len(pairs) != 1:
         return IndependentFixtureAudit(
