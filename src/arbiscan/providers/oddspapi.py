@@ -11,7 +11,7 @@ from decimal import Decimal, InvalidOperation
 from types import MappingProxyType
 
 from arbiscan.domain import Provider, ProviderId, ProviderKind, Sport
-from arbiscan.normalization.football_1x2 import is_documented_oddspapi_football_1x2
+from arbiscan.domain.football_1x2_contract import is_documented_oddspapi_football_1x2
 from arbiscan.observability.provider import (
     NullProviderTelemetry,
     ProviderTelemetryEvent,
