@@ -119,10 +119,16 @@ def _entry_review(gate: str, entry: dict[str, object]) -> GateFinding:
     missing = tuple(
         field
         for field in mandatory
-        if not (_valid_date(entry.get(field)) if field in {"received_on", "reviewed_on"} else _string_field(entry, field))
+        if not (
+            _valid_date(entry.get(field))
+            if field in {"received_on", "reviewed_on"}
+            else _string_field(entry, field)
+        )
     )
     if missing:
-        return GateFinding(gate, ReviewState.INCOMPLETE, missing, "Required review metadata is absent.")
+        return GateFinding(
+            gate, ReviewState.INCOMPLETE, missing, "Required review metadata is absent."
+        )
     if entry["issuer"] != _EXPECTED_ISSUERS[gate]:
         return GateFinding(
             gate, ReviewState.CONFLICT, (), "Issuer does not match the gate's required source."
@@ -132,8 +138,7 @@ def _entry_review(gate: str, entry: dict[str, object]) -> GateFinding:
             gate, ReviewState.CONFLICT, (), "Evidence channel is not an accepted primary source."
         )
     if gate == "bookmaker_settlement" and (
-        entry["bookmaker_slug"] != "pinnacle"
-        or entry["market_name"] != "soccer_regulation_1x2"
+        entry["bookmaker_slug"] != "pinnacle" or entry["market_name"] != "soccer_regulation_1x2"
     ):
         return GateFinding(
             gate, ReviewState.CONFLICT, (), "Bookmaker or market scope does not match the audit."
@@ -143,9 +148,7 @@ def _entry_review(gate: str, entry: dict[str, object]) -> GateFinding:
             gate, ReviewState.CONFLICT, (), "A different sport cannot establish soccer roles."
         )
     if gate == "oddspapi_data_rights" and entry["jurisdiction"] != "Belgium":
-        return GateFinding(
-            gate, ReviewState.CONFLICT, (), "Data-use jurisdiction is not Belgium."
-        )
+        return GateFinding(gate, ReviewState.CONFLICT, (), "Data-use jurisdiction is not Belgium.")
     # Human assessment of the actual message and bookmaker quote is mandatory.
     return GateFinding(
         gate,
@@ -210,7 +213,9 @@ def main() -> int:
         return 0
     try:
         audit = (
-            read_local_packet(args.packet) if args.packet is not None else review_packet(empty_packet())
+            read_local_packet(args.packet)
+            if args.packet is not None
+            else review_packet(empty_packet())
         )
     except (ValueError, OSError):
         print("Evidence packet invalid or unsafe; no gate can be advanced.")
