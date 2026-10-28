@@ -47,6 +47,71 @@ def _request(
         connection.close()
 
 
+def _raw_request(
+    port: int, path: str, *, headers: dict[str, str] | None = None
+) -> tuple[int, bytes, dict[str, str]]:
+    connection = HTTPConnection("127.0.0.1", port, timeout=3)
+    try:
+        connection.request("GET", path, headers=headers or {})
+        response = connection.getresponse()
+        return response.status, response.read(), dict(response.getheaders())
+    finally:
+        connection.close()
+
+
+def test_dashboard_assets_are_local_read_only_and_csp_protected() -> None:
+    with _server(demo=True) as port:
+        status, html, headers = _raw_request(port, "/")
+        assert status == 200
+        assert headers["Content-Type"].startswith("text/html")
+        assert headers["Cache-Control"] == "no-store"
+        assert headers["X-Frame-Options"] == "DENY"
+        assert headers["X-Arbiscan-Data-Mode"] == "synthetic"
+        csp = headers["Content-Security-Policy"]
+        assert "default-src 'none'" in csp
+        assert "script-src 'self'" in csp
+        assert "connect-src 'self'" in csp
+        assert "unsafe-inline" not in csp
+        assert b"/assets/styles.css" in html
+        assert b"/assets/app.js" in html
+        assert b'id="opportunity-rows"' in html
+        assert b'id="detail-drawer"' in html
+        assert b'id="provider-filter"' in html
+
+        css_status, css, css_headers = _raw_request(port, "/assets/styles.css")
+        assert css_status == 200
+        assert css_headers["Content-Type"].startswith("text/css")
+        assert b"@media(max-width:680px)" in css
+        js_status, js, js_headers = _raw_request(port, "/assets/app.js")
+        assert js_status == 200
+        assert js_headers["Content-Type"].startswith("text/javascript")
+        assert b"fetch(path" in js
+        assert b"textContent" in js
+        assert b"innerHTML" not in js.replace(b"never innerHTML", b"")
+        assert b"window.location = " not in js
+        assert b"THE_ODDS_API_KEY" not in js
+        assert b"ODDSPAPI_API_KEY" not in js
+
+
+def test_web_asset_allowlist_rejects_traversal_query_and_host_spoofing() -> None:
+    with _server(demo=True) as port:
+        for path in (
+            "/assets/secrets.env",
+            "/assets/app.js.bak",
+            "/robots.txt",
+        ):
+            assert _request(port, path)[0] == 404
+        for path in (
+            "/assets/%2e%2e/app.js",
+            "/assets/styles.css?debug=1",
+            "/?mode=live",
+        ):
+            assert _request(port, path)[0] == 400
+        for path in ("/", "/assets/styles.css", "/assets/app.js"):
+            status, _, _ = _raw_request(port, path, headers={"Host": "evil.example"})
+            assert status == 403
+
+
 def test_empty_server_exposes_only_read_only_unready_contract() -> None:
     with _server() as port:
         for path in (
@@ -71,9 +136,11 @@ def test_empty_server_exposes_only_read_only_unready_contract() -> None:
 
 def test_status_health_and_openapi_are_versioned_and_explicit_about_demo() -> None:
     with _server(demo=True) as port:
-        root = _request(port, "/")[1]
-        assert root["data_mode"] == "synthetic"
-        assert "Phase 20.2" in root["browser_dashboard"]
+        root_status, html, headers = _raw_request(port, "/")
+        assert root_status == 200
+        assert b"ArbiScan" in html
+        assert b"/assets/app.js" in html
+        assert headers["X-Arbiscan-Data-Mode"] == "synthetic"
         assert _request(port, "/api/v1/health")[1] == {
             "status": "ok",
             "version": "test-1",

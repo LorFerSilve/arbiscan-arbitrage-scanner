@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta name="description" content="ArbiScan lokale, read-only scanner monitoring interface">
+  <title>ArbiScan — Dashboard</title>
+  <link rel="stylesheet" href="/assets/styles.css">
+  <script src="/assets/app.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Naar hoofdinhoud</a>
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="Hoofdnavigatie">
+      <a class="brand" href="#top" aria-label="ArbiScan overzicht">
+        <span class="brand-symbol" aria-hidden="true"><span></span><span></span><span></span></span>
+        <span class="brand-name">arbi<span>scan</span><small>INTELLIGENCE TERMINAL</small></span>
+      </a>
+      <div class="side-group">
+        <p class="side-label">WORKSPACE</p>
+        <nav class="nav" aria-label="Secties">
+          <a class="nav-link active" href="#top"><span class="nav-symbol" aria-hidden="true">◫</span> Overzicht</a>
+          <a class="nav-link" href="#opportunities"><span class="nav-symbol" aria-hidden="true">≋</span> Kansen</a>
+          <a class="nav-link" href="#events"><span class="nav-symbol" aria-hidden="true">◈</span> Wedstrijden</a>
+          <a class="nav-link" href="#providers"><span class="nav-symbol" aria-hidden="true">◎</span> Providers</a>
+        </nav>
+      </div>
+      <div class="sidebar-bottom">
+        <div class="local-panel">
+          <span class="local-icon" aria-hidden="true">⌁</span>
+          <div><strong>Lokale omgeving</strong><span>Read-only • 127.0.0.1</span></div>
+        </div>
+        <div class="sidebar-foot">ArbiScan <span id="app-version">v—</span><span class="foot-dot">·</span> Phase 20.2</div>
+      </div>
+    </aside>
+
+    <div class="workspace" id="top">
+      <header class="topbar">
+        <div class="breadcrumb">Workspace <span>/</span> <strong>Overzicht</strong></div>
+        <div class="top-actions">
+          <span class="top-mode" id="top-mode">Verbinding controleren</span>
+          <span class="top-separator"></span>
+          <span class="clock" id="local-time" aria-label="Lokale tijd">—</span>
+          <button type="button" class="refresh-button" id="refresh" aria-label="Ververs dashboardgegevens"><span aria-hidden="true">↻</span> Vernieuwen</button>
+        </div>
+      </header>
+
+      <main id="main" class="main-content">
+        <section class="hero" aria-labelledby="welcome-title">
+          <div class="hero-copy">
+            <div class="eyebrow"><span class="eyebrow-mark"></span> SCANNER CONTROL CENTER <span class="eyebrow-line"></span> 20.2</div>
+            <h1 id="welcome-title">Goed overzicht.<br><span>Betere beslissingen.</span></h1>
+            <p>Monitoring, kansen en providerstatus op één plaats. De browser toont alleen gegevens uit de lokale Python-API.</p>
+            <div class="hero-actions">
+              <a href="#opportunities" class="primary-link">Bekijk kansen <span aria-hidden="true">↗</span></a>
+              <a href="#providers" class="secondary-link">Systeemstatus <span aria-hidden="true">→</span></a>
+            </div>
+          </div>
+          <div class="hero-visual" aria-hidden="true">
+            <div class="orbit orbit-one"></div><div class="orbit orbit-two"></div><div class="orbit orbit-three"></div>
+            <div class="visual-core"><span class="core-bars"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><strong>A/S</strong><span>SCANNER</span></div>
+            <span class="orbit-point point-a"></span><span class="orbit-point point-b"></span><span class="orbit-point point-c"></span>
+          </div>
+        </section>
+
+        <section class="notice" id="data-notice" role="status" aria-live="polite">
+          <div class="notice-icon" aria-hidden="true">i</div>
+          <div class="notice-content"><strong id="notice-title">Gegevensbron controleren</strong><p id="notice-text">Het dashboard leest de lokale API.</p></div>
+          <span class="notice-tag" id="notice-tag">CHECK</span>
+        </section>
+
+        <div class="section-intro">
+          <div><p class="kicker">REALTIME OVERVIEW</p><h2>In één oogopslag</h2></div>
+          <span class="last-update" id="last-update">Nog niet vernieuwd</span>
+        </div>
+        <section class="stat-grid" aria-label="Kernstatistieken">
+          <article class="stat-card"><div class="stat-top"><span>Geverifieerde live kansen</span><span class="stat-icon">↗</span></div><strong class="stat-value" id="metric-actionable">—</strong><span class="stat-meta" id="metric-actionable-note">Live toegang geblokkeerd</span></article>
+          <article class="stat-card"><div class="stat-top"><span>Demonstratiekansen</span><span class="stat-icon">▤</span></div><strong class="stat-value" id="metric-demo">—</strong><span class="stat-meta" id="metric-demo-note">Afhankelijk van modus</span></article>
+          <article class="stat-card"><div class="stat-top"><span>Wedstrijden</span><span class="stat-icon">◈</span></div><strong class="stat-value" id="metric-events">—</strong><span class="stat-meta">Uit de lokale API</span></article>
+          <article class="stat-card"><div class="stat-top"><span>Providerverbindingen</span><span class="stat-icon">◎</span></div><strong class="stat-value" id="metric-providers">—</strong><span class="stat-meta" id="metric-provider-note">Niet verbonden met live feeds</span></article>
+        </section>
+
+        <section class="section-panel opportunities-panel" id="opportunities" aria-labelledby="opportunities-title">
+          <div class="panel-heading">
+            <div><p class="kicker">MARKET MONITOR</p><h2 id="opportunities-title">Arbitragemogelijkheden</h2><p>Onderzoek de door de backend aangeleverde kansen. Geen weddenschappen mogelijk.</p></div>
+            <span class="count-chip" id="opp-count">— resultaten</span>
+          </div>
+          <div class="filter-bar" role="group" aria-label="Filter arbitragemogelijkheden">
+            <label class="field search-field"><span>Zoeken</span><input type="search" id="search" autocomplete="off" placeholder="Wedstrijd, competitie, markt…" aria-label="Zoek wedstrijd of markt"></label>
+            <label class="field"><span>Sport</span><select id="sport-filter"><option value="">Alle sporten</option></select></label>
+            <label class="field"><span>Provider</span><select id="provider-filter"><option value="">Alle providers</option></select></label>
+            <label class="field roi-field"><span>Min. ROI (%)</span><input id="min-roi" type="number" step="0.1" min="0" max="1000" placeholder="0"></label>
+            <label class="field"><span>Sorteren</span><select id="sort"><option value="roi">Hoogste ROI</option><option value="date">Detectietijd</option><option value="match">Wedstrijd A–Z</option></select></label>
+          </div>
+          <div class="table-scroll">
+            <table class="data-table"><thead><tr><th>WEDSTRIJD / COMPETITIE</th><th>MARKT</th><th>ROI (THEORETISCH)</th><th>STATUS</th><th class="align-right">DETAILS</th></tr></thead><tbody id="opportunity-rows"><tr><td colspan="5" class="table-placeholder">Gegevens laden…</td></tr></tbody></table>
+          </div>
+          <div class="empty-block" id="opportunity-empty" hidden><span class="empty-icon" aria-hidden="true">∅</span><h3>Geen kansen gevonden</h3><p>Er zijn momenteel geen kansen die aan deze filters voldoen. In lege modus worden geen kansen verzonnen.</p></div>
+          <div class="panel-footer"><span id="table-description">Alleen-lezen gegevens uit de Python-backend</span><span class="footer-mark">ARBISCAN / DATA MONITOR</span></div>
+        </section>
+
+        <div class="lower-grid">
+          <section class="section-panel mini-panel" id="events" aria-labelledby="events-title">
+            <div class="panel-heading compact"><div><p class="kicker">COVERAGE</p><h2 id="events-title">Wedstrijden</h2></div><span class="count-chip" id="events-count">—</span></div>
+            <div id="event-list" class="entity-list"><p class="muted-line">Gegevens laden…</p></div>
+          </section>
+          <section class="section-panel mini-panel" id="providers" aria-labelledby="providers-title">
+            <div class="panel-heading compact"><div><p class="kicker">SYSTEM HEALTH</p><h2 id="providers-title">Providerstatus</h2></div><span class="count-chip" id="providers-count">—</span></div>
+            <div id="provider-list" class="entity-list"><p class="muted-line">Gegevens laden…</p></div>
+            <div class="system-foot"><span class="status-indicator" id="readiness-dot"></span><span id="readiness-text">Readiness controleren…</span></div>
+          </section>
+        </div>
+        <footer class="page-footer"><span>ArbiScan · Local intelligence terminal</span><span>Scanner-only · Geen uitvoering van weddenschappen</span></footer>
+      </main>
+    </div>
+  </div>
+
+  <div class="drawer-backdrop" id="drawer-backdrop" hidden></div>
+  <aside class="drawer" id="detail-drawer" role="dialog" aria-modal="true" aria-labelledby="drawer-title" hidden>
+    <div class="drawer-header"><span class="kicker">OPPORTUNITY INSPECTOR</span><button type="button" class="icon-button" id="close-detail" aria-label="Sluit details">✕</button></div>
+    <div id="drawer-content" class="drawer-body"><h2 id="drawer-title">Details</h2></div>
+  </aside>
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+</body>
+</html>

@@ -29,6 +29,18 @@ authorization, credentials or new application-level calculations.
 See [local HTTP API setup and tests](../development/phase-20-local-http-api.md).
 **Phase 20.2's real HTML/CSS/JavaScript browser UI is still pending.**
 
+**Phase 20.2 delivery (2026-10-28):** Responsive, same-origin
+HTML/CSS/vanilla-JS browser UI is implemented at `http://127.0.0.1:8000/`
+with a synthetic banner, overview, search/sport/provider/minimum-ROI
+filters, opportunity inspector, events and provider health. It uses
+the existing API exclusively, performs no paid provider calls and
+does not fabricate backend stake plans. Documentation:
+[Phase 20.2 browser dashboard](../development/phase-20-browser-dashboard.md).
+
+**Next acceptance milestone:** Phase 20.3 deeper browser and accessibility
+testing and backed-by-the-engine stake projections. Real data
+integration remains separately gated by Phase 19 verification.
+
 ## Delivery order
 
 ### 20.1 — Read-only HTTP and user-flow contract

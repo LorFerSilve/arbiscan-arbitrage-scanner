@@ -9,6 +9,14 @@ standard-library `ThreadingHTTPServer`. Provider ingestion, actual bookmaker
 odds, historical persistence, bet placement, and live scanning are all
 deliberately **unavailable** through this local demonstration server.
 
+**Phase 20.2 follow-up:** the HTML/CSS/JavaScript browser UI is now
+served at `/` instead of the Phase 20.1 JSON landing document.
+The GET JSON API routes remain under `/api/v1`; the root HTML
+has `script-src 'self'`, `style-src 'self'` and `connect-src 'self'`
+CSP directives and the server exposes only
+`/assets/styles.css` and `/assets/app.js` as static assets.
+See [the browser-dashboard guide](phase-20-browser-dashboard.md).
+
 ## Start on Windows PowerShell
 
 Run in the Arbiscan project root:

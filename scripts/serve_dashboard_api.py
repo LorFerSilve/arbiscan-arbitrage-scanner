@@ -1,7 +1,7 @@
-"""Start the Phase 20.1 localhost-only, read-only ArbiScan JSON API.
+"""Start the local Phase 20.2 ArbiScan dashboard and read-only Python API.
 
 No credentials or live provider calls. Demo fixtures require explicit --demo.
-The full interactive browser dashboard is scheduled for Phase 20.2.
+Open http://127.0.0.1:8000/ in a browser (default empty data mode).
 """
 
 from __future__ import annotations
@@ -32,7 +32,7 @@ def main() -> int:
     mode = "synthetic" if args.demo else "empty"
     with create_local_http_server(api=api, mode=mode, version=VERSION, port=args.port) as server:
         print(
-            f"ArbiScan Phase 20.1: http://127.0.0.1:{server.server_port}/ "
+            f"ArbiScan dashboard Phase 20.2: http://127.0.0.1:{server.server_port}/ "
             f"(data_mode={mode}; only local GET requests)",
             flush=True,
         )
