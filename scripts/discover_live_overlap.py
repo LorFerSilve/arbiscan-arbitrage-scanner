@@ -32,9 +32,7 @@ from arbiscan.providers import (
 THE_ODDS_HOST = "api.the-odds-api.com"
 ODDSPAPI_HOST = "api.oddspapi.io"
 ODDS_FREE_ROUTES = frozenset({"/v4/sports", "/v4/sports/soccer_epl/events"})
-PAPI_DISCOVERY_ROUTES = frozenset(
-    {"/v4/account", "/v4/sports", "/v4/tournaments", "/v4/fixtures"}
-)
+PAPI_DISCOVERY_ROUTES = frozenset({"/v4/account", "/v4/sports", "/v4/tournaments", "/v4/fixtures"})
 PAPI_PAID_ROUTES = frozenset({"/v4/sports", "/v4/tournaments", "/v4/fixtures"})
 PAPI_BUDGET = 3
 START_TOLERANCE = timedelta(minutes=5)
@@ -76,9 +74,7 @@ class DiscoveryOnlyTransport:
                 raise HttpTransportError("live discovery quota cap reached")
             # Count even failed/timeout calls: OddsPapi may bill errors.
             self.billable_attempts += 1
-        return await self.upstream.get(
-            url=url, query=query, timeout_seconds=timeout_seconds
-        )
+        return await self.upstream.get(url=url, query=query, timeout_seconds=timeout_seconds)
 
 
 def _england_premier_league(
@@ -141,12 +137,8 @@ async def run_discovery(odds_key: str, papi_key: str) -> int:
         billable_routes=PAPI_PAID_ROUTES,
         max_billable=PAPI_BUDGET,
     )
-    odds = TheOddsApiProvider(
-        config=TheOddsApiConfig(api_key=odds_key), transport=odds_transport
-    )
-    papi = OddsPapiProvider(
-        config=OddsPapiConfig(api_key=papi_key), transport=papi_transport
-    )
+    odds = TheOddsApiProvider(config=TheOddsApiConfig(api_key=odds_key), transport=odds_transport)
+    papi = OddsPapiProvider(config=OddsPapiConfig(api_key=papi_key), transport=papi_transport)
     now = datetime.now(UTC)
     ends = now + timedelta(days=7)
 
@@ -164,9 +156,7 @@ async def run_discovery(odds_key: str, papi_key: str) -> int:
             return 1
 
         odds_competitions = await odds.discover_competitions(Sport.FOOTBALL)
-        api_league = next(
-            (x for x in odds_competitions if x.external_id == "soccer_epl"), None
-        )
+        api_league = next((x for x in odds_competitions if x.external_id == "soccer_epl"), None)
         if api_league is None:
             print("Stopped: soccer_epl is not active at The Odds API.")
             return 1
