@@ -174,6 +174,7 @@ def test_seven_named_discovery_candidates_are_reviewable_not_quoteable() -> None
     assert report.apparent_reversed_order == 0
     assert report.unresolved_papi_events == 0
 
+
 def test_two_labels_for_same_club_cannot_become_valid_participants() -> None:
     odds = _fixture("odds-1", "Chelsea", "Manchester United", odds=True)
     papi = _fixture("papi-invalid", "Chelsea", "Chelsea FC")
