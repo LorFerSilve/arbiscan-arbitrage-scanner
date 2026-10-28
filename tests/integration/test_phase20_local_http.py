@@ -102,7 +102,7 @@ def test_demo_never_presents_imaginary_data_as_live_actionable() -> None:
         assert headers["X-Arbiscan-Data-Mode"] == "synthetic"
         assert events["total"] == 1
         assert events["items"][0]["status"] == "synthetic"
-        assert "Synthetic Test League" == events["items"][0]["competition"]
+        assert events["items"][0]["competition"] == "Synthetic Test League"
         assert events["items"][0]["participant_names"] == ["Example FC", "Sample Town"]
         _, quotes, _ = _request(port, "/api/v1/odds")
         assert quotes["total"] == 3
@@ -227,19 +227,21 @@ def test_unknown_paths_and_get_with_request_body_are_rejected() -> None:
 def test_loopback_only_server_rejects_remote_bind() -> None:
     api = ArbiScanApi(SyntheticApiDataSource(), version="test-1")
     for host in ("0.0.0.0", "::", "localhost", "192.168.1.42"):
-        with pytest.raises(ValueError, match="127.0.0.1"):
+        with pytest.raises(ValueError, match=r"127\.0\.0\.1"):
             create_local_http_server(api=api, mode="empty", version="test-1", port=0, host=host)
 
 
 def test_no_external_provider_requests_even_after_repeated_http_refresh() -> None:
-    with patch(
-        "arbiscan.providers.UrllibAsyncHttpTransport.get",
-        side_effect=AssertionError("provider HTTP must never be called"),
+    with (
+        patch(
+            "arbiscan.providers.UrllibAsyncHttpTransport.get",
+            side_effect=AssertionError("provider HTTP must never be called"),
+        ),
+        _server(demo=True) as port,
     ):
-        with _server(demo=True) as port:
-            for _ in range(3):
-                assert _request(port, "/api/v1/odds")[0] == 200
-                assert _request(port, "/api/v1/opportunities")[0] == 200
+        for _ in range(3):
+            assert _request(port, "/api/v1/odds")[0] == 200
+            assert _request(port, "/api/v1/opportunities")[0] == 200
 
 
 class _BrokenSource(SyntheticApiDataSource):
