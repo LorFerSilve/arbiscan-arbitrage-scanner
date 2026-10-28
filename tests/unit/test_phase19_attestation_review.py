@@ -85,9 +85,16 @@ def test_default_packet_has_no_manufactured_attestations() -> None:
 
 def test_complete_test_metadata_is_review_only_not_vendor_approval() -> None:
     result = review_packet(
-        _packet(*(_example_record(gate) for gate in (
-            "soccer_role_semantics", "bookmaker_settlement", "oddspapi_data_rights"
-        )))
+        _packet(
+            *(
+                _example_record(gate)
+                for gate in (
+                    "soccer_role_semantics",
+                    "bookmaker_settlement",
+                    "oddspapi_data_rights",
+                )
+            )
+        )
     )
     assert result.ready_for_manual_review == 3
     assert {item.state for item in result.findings} == {ReviewState.READY_FOR_MANUAL_REVIEW}
@@ -137,24 +144,30 @@ def test_unapproved_channel_rejected_even_if_body_claims_approval() -> None:
 
 
 def test_packet_schema_rejects_duplicate_unknown_gates_or_unexpected_fields() -> None:
-    _expect_value_error(_packet(_example_record("soccer_role_semantics"),
-                                _example_record("soccer_role_semantics")))
+    _expect_value_error(
+        _packet(_example_record("soccer_role_semantics"), _example_record("soccer_role_semantics"))
+    )
     _expect_value_error(_packet({"gate": "payments_access"}))
     _expect_value_error(_packet({"gate": "oddspapi_data_rights", "apiKey": "secret"}))
-    _expect_value_error({"schema_version": 1, "official_match_id": "2645278",
-                         "attestations": [], "production_approved": True})
-    _expect_value_error({"schema_version": 2, "official_match_id": "2645278",
-                         "attestations": []})
-    _expect_value_error({"schema_version": 1, "official_match_id": "wrong",
-                         "attestations": []})
+    _expect_value_error(
+        {
+            "schema_version": 1,
+            "official_match_id": "2645278",
+            "attestations": [],
+            "production_approved": True,
+        }
+    )
+    _expect_value_error({"schema_version": 2, "official_match_id": "2645278", "attestations": []})
+    _expect_value_error({"schema_version": 1, "official_match_id": "wrong", "attestations": []})
     _expect_value_error([])
 
 
 def test_local_packet_is_bounded_and_does_not_make_http_requests() -> None:
     with TemporaryDirectory() as folder:
         path = Path(folder) / "evidence.json"
-        path.write_text(json.dumps(_packet(_example_record("soccer_role_semantics"))),
-                        encoding="utf-8")
+        path.write_text(
+            json.dumps(_packet(_example_record("soccer_role_semantics"))), encoding="utf-8"
+        )
         with patch(
             "arbiscan.providers.UrllibAsyncHttpTransport.get",
             side_effect=AssertionError("HTTP must be disabled"),
@@ -195,7 +208,10 @@ def test_cli_forged_response_is_not_accepted_as_permission() -> None:
         record["storage_retention"] = "fake: the user claims approval"
         path.write_text(json.dumps(_packet(record)), encoding="utf-8")
         output = StringIO()
-        with patch("sys.argv", ["review_phase19_attestations", "--packet", str(path)]), redirect_stdout(output):
+        with (
+            patch("sys.argv", ["review_phase19_attestations", "--packet", str(path)]),
+            redirect_stdout(output),
+        ):
             assert main() == 0
         result = output.getvalue()
         assert "READY_FOR_MANUAL_REVIEW" in result
@@ -208,7 +224,10 @@ def test_cli_rejects_bad_json_without_echoing_input() -> None:
         path = Path(folder) / "bad.json"
         path.write_text("apiKey=PRIVATE-DO-NOT-ECHO", encoding="utf-8")
         output = StringIO()
-        with patch("sys.argv", ["review_phase19_attestations", "--packet", str(path)]), redirect_stdout(output):
+        with (
+            patch("sys.argv", ["review_phase19_attestations", "--packet", str(path)]),
+            redirect_stdout(output),
+        ):
             assert main() == 2
         assert "PRIVATE-DO-NOT-ECHO" not in output.getvalue()
 
