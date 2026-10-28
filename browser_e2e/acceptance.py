@@ -67,9 +67,17 @@ def test_demo(page: Page, base: str) -> None:
     page.locator("#opportunity-rows button").click()
     page.locator("#detail-drawer").wait_for(state="visible")
     drawer = page.locator("#detail-drawer")
+    drawer.get_by_text("Python-berekening", exact=False).wait_for()
     detail = drawer.inner_text()
-    for term in ("Python-berekening", "100.00", "Modelwinst", "Synthetisch",
-                 "Inzet per uitkomst", "Modelaannames", "EUR"):
+    for term in (
+        "Python-berekening",
+        "100.00",
+        "Modelwinst",
+        "Synthetisch",
+        "Inzet per uitkomst",
+        "Modelaannames",
+        "EUR",
+    ):
         expect(term.lower() in detail.lower(), f"stake detail missing {term}")
     expect(drawer.locator(".drawer-leg").count() >= 6, "quote+stake legs missing")
     expect("Niet beschikbaar" in detail, "missing evidence status not displayed")
@@ -100,8 +108,10 @@ def test_empty(page: Page, base: str) -> None:
     expect(page.locator("#metric-actionable").inner_text() == "0", "empty shows live signal")
     expect(page.locator("#opportunity-rows tr").count() == 0, "empty has invented rows")
     expect(page.locator("#opportunity-empty").is_visible(), "empty-state message absent")
-    expect("Geen providers" in page.locator("#provider-list").inner_text(),
-           "empty providers shown incorrectly")
+    expect(
+        "Geen providers" in page.locator("#provider-list").inner_text(),
+        "empty providers shown incorrectly",
+    )
 
 
 def test_refresh_error(page: Page, base: str) -> None:
@@ -125,9 +135,14 @@ def main() -> int:
                 page = browser.new_page(viewport={"width": 1440, "height": 900})
                 observed: list[str] = []
                 page.on("pageerror", lambda exc: observed.append(str(exc)))
-                page.on("request", lambda req: observed.append(
-                    "unexpected remote origin: " + req.url
-                ) if not req.url.startswith(base + "/") else None)
+                page.on(
+                    "request",
+                    lambda req: (
+                        observed.append("unexpected remote origin: " + req.url)
+                        if not req.url.startswith(base + "/")
+                        else None
+                    ),
+                )
                 test_demo(page, base)
                 test_refresh_error(page, base)
                 expect(not observed, f"browser errors or external requests: {observed}")
@@ -138,7 +153,9 @@ def main() -> int:
                 page.close()
         finally:
             browser.close()
-    print("Phase 20.3 real Chromium: demo, search/filters, Python stakes, empty, error, mobile PASS")
+    print(
+        "Phase 20.3 real Chromium: demo, search/filters, Python stakes, empty, error, mobile PASS"
+    )
     return 0
 
 
