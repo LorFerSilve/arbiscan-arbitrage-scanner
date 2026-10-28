@@ -1406,6 +1406,21 @@ mode requires **zero** provider credits.
   have been validated.
 - Responsive layout, accessible controls and local manual/polled refresh.
 
+**Phase 20.2 implementation update (2026-10-28):** A responsive,
+single-origin **browser dashboard** now runs at
+`http://127.0.0.1:8000/` using static assets securely allowlisted by
+the Python HTTP server. Features include a safe demo/empty banner,
+scanner and provider health, events, theoretical opportunity lists,
+search/sport/provider/minimum-ROI filters, sorting and an opportunity
+detail inspector. It never calls real providers or fabricates
+actionable live odds. Backend stake-plan data is **not yet exposed** by
+Phase 13; the drawer says the plan is unavailable instead of
+calculating investments in browser JS.
+
+**Next:** Phase 20.3 browser and integration acceptance. Phase 20.4
+stays blocked on approved rights, canonical roles, bookmaker
+settlement and real-data freshness checks.
+
 ### 20.3 — Offline acceptance and quality gate
 
 - A documented Windows-compatible local start command; no provider
