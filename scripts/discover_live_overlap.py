@@ -175,11 +175,7 @@ async def run_discovery(
             return 0
 
         papi_quota = await papi.rate_limit()
-        if (
-            papi_quota is None
-            or papi_quota.remaining is None
-            or papi_quota.remaining < PAPI_BUDGET
-        ):
+        if papi_quota is None or papi_quota.remaining is None or papi_quota.remaining < PAPI_BUDGET:
             print("Stopped: OddsPapi quota unavailable or below discovery budget.")
             return 1
 
