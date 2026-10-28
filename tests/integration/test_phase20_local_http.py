@@ -91,7 +91,7 @@ def test_status_health_and_openapi_are_versioned_and_explicit_about_demo() -> No
         assert "/api/v1/opportunities/{opportunity_id}" in api_spec["paths"]
         assert "/api/v1/runtime" in api_spec["paths"]
         assert "/api/v1/readiness" in api_spec["paths"]
-        assert api_spec["servers"][0]["url"] == "/api/v1"
+        assert api_spec["servers"][0]["url"] == "/"
 
 
 def test_demo_never_presents_imaginary_data_as_live_actionable() -> None:
@@ -177,9 +177,10 @@ def test_bad_paths_and_query_parameters_fail_closed() -> None:
     )
     with _server(demo=True) as port:
         for path in paths:
-            status, error, _ = _request(port, path)
-            assert status in ({400, 403} if path.startswith("http://") else {400})
-            assert error["code"] in {"bad_request", "forbidden"}
+            headers = {"Host": f"127.0.0.1:{port}"} if path.startswith("http://") else None
+            status, error, _ = _request(port, path, headers=headers)
+            assert status == 400
+            assert error["code"] == "bad_request"
             assert "apiKey" not in str(error)
 
 
