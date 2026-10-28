@@ -3,9 +3,9 @@
 from datetime import UTC, datetime
 
 import pytest
-
-from arbiscan.providers import RateLimitSnapshot, THE_ODDS_API_PROVIDER_ID
 from scripts.check_provider_quotas import _quota_line, main
+
+from arbiscan.providers import THE_ODDS_API_PROVIDER_ID, RateLimitSnapshot
 
 
 def test_quota_line_reports_actual_remaining() -> None:
