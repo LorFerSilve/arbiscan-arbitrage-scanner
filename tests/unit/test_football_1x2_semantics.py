@@ -167,9 +167,7 @@ def test_regulation_score_uses_only_90_minute_goals() -> None:
 def test_invalid_regulation_scores_fail_closed() -> None:
     for home, away in ((True, 1), (-1, 0), (1.5, 1), (1, "0")):
         try:
-            football_regulation_1x2_winner(
-                home_goals=cast(int, home), away_goals=cast(int, away)
-            )
+            football_regulation_1x2_winner(home_goals=cast(int, home), away_goals=cast(int, away))
         except ValueError as exc:
             assert "regulation scores" in str(exc)
         else:
