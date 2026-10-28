@@ -11,7 +11,7 @@ import re
 from dataclasses import asdict, is_dataclass
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from typing import Any
+from typing import Any, cast
 from urllib.parse import parse_qsl, urlsplit
 
 from arbiscan.api.contracts import ApiError, ErrorCode, Page, PageRequest
@@ -183,9 +183,10 @@ def create_local_http_server(
             self.wfile.write(data)
 
         def do_GET(self) -> None:
+            server_port = cast(ThreadingHTTPServer, self.server).server_port
             allowed_hosts = {
-                f"127.0.0.1:{self.server.server_address[1]}",
-                f"localhost:{self.server.server_address[1]}",
+                f"127.0.0.1:{server_port}",
+                f"localhost:{server_port}",
             }
             request_host = self.headers.get("Host", "")
             if (
