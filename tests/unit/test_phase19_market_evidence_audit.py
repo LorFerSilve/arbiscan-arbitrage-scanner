@@ -62,9 +62,7 @@ def test_abandonment_85_minute_and_12_hour_exceptions_require_actual_evidence() 
         MatchDisposition.VENUE_CHANGED,
         MatchDisposition.UNKNOWN,
     ):
-        review = review_bookmaker_soccer_1x2(
-            bookmaker="pinnacle", disposition=disposition
-        )
+        review = review_bookmaker_soccer_1x2(bookmaker="pinnacle", disposition=disposition)
         assert not review.settlement_approved
         assert "85 minutes" in review.reason
         assert "12-hour" in review.reason
