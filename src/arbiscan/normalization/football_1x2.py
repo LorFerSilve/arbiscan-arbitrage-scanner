@@ -54,8 +54,6 @@ def assess_oddspapi_fixture_order(
     return FixtureSideAlignment.CONFLICT
 
 
-
-
 # Vendor IDs are contract-specific. No guessing based on outcome array order.
 ODDSPAPI_1X2_SIDES: Mapping[str, Football1X2Side] = {
     "101": Football1X2Side.HOME,
