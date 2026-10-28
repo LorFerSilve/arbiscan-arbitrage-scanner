@@ -14,7 +14,7 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from threading import Thread
 
-from playwright.sync_api import Page, sync_playwright
+from playwright.sync_api import Page, expect as browser_expect, sync_playwright
 
 from arbiscan.api.http import create_local_http_server
 from arbiscan.api.service import ArbiScanApi
@@ -85,7 +85,7 @@ def test_demo(page: Page, base: str) -> None:
     page.keyboard.press("Escape")
     expect(drawer.is_hidden(), "Escape didn't close drawer")
     page.locator("#refresh").click()
-    page.wait_for_function("!document.querySelector('#refresh').disabled")
+    browser_expect(page.locator("#refresh")).to_be_enabled()
     expect(page.locator("#opportunity-rows tr").count() == 1, "refresh lost demo data")
 
     # Responsive/mobile checks use the real browser's layout engine.
@@ -103,7 +103,7 @@ def test_demo(page: Page, base: str) -> None:
 
 def test_empty(page: Page, base: str) -> None:
     page.goto(base, wait_until="networkidle")
-    page.wait_for_function("document.querySelector('#notice-tag').textContent.includes('EMPTY')")
+    browser_expect(page.locator("#notice-tag")).to_contain_text("EMPTY")
     expect("EMPTY" in page.locator("#notice-tag").inner_text(), "empty mode not marked")
     expect(page.locator("#metric-actionable").inner_text() == "0", "empty shows live signal")
     expect(page.locator("#opportunity-rows tr").count() == 0, "empty has invented rows")
