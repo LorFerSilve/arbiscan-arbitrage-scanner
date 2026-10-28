@@ -9,8 +9,6 @@ from __future__ import annotations
 import asyncio
 import os
 
-from scripts.discover_live_overlap import DiscoveryOnlyTransport
-
 from arbiscan.domain import Sport
 from arbiscan.providers import (
     AsyncHttpTransport,
@@ -20,6 +18,7 @@ from arbiscan.providers import (
     ProviderErrorKind,
     ProviderOperation,
 )
+from scripts.discover_live_overlap import DiscoveryOnlyTransport
 
 
 async def diagnose_sports(api_key: str, *, upstream: AsyncHttpTransport | None = None) -> int:
