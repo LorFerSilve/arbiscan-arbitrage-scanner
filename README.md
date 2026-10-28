@@ -168,6 +168,32 @@ candidate rather than guessing. One-to-one candidates are **not canonical
 event matching proof**; source event identity and settlement semantics must
 still be verified before a later controlled odds comparison.
 
+### Phase 19: controlled live-odds preflight (no paid requests)
+
+Before any priced source snapshot, run the new **offline** readiness report:
+
+```powershell
+uv run python -m scripts.prepare_live_odds
+```
+
+To check only the free/unmetered provider quota endpoints (no odds credits,
+no OddsPapi billable requests), with local keys in `.env`:
+
+```powershell
+uv run --env-file .env python -m scripts.prepare_live_odds --check-quotas
+```
+
+The future *single-fixture* quote probe is limited to one The Odds API
+`eu/h2h` event-odds call (at most one usage credit), plus a maximum
+of five OddsPapi billable calls for **fresh** event discovery and
+catalog+odds retrieval. These are **planned limits, not incurred costs**.
+The new strict future quote transport rejects other hosts/routes,
+market/region expansion, repeat calls and different fixture IDs.
+It is not invoked by either command. Until home/away orientation,
+bookmaker-specific settlement rules and provider rights are verified,
+**quote approval remains blocked** and arbitrage evaluation is disabled.
+See [the detailed preflight protocol](docs/providers/phase-19-live-odds-preflight.md).
+
 ### Phase 19: football 1X2 market-side and settlement contract
 
 The offline Phase-19 rules now explicitly recognize OddsPapi **soccer market
