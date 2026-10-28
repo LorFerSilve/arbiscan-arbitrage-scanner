@@ -124,6 +124,22 @@ The explicit `--execute` call uses the existing provider adapters to identify
 unique Premier League competition records, find fixtures in the next seven days,
 and print only strict candidate pairs based on team names and kickoff proximity.
 
+If discovery stops with `discover_competitions (malformed_response)`
+after exactly one OddsPapi billable call, **do not rerun the full
+discovery**. Instead use the narrow, one-request schema diagnostic:
+
+```text
+uv run --env-file .env python -m scripts.diagnose_oddspapi_sports
+```
+
+This checks the free `/account` quota first, then permits **at most
+one billable `/sports` request** and never calls `/tournaments`, fixtures
+or odds. It reports the precise sanitized parser field path (not raw
+provider JSON or secrets), or that football sport resolution succeeded.
+Review this local diagnostic before changing provider parsing rules.
+The first live failure did not retain a response, so its exact cause
+cannot be reconstructed without another permitted observation.
+
 A transport-level endpoint allowlist enforces **zero billable The Odds API
 requests** and at most **three OddsPapi requests** (`/sports`,
 `/tournaments`, `/fixtures`) even on failure. No odds endpoint is permitted,
