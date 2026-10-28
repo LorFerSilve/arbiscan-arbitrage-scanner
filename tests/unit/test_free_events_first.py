@@ -51,7 +51,7 @@ def _run_test(
         status = asyncio.run(
             run_discovery(
                 "fake-odds-key",
-                "fake-papi-key",
+                "" if odds_only else "fake-papi-key",
                 odds_only=odds_only,
                 odds_upstream=odds,
                 papi_upstream=papi,
