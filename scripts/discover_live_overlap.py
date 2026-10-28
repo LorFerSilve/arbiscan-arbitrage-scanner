@@ -231,7 +231,10 @@ async def run_discovery(
             f"{review.apparent_reversed_order} apparent participant-order reversals."
         )
         independent = audit_official_chelsea_manchester_united(review)
-        if independent.reviewed_provisional_pair and independent.papi_order_relative_to_official is not None:
+        if (
+            independent.reviewed_provisional_pair
+            and independent.papi_order_relative_to_official is not None
+        ):
             print(
                 "Official Premier League fixture 2645278: provisional pair "
                 f"agrees with independent schedule; OddsPapi participant order "
