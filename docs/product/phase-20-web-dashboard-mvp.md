@@ -97,6 +97,16 @@ feeds, and observations are tested against real source behavior.
 Completion of the local MVP **does not** make ArbiScan production-ready
 or satisfy the existing Phase 19 performance exit criteria.
 
+**2026-10-28 evidence milestone:** Phase 19 published-document review
+distinguishes OddsPapi's ambiguous soccer participant1/2 slots,
+documented 1/X/2 outcome IDs, publicly specified Pinnacle settlement
+exceptions and the differing The Odds API/OddsPapi terms. Findings
+and their explicit remaining blockers:
+[`phase-19-market-role-settlement-rights-audit.md`](../providers/phase-19-market-role-settlement-rights-audit.md).
+This audit does **not** unblock live odds. Once this review has been
+recorded, Phase 20.1's local synthetic HTTP/UI work can proceed without
+waiting for external clarifications.
+
 ## What happens next (as of 2026-10-28)
 
 1. Close the Phase 19 live market-equivalence blockers for the observed
