@@ -41,6 +41,16 @@ does not fabricate backend stake plans. Documentation:
 testing and backed-by-the-engine stake projections. Real data
 integration remains separately gated by Phase 19 verification.
 
+**Phase 20.3 implementation (2026-10-28):** A real Chromium browser
+acceptance job now tests desktop/mobile layouts, filters, keyboard
+navigation, synthetic detail inspection and fail-closed HTTP errors.
+The Python application also exposes optional synthetic-only stake
+allocation fields, calculated using `evaluate_market`,
+`build_opportunity` and `allocate_stakes` with conservative EUR
+rounding. These are **not** bookmaker executable signals; all Phase 19
+live market rights and settlement blocks are unchanged.
+See [browser acceptance guidance](../development/phase-20-browser-acceptance.md).
+
 ## Delivery order
 
 ### 20.1 — Read-only HTTP and user-flow contract
