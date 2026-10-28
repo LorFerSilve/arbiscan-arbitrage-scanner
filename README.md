@@ -168,6 +168,25 @@ candidate rather than guessing. One-to-one candidates are **not canonical
 event matching proof**; source event identity and settlement semantics must
 still be verified before a later controlled odds comparison.
 
+### Phase 19: source-specific fixture IDs (metadata only)
+
+For the official Chelsea v Manchester United fixture on
+**31 October 2026**, a one-shot optional diagnostic now reports the
+actual The Odds API event ID and OddsPapi fixture/participant IDs only
+when its strict home/away reference and Phase-7/8 matching succeed.
+
+```powershell
+uv run --env-file .env python -m scripts.discover_live_overlap --execute --verify-official
+```
+
+The diagnostic costs **up to 3 OddsPapi billable discovery calls**,
+uses **0 odds credits**, and requires the user's own local API keys.
+It first requires a unique, safe, official-reference match in the free
+The Odds API events feed; otherwise it does not contact OddsPapi.
+Observed participant order does **not** certify OddsPapi home/away
+slot semantics. It does not approve any quote or arbitrage evaluation.
+See [the exact verification scope and offline tests](docs/providers/phase-19-independent-fixture-evidence.md).
+
 ### Phase 19: independent official EPL fixture evidence
 
 The independently published Chelsea v Manchester United fixture for
