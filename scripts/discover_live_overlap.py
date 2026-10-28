@@ -14,8 +14,6 @@ from collections.abc import Mapping
 from datetime import UTC, datetime, timedelta
 from urllib.parse import urlsplit
 
-from scripts.validate_epl_identity import validate_epl_identity
-
 from arbiscan.domain import Sport
 from arbiscan.providers import (
     AsyncHttpTransport,
@@ -30,6 +28,7 @@ from arbiscan.providers import (
     TheOddsApiProvider,
     UrllibAsyncHttpTransport,
 )
+from scripts.validate_epl_identity import validate_epl_identity
 
 THE_ODDS_HOST = "api.the-odds-api.com"
 ODDSPAPI_HOST = "api.oddspapi.io"
