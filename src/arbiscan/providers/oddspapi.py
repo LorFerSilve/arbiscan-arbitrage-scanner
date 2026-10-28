@@ -11,6 +11,7 @@ from decimal import Decimal, InvalidOperation
 from types import MappingProxyType
 
 from arbiscan.domain import Provider, ProviderId, ProviderKind, Sport
+from arbiscan.normalization.football_1x2 import is_documented_oddspapi_football_1x2
 from arbiscan.observability.provider import (
     NullProviderTelemetry,
     ProviderTelemetryEvent,
@@ -359,12 +360,15 @@ def _is_supported_market(record: _MarketRecord, sport: Sport) -> bool:
         return False
     name = record.name.casefold()
     if sport is Sport.FOOTBALL:
-        winner = (
-            name == "full time result"
-            and record.period == "fulltime"
-            and record.market_type == "1x2"
-            and record.handicap == Decimal(0)
-            and len(record.outcomes) == 3
+        winner = is_documented_oddspapi_football_1x2(
+            market_id=record.external_id,
+            sport_id=record.sport_id,
+            market_name=record.name,
+            period=record.period,
+            market_type=record.market_type,
+            handicap=record.handicap,
+            player_prop=record.player_prop,
+            outcomes=record.outcomes,
         )
         total = (
             name == "over under full time"
