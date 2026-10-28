@@ -28,7 +28,12 @@ from arbiscan.providers import (
     TheOddsApiProvider,
     UrllibAsyncHttpTransport,
 )
-from scripts.audit_official_fixture import audit_official_chelsea_manchester_united
+from scripts.audit_official_fixture import (
+    OFFICIAL_MATCH_ID,
+    audit_official_chelsea_manchester_united,
+    observed_provider_ids_for_official_fixture,
+    unique_official_odds_anchor,
+)
 from scripts.validate_epl_identity import validate_epl_identity
 
 THE_ODDS_HOST = "api.the-odds-api.com"
@@ -143,6 +148,8 @@ async def run_discovery(
     papi_key: str,
     *,
     odds_only: bool = False,
+    verify_official: bool = False,
+    reference_now: datetime | None = None,
     odds_upstream: AsyncHttpTransport | None = None,
     papi_upstream: AsyncHttpTransport | None = None,
 ) -> int:
@@ -164,7 +171,7 @@ async def run_discovery(
     papi: OddsPapiProvider | None = None
     if not odds_only:
         papi = OddsPapiProvider(config=OddsPapiConfig(api_key=papi_key), transport=papi_transport)
-    now = datetime.now(UTC)
+    now = (reference_now or datetime.now(UTC)).astimezone(UTC)
     ends = now + timedelta(days=7)
 
     try:
@@ -196,6 +203,14 @@ async def run_discovery(
             )
             return 0
 
+        if verify_official and unique_official_odds_anchor(odds_events) is None:
+            print(
+                "Official fixture verification stopped: no unique and safe "
+                "Chelsea vs Manchester United home/away event in The Odds API "
+                "free metadata. OddsPapi was not contacted."
+            )
+            return 1
+
         assert papi is not None  # Only constructed for full two-provider discovery.
         papi_quota = await papi.rate_limit()
         if papi_quota is None or papi_quota.remaining is None or papi_quota.remaining < PAPI_BUDGET:
@@ -211,6 +226,51 @@ async def run_discovery(
         papi_events = await papi.discover_events(
             papi_league.external_id, starts_after=now, starts_before=ends
         )
+        if verify_official:
+            review = validate_epl_identity(api_league, odds_events, papi_league, papi_events)
+            evidence = observed_provider_ids_for_official_fixture(review)
+            if evidence is None:
+                print(
+                    "Official fixture verification BLOCKED: no unique Phase 7/8 "
+                    "pair agrees with official home/away, start, status and "
+                    "safe provider identifiers. No IDs promoted."
+                )
+                return 1
+            print(
+                f"Official Premier League reference {OFFICIAL_MATCH_ID}: "
+                "Chelsea (home) vs Manchester United (away); "
+                "2026-10-31T12:30:00+00:00 UTC."
+            )
+            print(f"The Odds API observed soccer_epl event ID: {evidence.the_odds_api_event_id}")
+            print(
+                "The Odds API source roles: home=Chelsea; "
+                "away=Manchester United. Team labels are source-derived, "
+                "not independent numeric team IDs."
+            )
+            print(f"OddsPapi observed fixtureId: {evidence.oddspapi_fixture_id}")
+            print(f"OddsPapi observed tournamentId: {evidence.oddspapi_competition_id}")
+            print(
+                "OddsPapi participant1Id: "
+                f"{evidence.oddspapi_participant1_id} "
+                f"({evidence.oddspapi_participant1_name})"
+            )
+            print(
+                "OddsPapi participant2Id: "
+                f"{evidence.oddspapi_participant2_id} "
+                f"({evidence.oddspapi_participant2_name})"
+            )
+            print(
+                "OddsPapi participant order versus official fixture: "
+                f"{evidence.oddspapi_order_vs_official.value.upper()}."
+            )
+            print(
+                "Observed provider IDs are linked by an independent official "
+                "schedule check; this does NOT prove OddsPapi's participant1/2 "
+                "home-away semantics, bookmaker settlement rules or data-use rights."
+            )
+            print("Quote authorization BLOCKED; no odds, prices or files requested.")
+            return 0
+
         pairs = candidate_pairs(odds_events, papi_events)
         print(
             f"Next 7 days: The Odds API {len(odds_events)} fixtures; "
@@ -277,7 +337,22 @@ def main() -> int:
         action="store_true",
         help="Check only free The Odds API EPL events; use with --execute",
     )
+    parser.add_argument(
+        "--verify-official",
+        action="store_true",
+        help=(
+            "Inspect only Chelsea v Manchester United 2026-10-31 source IDs "
+            "and participant order; requires --execute, max 3 paid OddsPapi "
+            "metadata calls and no odds"
+        ),
+    )
     args = parser.parse_args()
+    if args.verify_official and (not args.execute or args.odds_only):
+        print(
+            "Official fixture ID inspection requires --execute and cannot "
+            "be combined with --odds-only. No API requests made."
+        )
+        return 2
     if not args.execute:
         print(
             "Dry run: 0 billable The Odds API calls; up to 3 OddsPapi calls "
@@ -293,7 +368,14 @@ def main() -> int:
     if not args.odds_only and not papi_key:
         print("Missing ODDSPAPI_API_KEY in your local .env for full discovery.")
         return 2
-    return asyncio.run(run_discovery(odds_key, papi_key, odds_only=args.odds_only))
+    return asyncio.run(
+        run_discovery(
+            odds_key,
+            papi_key,
+            odds_only=args.odds_only,
+            verify_official=args.verify_official,
+        )
+    )
 
 
 if __name__ == "__main__":
