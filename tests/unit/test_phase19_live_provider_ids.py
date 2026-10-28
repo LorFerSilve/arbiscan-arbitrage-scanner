@@ -233,6 +233,21 @@ def test_duplicate_free_source_match_stops_before_paid_requests() -> None:
     assert not papi.requests
 
 
+def test_out_of_window_conflicting_event_id_blocks_paid_papi() -> None:
+    reused_id = {
+        **_raw_odds_event(home="Liverpool", away="Arsenal"),
+        "commence_time": "2026-11-10T15:00:00Z",
+    }
+    result, output, _odds, papi = _run(
+        [_raw_odds_event(), reused_id],
+        [_raw_papi_event()],
+    )
+    assert result == 1
+    assert "OddsPapi was not contacted" in output
+    assert "OddsPapi billable calls attempted = 0/3" in output
+    assert not papi.requests
+
+
 def test_papi_conflicting_identity_consumes_only_metadata_budget() -> None:
     result, output, _odds, papi = _run(
         [_raw_odds_event()],
