@@ -195,6 +195,28 @@ candidate rather than guessing. One-to-one candidates are **not canonical
 event matching proof**; source event identity and settlement semantics must
 still be verified before a later controlled odds comparison.
 
+### Phase 19: audited soccer participant roles, bookmaker settlement and rights
+
+The no-network audit now distinguishes **observed fixture ordering**, public
+football `1/X/2` market definitions, published Pinnacle 90-minute and
+abandonment rules, and public data-licence terms from **actual permissions
+to process live quotes**:
+
+```powershell
+uv run python -m scripts.audit_phase19_market_evidence
+uv run --with pytest==9.1.1 pytest tests/unit/test_phase19_market_evidence_audit.py
+```
+
+No keys, network, API credits, odds or files. The review confirms that
+OddsPapi's explicit `participant1=home` example is **NFL-specific**,
+not a soccer-wide provider guarantee. Actual bookmaker-market equivalence,
+the subscribed OddsPapi account's storage/replay/dashboard rights and
+live quote eligibility remain blocked.
+
+See the [public evidence and next-action matrix](docs/providers/phase-19-market-role-settlement-rights-audit.md).
+The **local synthetic Phase 20 web dashboard** can be built without
+waiting for provider replies; live-data integration remains gated.
+
 ### Phase 19: source-specific fixture IDs (metadata only)
 
 For the official Chelsea v Manchester United fixture on
