@@ -59,6 +59,17 @@ reference comparison if the user *later* chooses to rerun discovery. **Do not
 rerun paid discovery simply to generate this line.** The offline command is
 free and sufficient for the public independent-fixture audit.
 
+**2026-10-28 follow-up:** the user subsequently ran a tightly capped
+metadata-only command (PR #87) and observed source IDs:
+The Odds API `6601f69175a02f03fb7065aacb538e01` and OddsPapi
+`id1000001772221358`, participants Chelsea FC `38` and
+Manchester United `35`. This resolves **which IDs were observed**
+for the provisional pair, not the unsupported soccer participant1/2
+home/away rule, bookmaker-specific market terms or account usage
+authorization. The current documented next gate is
+[Phase 19 role, settlement and rights evidence](phase-19-market-role-settlement-rights-audit.md);
+there is no reason to rerun the paid metadata discovery for these IDs.
+
 ## Bookmaker example: Pinnacle, not yet connected to a live provider quote
 
 [Pinnacle's published betting rules](https://www.pinnacle.bet/en/future/betting-rules),
