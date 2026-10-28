@@ -2,7 +2,7 @@
 
 from decimal import Decimal
 
-import pytest
+from typing import cast
 
 from arbiscan.domain import MarketKind, MarketPeriod, ParticipantId, Sport
 from arbiscan.normalization.football_1x2 import (
@@ -63,7 +63,7 @@ def test_only_documented_odds_papi_sport10_market101_is_supported() -> None:
         {"outcome_names": ("2", "X", "1")},
         {"outcome_names": ("1", "X", "3")},
     ):
-        assert not _is_parsed_market_supported(_market(**kwargs))  # type: ignore[arg-type]
+        assert not _is_parsed_market_supported(_market(**kwargs))
 
 
 def test_1x2_contract_has_explicit_regulation_semantics_and_outcome_ids() -> None:
@@ -154,28 +154,26 @@ def test_fixture_order_is_relative_to_reference_not_auto_certification() -> None
     )
 
 
-@pytest.mark.parametrize(
-    ("home", "away", "winner"),
-    [
+def test_regulation_score_uses_only_90_minute_goals() -> None:
+    for home, away, winner in (
         (2, 1, Football1X2Side.HOME),
         (0, 0, Football1X2Side.DRAW),
         (1, 1, Football1X2Side.DRAW),
         (0, 2, Football1X2Side.AWAY),
-    ],
-)
-def test_regulation_score_uses_only_90_minute_goals(
-    home: int, away: int, winner: Football1X2Side
-) -> None:
-    assert football_regulation_1x2_winner(home_goals=home, away_goals=away) is winner
+    ):
+        assert football_regulation_1x2_winner(home_goals=home, away_goals=away) is winner
 
 
-@pytest.mark.parametrize(("home", "away"), [(True, 1), (-1, 0), (1.5, 1), (1, "0")])
-def test_invalid_regulation_scores_fail_closed(home: object, away: object) -> None:
-    with pytest.raises(ValueError, match="regulation scores"):
-        football_regulation_1x2_winner(
-            home_goals=home,
-            away_goals=away,  # type: ignore[arg-type]
-        )
+def test_invalid_regulation_scores_fail_closed() -> None:
+    for home, away in ((True, 1), (-1, 0), (1.5, 1), (1, "0")):
+        try:
+            football_regulation_1x2_winner(
+                home_goals=cast(int, home), away_goals=cast(int, away)
+            )
+        except ValueError as exc:
+            assert "regulation scores" in str(exc)
+        else:
+            raise AssertionError("invalid regulation scores must fail closed")
 
 
 def test_complete_oddspapi_1x2_grade_must_match_regulation_result() -> None:
@@ -200,9 +198,8 @@ def test_complete_oddspapi_1x2_grade_must_match_regulation_result() -> None:
     )
 
 
-@pytest.mark.parametrize(
-    "grades",
-    [
+def test_nonstandard_1x2_settlement_does_not_pass() -> None:
+    for grades in (
         {"101": "WIN", "102": "LOSE"},
         {"101": "WIN", "102": "LOSE", "103": "PUSH"},
         {"101": "WIN", "102": "LOSE", "103": "UNDECIDED"},
@@ -210,9 +207,7 @@ def test_complete_oddspapi_1x2_grade_must_match_regulation_result() -> None:
         {"101": "WIN", "102": "LOSE", "103": "HALFLOSS"},
         {"101": "WIN", "102": "WIN", "103": "LOSE"},
         {"101": "WIN", "102": "LOSE", "103": "LOSE", "104": "LOSE"},
-    ],
-)
-def test_nonstandard_1x2_settlement_does_not_pass(grades: dict[str, str]) -> None:
-    assert not consistent_oddspapi_regulation_1x2_settlement(
-        grades=grades, verified_home_goals=2, verified_away_goals=1
-    )
+    ):
+        assert not consistent_oddspapi_regulation_1x2_settlement(
+            grades=grades, verified_home_goals=2, verified_away_goals=1
+        )
