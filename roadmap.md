@@ -1431,6 +1431,17 @@ settlement and real-data freshness checks.
   read-only routes and no automatic bet placement.
 - Zero network/odds calls in the synthetic dashboard test suite.
 
+**Phase 20.3 update (2026-10-28):** Real Chromium browser acceptance
+has been added to CI for interactive demo/empty/error states, filters,
+detail keyboard navigation and mobile sizing. The optional
+`stake_plan` detail contract now exposes **synthetic-only** backend-
+computed individual stakes, rounded payouts, assumptions and model
+profit from the original Python arbitrage engine. No browser
+arithmetic or provider request can authorize a trade. See
+[Phase 20.3 browser acceptance](docs/development/phase-20-browser-acceptance.md).
+External provider rights, OddsPapi soccer role semantics and concrete
+bookmaker settlement compatibility are **still open**.
+
 ### 20.4 — Real scanner connection (conditional follow-on)
 
 - Connect approved, canonical read-only scanner outputs only after
