@@ -38,6 +38,10 @@ from arbiscan.normalization import (
     ParticipantNormalizer,
     prepare_event_evidence,
 )
+from arbiscan.normalization.football_1x2 import (
+    FixtureSideAlignment,
+    assess_oddspapi_fixture_order,
+)
 from arbiscan.providers import SourceCompetition, SourceEvent
 from arbiscan.providers.oddspapi import ODDSPAPI_PROVIDER_ID
 from arbiscan.providers.the_odds_api import THE_ODDS_API_PROVIDER_ID
@@ -247,7 +251,13 @@ def validate_epl_identity(
                 decision.matched_event_id,
                 anchor_event,
                 event,
-                evidence.participant_ids != anchor_ids,
+                assess_oddspapi_fixture_order(
+                    reference_home=anchor_ids[0],
+                    reference_away=anchor_ids[1],
+                    participant1=evidence.participant_ids[0],
+                    participant2=evidence.participant_ids[1],
+                )
+                is FixtureSideAlignment.REVERSED,
             )
         )
 
