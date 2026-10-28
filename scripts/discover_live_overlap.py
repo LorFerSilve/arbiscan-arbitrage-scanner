@@ -206,12 +206,8 @@ async def run_discovery(
 
         # Inspect all returned source IDs before local time filtering. A
         # conflicting record outside the seven-day window must still block.
-        complete_anchor = (
-            unique_official_odds_anchor(all_odds_events) if verify_official else None
-        )
-        in_window_anchor = (
-            unique_official_odds_anchor(odds_events) if verify_official else None
-        )
+        complete_anchor = unique_official_odds_anchor(all_odds_events) if verify_official else None
+        in_window_anchor = unique_official_odds_anchor(odds_events) if verify_official else None
         if verify_official and (
             complete_anchor is None
             or in_window_anchor is None
