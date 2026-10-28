@@ -61,7 +61,7 @@ def _openapi(version: str) -> dict[str, Any]:
         "get": {"summary": "Local synthetic/empty mode and disabled live access"}
     }
     document["paths"][API_PREFIX + "/readiness"] = document["paths"][API_PREFIX + "/ready"]
-    document["servers"] = [{"url": API_PREFIX}]
+    document["servers"] = [{"url": "/"}]
     return document
 
 
