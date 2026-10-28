@@ -168,6 +168,30 @@ candidate rather than guessing. One-to-one candidates are **not canonical
 event matching proof**; source event identity and settlement semantics must
 still be verified before a later controlled odds comparison.
 
+### Phase 19: read-only canonical identity review
+
+After the discovery candidate lines, the same bounded script now performs a
+**local-only**, read-only identity review. It passes provider fixture data
+through Phase-7 explicit competition/team aliases and Phase-8 canonical event
+matching with a temporary reference catalog anchored to The Odds API. The
+explicit Phase-19 English Premier League team vocabulary covers only the 14
+club names from the first successful seven-pair discovery; unknown names,
+women/youth/reserve team lookalikes, wrong league regions, duplicate
+identities, conflicts and ambiguous fixtures fail closed. The review uses
+a strict five-minute clock difference even though general Phase-8 defaults
+are wider. No live API calls are added.
+
+**Important:** the temporary reference catalog is NOT an independently
+verified canonical registry. The OddsPapi fixture documentation calls
+the two sides `participant1` and `participant2`, without promising
+that they are home and away, in that order. Therefore an identity match
+is reported only as **provisional**; even a matching name order is not
+proof of home/away semantics. The tool reports **zero quote-eligible
+canonical matches** and never yields canonical quote ID hooks.
+Market-period and settlement equivalence have not yet been verified.
+The current alias review is an offline diagnostic, not authorization to
+fetch odds or calculate arbitrage.
+
 The matched-event check intentionally recognizes only exact case-insensitive
 team names after stripping a trailing FC/CF suffix. Names with other aliases
 may not match. Do not weaken this guard automatically: review the affected
