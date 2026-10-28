@@ -153,6 +153,15 @@ def public_evidence_findings() -> tuple[EvidenceFinding, ...]:
             "cannot extrapolate to football/soccer fixtures",
         ),
         EvidenceFinding(
+            "oddspapi_soccer_score_example",
+            EvidenceLevel.PUBLIC_DOCUMENTED,
+            ODDSPAPI_FOOTBALL_BLOG,
+            "OddsPapi's 2026-10-01 example scoring 250 European soccer fixtures",
+            "vendor's soccer grading example calls participant1Score home and "
+            "participant2Score away; relevant soccer-specific evidence but "
+            "not a universal fixture-field guarantee or bookmaker certification",
+        ),
+        EvidenceFinding(
             "oddspapi_soccer_1x2",
             EvidenceLevel.PUBLIC_DOCUMENTED,
             ODDSPAPI_MARKETS_DOC,
