@@ -2,7 +2,7 @@
 
 from datetime import UTC, datetime, timedelta
 
-from scripts.validate_epl_identity import validate_epl_identity
+from scripts.validate_epl_identity import CanonicalReview, validate_epl_identity
 
 from arbiscan.domain import Sport
 from arbiscan.providers import SourceCompetition, SourceEvent, SourceParticipant
@@ -40,7 +40,7 @@ def _review(
     *,
     odds_comp: SourceCompetition = _ODDS_COMP,
     papi_comp: SourceCompetition = _PAPI_COMP,
-):
+) -> CanonicalReview:
     return validate_epl_identity(odds_comp, odds_events, papi_comp, papi_events)
 
 
