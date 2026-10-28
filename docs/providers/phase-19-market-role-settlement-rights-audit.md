@@ -39,6 +39,17 @@ home club for *soccer*.
 Primary official fixture:
 [Premier League match 2645278](https://www.premierleague.com/en/match/2645278/chelsea-vs-manchester-united/info).
 
+**New 28 October 2026 research:** the vendor's
+[1 October 2026 soccer grading example](https://oddspapi.io/blog/football-data-api-betting-predictions/)
+calls `participant1Score` home and `participant2Score` away across
+its 250-fixture European football study. This is an actual soccer-specific
+source example, stronger than the NFL example below. However the V4
+GET fixture(s) reference still says *first/second*, without a universal
+soccer guarantee or documented exceptions. The
+[external attestation packet](phase-19-external-attestation-packet.md)
+now asks OddsPapi directly and contains an offline human-review-only
+intake. **No live quote gate has been approved.**
+
 ## 2. OddsPapi first/second participant versus soccer home/away
 
 The official [GET fixtures](https://oddspapi.io/us/docs/get-fixtures)
