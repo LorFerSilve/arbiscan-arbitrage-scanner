@@ -21,6 +21,14 @@ credentials or billable API access.
   provide existing source-of-truth boundaries. No duplicate ROI/stake
   arithmetic in JavaScript.
 
+**Phase 20.1 implementation update (2026-10-28):** A loopback-only,
+read-only Python HTTP adapter now serves existing Phase 13 API contracts
+under `/api/v1`, defaulting to empty data with optional clearly
+labeled `--demo` synthetic fixtures. No external provider calls, quote
+authorization, credentials or new application-level calculations.
+See [local HTTP API setup and tests](../development/phase-20-local-http-api.md).
+**Phase 20.2's real HTML/CSS/JavaScript browser UI is still pending.**
+
 ## Delivery order
 
 ### 20.1 — Read-only HTTP and user-flow contract

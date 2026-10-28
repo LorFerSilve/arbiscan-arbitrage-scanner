@@ -1350,6 +1350,16 @@ projection/alerts and Phase 13 Python application API already exist.
 This phase adds a usable browser application rather than rewriting the
 scanner, provider adapters or arbitrage mathematics.
 
+**Implementation status (2026-10-28):** Subphase **20.1 (local HTTP
+transport and versioned API contract) is implemented** with a Python
+standard-library loopback-only server, `/api/v1` GET routes, strict
+query/Host/Origin validation, and empty-by-default plus opt-in synthetic
+fixtures; full tests use zero provider requests. See
+[Phase 20.1 local HTTP API](docs/development/phase-20-local-http-api.md).
+Subphase **20.2 (responsive HTML/CSS/vanilla-JS dashboard) is next**;
+20.3 offline browser/security acceptance and 20.4 approved live-data
+integration are still pending.
+
 ## Objective
 
 Build a local web app so the user can monitor scanner health, events, odds,
