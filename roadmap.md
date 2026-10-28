@@ -1558,6 +1558,20 @@ Containerized services using Docker, with exact deployment target chosen later b
 
 ---
 
+**Phase 19 renewed external evidence priority (2026-10-28):**
+OddsPapi's own soccer scoring example now provides a stronger
+soccer-specific `participant1Score=home` signal than the earlier
+NFL-only source, but the V4 fixture reference remains ambiguous about
+a universal home/away invariant. Implemented an **offline confidential
+attestation intake and review matrix** for three outstanding third-party
+confirmations (soccer roles, Pinnacle-specific market parity/void
+rules, OddsPapi subscription storage/replay/dashboard rights).
+A complete user-filled form is explicitly **not** authentic proof or
+a quote authorization. See
+[Phase 19 external attestation packet](docs/providers/phase-19-external-attestation-packet.md).
+Phase 20.4 stays blocked until these and later actual source-market,
+freshness and legal checks are resolved. No paid API calls made.
+
 # Phase 23 — Production readiness and v1.0 criteria
 
 ArbiScan should not be considered `v1.0` merely because it finds an arbitrage example.

@@ -70,6 +70,14 @@ authorization. The current documented next gate is
 [Phase 19 role, settlement and rights evidence](phase-19-market-role-settlement-rights-audit.md);
 there is no reason to rerun the paid metadata discovery for these IDs.
 
+**Further offline review (2026-10-28):**
+[OddsPapi's soccer grading article](https://oddspapi.io/blog/football-data-api-betting-predictions/)
+does use participant1Score as home in its worked soccer analysis, but
+the API schema still only identifies first/second participants. The
+[Phase 19 external attestation packet](phase-19-external-attestation-packet.md)
+captures the exact outstanding vendor and bookmaker clarifications.
+No provider requests or quote-readiness changes were made.
+
 ## Bookmaker example: Pinnacle, not yet connected to a live provider quote
 
 [Pinnacle's published betting rules](https://www.pinnacle.bet/en/future/betting-rules),
