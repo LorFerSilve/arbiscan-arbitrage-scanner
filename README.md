@@ -109,6 +109,36 @@ consume one request each**, so count every request, not just odds polls.
 Do not retain restricted OddsPapi market payloads until applicable
 data-retention/replay rights are confirmed (see [issue #76](https://github.com/LorFerSilve/arbiscan-arbitrage-scanner/issues/76)).
 
+## One-shot football event overlap discovery
+
+After confirming remaining quota with the preflight, inspect the first live
+English Premier League event overlap **without fetching odds**:
+
+```text
+uv run --env-file .env python -m scripts.discover_live_overlap
+uv run --env-file .env python -m scripts.discover_live_overlap --execute
+```
+
+The first command prints the request plan and performs **zero HTTP calls**.
+The explicit `--execute` call uses the existing provider adapters to identify
+unique Premier League competition records, find fixtures in the next seven days,
+and print only strict candidate pairs based on team names and kickoff proximity.
+
+A transport-level endpoint allowlist enforces **zero billable The Odds API
+requests** and at most **three OddsPapi requests** (`/sports`,
+`/tournaments`, `/fixtures`) even on failure. No odds endpoint is permitted,
+there is no retry loop, and no provider payload is stored. If a competition is
+missing/ambiguous or two fixtures disagree, the command stops or produces no
+candidate rather than guessing. One-to-one candidates are **not canonical
+event matching proof**; source event identity and settlement semantics must
+still be verified before a later controlled odds comparison.
+
+The matched-event check intentionally recognizes only exact case-insensitive
+team names after stripping a trailing FC/CF suffix. Names with other aliases
+may not match. Do not weaken this guard automatically: review the affected
+provider labels first. Keep any console output with provider-specific event
+data local and do not paste raw payloads, IDs or API keys into public issues.
+
 ## Development
 
 The project uses Python 3.13, uv, Ruff, mypy, pytest, pre-commit, and GitHub Actions. See [`docs/development/setup.md`](docs/development/setup.md) for the reproducible setup and quality commands.
