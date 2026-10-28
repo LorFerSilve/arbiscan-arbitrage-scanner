@@ -7,8 +7,8 @@ from io import StringIO
 from unittest.mock import patch
 
 from scripts.audit_phase19_market_evidence import (
-    OFFICIAL_MATCH_ID,
     ODDSPAPI_FIXTURE_ID,
+    OFFICIAL_MATCH_ID,
     EvidenceFinding,
     EvidenceLevel,
     MatchDisposition,
