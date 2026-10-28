@@ -70,12 +70,15 @@ def test_readiness_is_blocked_until_every_independent_requirement_is_met() -> No
     evidence = ReadinessEvidence()
     assert len(evidence.blockers()) == 4
     assert "home-away" in " ".join(evidence.blockers())
-    assert len(
-        ReadinessEvidence(
-            canonical_event_verified=True,
-            independent_home_away_verified=True,
-        ).blockers()
-    ) == 2
+    assert (
+        len(
+            ReadinessEvidence(
+                canonical_event_verified=True,
+                independent_home_away_verified=True,
+            ).blockers()
+        )
+        == 2
+    )
     assert (
         ReadinessEvidence(
             canonical_event_verified=True,
