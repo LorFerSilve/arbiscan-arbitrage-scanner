@@ -12,10 +12,13 @@ manufacture a Phase-8 event match. It is strictly a semantic verifier.
 from __future__ import annotations
 
 from collections.abc import Mapping
-from decimal import Decimal
 from enum import StrEnum
 
 from arbiscan.domain import MarketKind, MarketPeriod, ParticipantId
+from arbiscan.domain.football_1x2_contract import (
+    ODDSPAPI_1X2_LABELS,
+    is_documented_oddspapi_football_1x2,
+)
 from arbiscan.normalization.markets import MarketSemantic
 
 
@@ -60,39 +63,10 @@ ODDSPAPI_1X2_SIDES: Mapping[str, Football1X2Side] = {
     "102": Football1X2Side.DRAW,
     "103": Football1X2Side.AWAY,
 }
-ODDSPAPI_1X2_LABELS: Mapping[str, str] = {"101": "1", "102": "X", "103": "2"}
 FOOTBALL_REGULATION_1X2 = MarketSemantic(
     kind=MarketKind.MATCH_WINNER_3_WAY,
     period=MarketPeriod.REGULATION,
 )
-
-
-def is_documented_oddspapi_football_1x2(
-    *,
-    market_id: str,
-    sport_id: int,
-    market_name: str,
-    period: str,
-    market_type: str,
-    handicap: Decimal,
-    player_prop: bool,
-    outcomes: Mapping[str, str],
-) -> bool:
-    """Accept only the exact documented soccer market and outcome contract.
-
-    A future similarly named market, a changed period, or swapped outcome IDs
-    needs separate review before mapping to regulation 1X2.
-    """
-    return (
-        market_id == "101"
-        and sport_id == 10
-        and market_name.casefold() == "full time result"
-        and period == "fulltime"
-        and market_type == "1x2"
-        and handicap == Decimal(0)
-        and not player_prop
-        and dict(outcomes) == dict(ODDSPAPI_1X2_LABELS)
-    )
 
 
 def oddspapi_1x2_side(outcome_id: str) -> Football1X2Side | None:
