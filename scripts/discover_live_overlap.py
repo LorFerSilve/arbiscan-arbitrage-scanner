@@ -14,6 +14,8 @@ from collections.abc import Mapping
 from datetime import UTC, datetime, timedelta
 from urllib.parse import urlsplit
 
+from scripts.validate_epl_identity import validate_epl_identity
+
 from arbiscan.domain import Sport
 from arbiscan.providers import (
     AsyncHttpTransport,
@@ -220,8 +222,18 @@ async def run_discovery(
             print(f"Candidate: {names} | {a.scheduled_start.isoformat()}")
         if not pairs:
             print("No exact candidates; aliases or coverage may differ. No odds fetched.")
-        else:
-            print("Candidates require canonical identity and settlement verification.")
+        review = validate_epl_identity(api_league, odds_events, papi_league, papi_events)
+        print(
+            f"Phase 7/8 identity review: {len(review.provisional_pairs)} "
+            "provisional matches; "
+            f"{review.unresolved_papi_events} OddsPapi unresolved; "
+            f"{review.excluded_odds_events} Odds API excluded; "
+            f"{review.apparent_reversed_order} apparent participant-order reversals."
+        )
+        print(
+            "Quote-eligible canonical matches: 0. OddsPapi participant1/2 "
+            "are not verified as home/away; market settlement is also unverified."
+        )
         return 0
     except ProviderError as error:
         source = "The Odds API" if error.provider_id == odds.provider.id else "OddsPapi"
