@@ -191,8 +191,9 @@ async def run_discovery(
         # datetime.isoformat() adds microseconds for "now", which can cause
         # 422 validation errors. This zero-credit endpoint supports fetching
         # the league's event list without optional time parameters.
+        all_odds_events = await odds.discover_events(api_league.external_id)
         odds_events = _events_in_window(
-            await odds.discover_events(api_league.external_id),
+            all_odds_events,
             starts_after=now,
             starts_before=ends,
         )
@@ -203,7 +204,19 @@ async def run_discovery(
             )
             return 0
 
-        if verify_official and unique_official_odds_anchor(odds_events) is None:
+        # Inspect all returned source IDs before local time filtering. A
+        # conflicting record outside the seven-day window must still block.
+        complete_anchor = (
+            unique_official_odds_anchor(all_odds_events) if verify_official else None
+        )
+        in_window_anchor = (
+            unique_official_odds_anchor(odds_events) if verify_official else None
+        )
+        if verify_official and (
+            complete_anchor is None
+            or in_window_anchor is None
+            or complete_anchor.external_id != in_window_anchor.external_id
+        ):
             print(
                 "Official fixture verification stopped: no unique and safe "
                 "Chelsea vs Manchester United home/away event in The Odds API "
