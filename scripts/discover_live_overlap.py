@@ -147,7 +147,9 @@ async def run_discovery(
         upstream=papi_upstream,
     )
     odds = TheOddsApiProvider(config=TheOddsApiConfig(api_key=odds_key), transport=odds_transport)
-    papi = OddsPapiProvider(config=OddsPapiConfig(api_key=papi_key), transport=papi_transport)
+    papi = None if odds_only else OddsPapiProvider(
+        config=OddsPapiConfig(api_key=papi_key), transport=papi_transport
+    )
     now = datetime.now(UTC)
     ends = now + timedelta(days=7)
 
@@ -174,6 +176,7 @@ async def run_discovery(
             )
             return 0
 
+        assert papi is not None  # Only constructed for full two-provider discovery.
         papi_quota = await papi.rate_limit()
         if papi_quota is None or papi_quota.remaining is None or papi_quota.remaining < PAPI_BUDGET:
             print("Stopped: OddsPapi quota unavailable or below discovery budget.")
@@ -238,8 +241,11 @@ def main() -> int:
         return 0
     odds_key = os.environ.get("THE_ODDS_API_KEY", "").strip()
     papi_key = os.environ.get("ODDSPAPI_API_KEY", "").strip()
-    if not odds_key or not papi_key:
-        print("Missing keys: configure THE_ODDS_API_KEY and ODDSPAPI_API_KEY in .env.")
+    if not odds_key:
+        print("Missing THE_ODDS_API_KEY in your local .env.")
+        return 2
+    if not args.odds_only and not papi_key:
+        print("Missing ODDSPAPI_API_KEY in your local .env for full discovery.")
         return 2
     return asyncio.run(run_discovery(odds_key, papi_key, odds_only=args.odds_only))
 
