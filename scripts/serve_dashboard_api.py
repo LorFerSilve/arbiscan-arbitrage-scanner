@@ -17,9 +17,7 @@ VERSION = "0.1.0.dev0"
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument(
-        "--port", type=int, default=8000, help="Local port (default 8000; 1-65535)"
-    )
+    parser.add_argument("--port", type=int, default=8000, help="Local port (default 8000; 1-65535)")
     parser.add_argument(
         "--demo",
         action="store_true",
