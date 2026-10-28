@@ -182,3 +182,29 @@ def test_two_labels_for_same_club_cannot_become_valid_participants() -> None:
     assert report.provisional_pairs == ()
     assert report.unresolved_papi_events == 1
     assert report.quote_eligible_pairs == 0
+
+def test_reused_odds_api_event_ids_cannot_seed_multiple_canonical_events() -> None:
+    odds = (
+        _fixture("duplicate-id", "Chelsea", "Manchester United", odds=True),
+        _fixture("duplicate-id", "Liverpool", "Arsenal", odds=True),
+    )
+    papi = _fixture("papi-1", "Chelsea", "Manchester United")
+    report = _review(odds, (papi,))
+    assert report.provisional_pairs == ()
+    assert report.excluded_odds_events == 2
+    assert report.unresolved_papi_events == 1
+
+
+def test_reused_oddspapi_event_ids_cannot_bind_distinct_canonical_fixtures() -> None:
+    odds = (
+        _fixture("odds-chelsea", "Chelsea", "Manchester United", odds=True),
+        _fixture("odds-liverpool", "Liverpool", "Arsenal", odds=True),
+    )
+    papi = (
+        _fixture("duplicate-id", "Chelsea", "Manchester United"),
+        _fixture("duplicate-id", "Liverpool", "Arsenal"),
+    )
+    report = _review(odds, papi)
+    assert report.provisional_pairs == ()
+    assert report.unresolved_papi_events == 2
+    assert report.quote_eligible_pairs == 0
