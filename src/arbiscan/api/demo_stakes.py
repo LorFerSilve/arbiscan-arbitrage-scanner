@@ -49,9 +49,7 @@ def calculate_demo_projection(
     No client-provided bankroll, market identification or arbitrary odds
     enter this internal-only helper.
     """
-    if len(quotes) != 3 or {quote.selection_id for quote in quotes} != {
-        "home", "draw", "away"
-    }:
+    if len(quotes) != 3 or {quote.selection_id for quote in quotes} != {"home", "draw", "away"}:
         raise ValueError("demo must contain exactly three 1X2 outcomes")
     if any(
         quote.status != "synthetic"
@@ -104,9 +102,7 @@ def calculate_demo_projection(
     result = StakePlanResponse(
         currency=plan.currency,
         bankroll=str(plan.bankroll),
-        total_staked=str(
-            sum((allocation.amount for allocation in plan.allocations), Decimal("0"))
-        ),
+        total_staked=str(sum((allocation.amount for allocation in plan.allocations), Decimal("0"))),
         guaranteed_payout=str(plan.guaranteed_payout),
         guaranteed_profit=str(plan.guaranteed_profit),
         allocations=tuple(
