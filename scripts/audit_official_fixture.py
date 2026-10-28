@@ -8,8 +8,8 @@ source fixture IDs, prices, bookmaker terms, licences or quote eligibility.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 import re
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
 from arbiscan.normalization.football_1x2 import FixtureSideAlignment
@@ -119,7 +119,7 @@ def audit_official_chelsea_manchester_united(
 
 # A provider source ID is opaque, not a key or a canonical ID. Keep unsafe
 # or malformed external values out of terminal output and future route inputs.
-_SAFE_EXTERNAL_ID = re.compile(r"[A-Za-z0-9_-]{1,128}\\Z")
+_SAFE_EXTERNAL_ID = re.compile(r"[A-Za-z0-9_-]{1,128}\Z")
 
 
 @dataclass(frozen=True, slots=True)
