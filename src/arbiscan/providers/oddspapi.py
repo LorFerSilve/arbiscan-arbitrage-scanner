@@ -220,12 +220,18 @@ def _sport_records(payload: object) -> tuple[_SportRecord, ...]:
     for index, raw in enumerate(_sequence(payload, path="sports")):
         item = _mapping(raw, path=f"sports[{index}]")
         slug = _text(item.get("slug"), path=f"sports[{index}].slug").casefold()
+        sport = _SLUG_TO_SPORT.get(slug)
+        if sport is None:
+            # The full catalogue may include unrelated sports with missing
+            # display names. They cannot enter a canonical sport pipeline.
+            # Still require a valid slug, so unknown identity cannot be guessed.
+            continue
         records.append(
             _SportRecord(
                 external_id=_integer(item.get("sportId"), path=f"sports[{index}].sportId"),
                 slug=slug,
                 name=_text(item.get("sportName"), path=f"sports[{index}].sportName"),
-                sport=_SLUG_TO_SPORT.get(slug),
+                sport=sport,
             )
         )
     return tuple(records)

@@ -17,6 +17,27 @@ rights. Technical completion must not be interpreted as provider/legal approval.
 Selection rationale and candidate comparison:
 [`phase-16.1-provider-selection.md`](phase-16.1-provider-selection.md).
 
+## Phase 19: unrelated sport display-name tolerance
+
+On 2026-10-28, an authorized single-call `/sports` diagnostic reported
+`sports[69].sportName must be non-empty text` during football competition
+discovery. The source payload was not retained and the 70th record's slug
+was not disclosed, so its identity has not been verified.
+
+The parser now **ignores catalog entries whose valid slug does not map to an
+enabled canonical sport**, without requiring their display names or numeric IDs.
+This avoids aborting football discovery because of unrelated provider-catalog
+metadata. This is not a blanket permissive schema fallback: an absent or
+malformed slug still fails closed; football, basketball and tennis still
+require a valid `sportId` and nonempty `sportName`; duplicate canonical sport
+records are rejected when resolving the selected sport. Synthetic
+regressions specifically cover a null/missing/blank `sportName` at index 69.
+
+The next one-shot live discovery must establish whether the observed record
+was unmapped. If it is a supported sport, the error will intentionally persist
+and must be investigated before loosening semantics. Do not commit raw
+OddsPapi responses or keys; the existing production-rights blocker remains.
+
 ## Provider role
 
 OddsPapi is modeled as a **transport/source provider**. Bookmakers and exchanges
