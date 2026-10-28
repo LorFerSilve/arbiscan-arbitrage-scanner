@@ -24,6 +24,7 @@ class Football1X2Side(StrEnum):
     DRAW = "draw"
     AWAY = "away"
 
+
 class FixtureSideAlignment(StrEnum):
     """Source participant ordering relative to a reviewed home/away reference."""
 
