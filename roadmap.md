@@ -1292,6 +1292,23 @@ Do **not** wait for full production-scale benchmarks to design the local UI.
 Do **not** interpret a usable demo dashboard as proof that Phase 19 is complete
 or that live quotes are authorized.
 
+**2026-10-28 public-evidence follow-up:** The role, settlement and
+provider-rights [audit](docs/providers/phase-19-market-role-settlement-rights-audit.md)
+is documented and tested offline. OddsPapi's `participant1` home-team
+example is NFL-specific; the soccer fixture API defines first/second
+participants but does not guarantee a soccer home/away field. Pinnacle's
+official rules document regulation time and 85-minute/12-hour abandonment
+exceptions, but no Pinnacle quote from both APIs has been bound to the
+same market. The Odds API's terms explicitly permit analytical UI and
+storage under conditions; OddsPapi account-specific storage/replay/
+dashboard use remains to be confirmed. These findings **do not**
+approve live odds, market books or production activation.
+
+**Next engineering implementation after this audit:** proceed with
+Phase 20.1/20.2 local **synthetic** HTTP and browser UI, in parallel
+with obtaining the missing vendor-rights and soccer-role clarifications.
+Do not make further paid provider calls while awaiting that evidence.
+
 ## Objective
 
 Optimize only after profiling demonstrates real bottlenecks.
