@@ -10,6 +10,7 @@ This directory contains ArbiScan's normative product-definition, correctness, ri
 - [`risk-register.md`](risk-register.md) — correctness, security, provider, operational, and product risks.
 - [`provider-integration-checklist.md`](provider-integration-checklist.md) — mandatory review gate before enabling any real odds source.
 - [`dashboard-and-alerts.md`](dashboard-and-alerts.md) — Phase 15 read-only dashboard projection and channel-independent alert boundary.
+- [`phase-20-web-dashboard-mvp.md`](phase-20-web-dashboard-mvp.md) — planned local-only interactive browser MVP, reuse of Phase 13 API and Phase 15 projections, synthetic-first acceptance and independently gated live-data integration.
 - [`phase-0-completion.md`](phase-0-completion.md) — evidence that the Phase 0 roadmap exit criteria are satisfied.
 
 Architecture decisions are maintained separately under [`../adr/`](../adr/). Provider-specific documentation and the Phase 16 hand-off live under [`../providers/`](../providers/).
