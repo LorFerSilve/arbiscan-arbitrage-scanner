@@ -67,9 +67,7 @@ def test_schema_diagnostic_reports_field_path_without_raw_data() -> None:
 
 
 def test_valid_football_sport_passes_with_only_one_metered_call() -> None:
-    transport = _FakeTransport(
-        [{"sportId": 10, "slug": "soccer", "sportName": "Soccer"}]
-    )
+    transport = _FakeTransport([{"sportId": 10, "slug": "soccer", "sportName": "Soccer"}])
     code, output = _run(transport)
 
     assert code == 0
