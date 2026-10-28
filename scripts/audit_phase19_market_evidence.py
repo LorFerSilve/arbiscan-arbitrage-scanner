@@ -23,9 +23,7 @@ ODDSPAPI_PARTICIPANT2_ID = "35"
 
 ODDSPAPI_FIXTURES_DOC = "https://oddspapi.io/us/docs/get-fixtures"
 ODDSPAPI_MARKETS_DOC = "https://oddspapi.io/us/docs/get-markets"
-ODDSPAPI_FOOTBALL_BLOG = (
-    "https://oddspapi.io/blog/football-data-api-betting-predictions/"
-)
+ODDSPAPI_FOOTBALL_BLOG = "https://oddspapi.io/blog/football-data-api-betting-predictions/"
 ODDSPAPI_NFL_BLOG = "https://oddspapi.io/blog/nfl-prediction-market-liquidity/"
 PINNACLE_RULES_DOC = "https://www.pinnacle.bet/en/future/betting-rules"
 ODDSPAPI_TERMS_DOC = "https://oddspapi.io/en/legal/terms"
@@ -240,12 +238,13 @@ def main() -> int:
     )
     for finding in audit.findings:
         print(
-            f"[{finding.level.value}] {finding.code} | "
-            f"scope={finding.scope} | {finding.conclusion}"
+            f"[{finding.level.value}] {finding.code} | scope={finding.scope} | {finding.conclusion}"
         )
         print(f"  Public/source reference: {finding.source}")
-    print("Pinnacle 1X2: normal-regulation public rule documented, "
-          "but no live bookmaker market binding or special-case settlement approved.")
+    print(
+        "Pinnacle 1X2: normal-regulation public rule documented, "
+        "but no live bookmaker market binding or special-case settlement approved."
+    )
     print("Quote authorization BLOCKED:")
     for reason in audit.blockers:
         print(f"- {reason}")
