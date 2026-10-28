@@ -11,6 +11,7 @@ import re
 from dataclasses import asdict, is_dataclass
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
 from typing import Any, cast
 from urllib.parse import parse_qsl, urlsplit
 
@@ -21,6 +22,13 @@ from arbiscan.api.service import ArbiScanApi
 API_PREFIX = "/api/v1"
 _LOCAL_HOST = "127.0.0.1"
 _SAFE_ID = re.compile(r"[A-Za-z0-9_-]{1,128}\Z")
+# Exact static routes only: no user-controlled filesystem path.
+_ASSETS: dict[str, tuple[str, str]] = {
+    "/": ("index.html", "text/html; charset=utf-8"),
+    "/assets/styles.css": ("styles.css", "text/css; charset=utf-8"),
+    "/assets/app.js": ("app.js", "text/javascript; charset=utf-8"),
+}
+_WEB_ROOT = Path(__file__).with_name("web")
 
 
 def _parameters(raw_query: str, *, allowed: frozenset[str]) -> dict[str, str]:
@@ -69,14 +77,7 @@ def _dispatch(
     api: ArbiScanApi, *, path: str, raw_query: str, mode: str, version: str
 ) -> tuple[HTTPStatus, object]:
     """Never consult providers; only call the existing application API."""
-    if path == "/":
-        _parameters(raw_query, allowed=frozenset())
-        return HTTPStatus.OK, {
-            "service": "ArbiScan Phase 20.1 local HTTP API",
-            "data_mode": mode,
-            "browser_dashboard": "planned for Phase 20.2",
-            "api_base": API_PREFIX,
-        }
+    # Static HTML, CSS and JS are handled by LocalHandler before JSON dispatch.
     if path == API_PREFIX + "/runtime":
         _parameters(raw_query, allowed=frozenset())
         return HTTPStatus.OK, {
@@ -166,21 +167,34 @@ def create_local_http_server(
             # Do not emit URL/query parameters or secrets into access logs.
             return
 
-        def _send(self, status: HTTPStatus, payload: object) -> None:
-            data = _serialize(payload)
+        def _send_bytes(
+            self, status: HTTPStatus, data: bytes, content_type: str
+        ) -> None:
             self.send_response(status)
-            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Content-Type", content_type)
             self.send_header("Content-Length", str(len(data)))
             self.send_header("Cache-Control", "no-store")
             self.send_header("X-Content-Type-Options", "nosniff")
-            self.send_header(
-                "Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'"
-            )
+            if content_type.startswith("text/html"):
+                self.send_header(
+                    "Content-Security-Policy",
+                    "default-src 'none'; script-src 'self'; style-src 'self'; "
+                    "connect-src 'self'; img-src 'self' data:; "
+                    "base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+                )
+            else:
+                self.send_header(
+                    "Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'"
+                )
             self.send_header("Referrer-Policy", "no-referrer")
             self.send_header("Cross-Origin-Resource-Policy", "same-origin")
+            self.send_header("X-Frame-Options", "DENY")
             self.send_header("X-Arbiscan-Data-Mode", mode)
             self.end_headers()
             self.wfile.write(data)
+
+        def _send(self, status: HTTPStatus, payload: object) -> None:
+            self._send_bytes(status, _serialize(payload), "application/json; charset=utf-8")
 
         def do_GET(self) -> None:
             server_port = cast(ThreadingHTTPServer, self.server).server_port
@@ -217,6 +231,12 @@ def create_local_http_server(
                     or "%" in parsed.path
                 ):
                     raise ValueError("unsafe request path")
+                if parsed.path in _ASSETS:
+                    _parameters(parsed.query, allowed=frozenset())
+                    file_name, mime = _ASSETS[parsed.path]
+                    content = (_WEB_ROOT / file_name).read_bytes()
+                    self._send_bytes(HTTPStatus.OK, content, mime)
+                    return
                 status, payload = _dispatch(
                     api,
                     path=parsed.path,
