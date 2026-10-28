@@ -168,6 +168,25 @@ candidate rather than guessing. One-to-one candidates are **not canonical
 event matching proof**; source event identity and settlement semantics must
 still be verified before a later controlled odds comparison.
 
+### Phase 19: independent official EPL fixture evidence
+
+The independently published Chelsea v Manchester United fixture for
+**31 October 2026, 12:30 UTC** has been cross-checked against the
+Premier League and both clubs. The official match ID is **2645278**.
+To see the no-network reference report:
+
+```powershell
+uv run python -m scripts.audit_official_fixture
+```
+
+The existing EPL discovery code can compare a Phase-7/8 provisional
+pair to this official home/away and kickoff reference, and report whether
+OddsPapi participant order appears aligned/reversed. However, the official
+match ID is **not** either provider's ID. The orientation of OddsPapi's
+participant1/2 fields, underlying bookmaker settlement terms, and data-use
+rights are still **unverified**. No odds or quote authorization is enabled.
+See [official event, Pinnacle and API rights evidence](docs/providers/phase-19-independent-fixture-evidence.md).
+
 ### Phase 19: controlled live-odds preflight (no paid requests)
 
 Before any priced source snapshot, run the new **offline** readiness report:
