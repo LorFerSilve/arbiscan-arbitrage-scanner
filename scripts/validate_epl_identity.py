@@ -28,6 +28,7 @@ from arbiscan.matching import (
     CanonicalRegistry,
     EventMatcher,
     EventMatchStatus,
+    NormalizedEventEvidence,
     ParticipantOrderPolicy,
 )
 from arbiscan.normalization import (
@@ -139,7 +140,7 @@ def _prepare(
     competition: SourceCompetition,
     *,
     odds_api: bool,
-) -> tuple[ParticipantId, ...] | None:
+) -> NormalizedEventEvidence | None:
     provider = THE_ODDS_API_PROVIDER_ID if odds_api else ODDSPAPI_PROVIDER_ID
     expected_roles = ("home", "away") if odds_api else ("participant1", "participant2")
     if (
@@ -148,22 +149,26 @@ def _prepare(
         or tuple(p.role for p in event.participants) != expected_roles
     ):
         return None
-    result = prepare_event_evidence(
-        provider_id=provider,
-        event=event,
-        competition=competition,
-        competition_normalizer=_COMPETITION_NORMALIZER,
-        participant_normalizer=_PARTICIPANT_NORMALIZER,
-        participant_kind=ParticipantKind.TEAM,
-        order_policy=(
-            ParticipantOrderPolicy.ORDERED if odds_api else ParticipantOrderPolicy.UNORDERED
-        ),
-    )
+    try:
+        result = prepare_event_evidence(
+            provider_id=provider,
+            event=event,
+            competition=competition,
+            competition_normalizer=_COMPETITION_NORMALIZER,
+            participant_normalizer=_PARTICIPANT_NORMALIZER,
+            participant_kind=ParticipantKind.TEAM,
+            order_policy=(
+                ParticipantOrderPolicy.ORDERED if odds_api else ParticipantOrderPolicy.UNORDERED
+            ),
+        )
+    except ValueError:
+        # Two distinct source labels may resolve to the *same* canonical team.
+        # NormalizedEventEvidence rejects that duplicate; keep it ineligible.
+        return None
     if result.evidence is None:
         return None
     ids = result.evidence.participant_ids
-    # Do not create an event with two aliases resolving to the same club.
-    return ids if len(set(ids)) == 2 else None
+    return result.evidence if len(set(ids)) == 2 else None
 
 
 def validate_epl_identity(
@@ -182,10 +187,11 @@ def validate_epl_identity(
     by_event_id: dict[EventId, tuple[SourceEvent, tuple[ParticipantId, ...]]] = {}
     excluded = 0
     for index, event in enumerate(odds_events):
-        ids = _prepare(event, odds_competition, odds_api=True)
-        if ids is None:
+        evidence = _prepare(event, odds_competition, odds_api=True)
+        if evidence is None:
             excluded += 1
             continue
+        ids = evidence.participant_ids
         key = EventId(f"event:phase19-ephemeral:{index}")
         anchors.append(
             Event(
@@ -215,21 +221,10 @@ def validate_epl_identity(
     for event in papi_events:
         if event.source_status.casefold() not in _PREMATCH:
             continue
-        ids = _prepare(event, papi_competition, odds_api=False)
-        if ids is None:
+        evidence = _prepare(event, papi_competition, odds_api=False)
+        if evidence is None:
             continue
-        preparation = prepare_event_evidence(
-            provider_id=ODDSPAPI_PROVIDER_ID,
-            event=event,
-            competition=papi_competition,
-            competition_normalizer=_COMPETITION_NORMALIZER,
-            participant_normalizer=_PARTICIPANT_NORMALIZER,
-            participant_kind=ParticipantKind.TEAM,
-            order_policy=ParticipantOrderPolicy.UNORDERED,
-        )
-        if preparation.evidence is None:
-            continue
-        decision = matcher.match(preparation.evidence)
+        decision = matcher.match(evidence)
         if decision.status is EventMatchStatus.AMBIGUOUS:
             ambiguous += 1
             continue
@@ -238,7 +233,14 @@ def validate_epl_identity(
         anchor_event, anchor_ids = by_event_id[decision.matched_event_id]
         if abs(anchor_event.scheduled_start - event.scheduled_start) > _MAX_DELTA:
             continue
-        candidates.append((decision.matched_event_id, anchor_event, event, ids != anchor_ids))
+        candidates.append(
+            (
+                decision.matched_event_id,
+                anchor_event,
+                event,
+                evidence.participant_ids != anchor_ids,
+            )
+        )
 
     # A provider cannot identify one canonical fixture through multiple IDs.
     multiplicities = Counter(row[0] for row in candidates)
