@@ -116,13 +116,21 @@ English Premier League event overlap **without fetching odds**:
 
 ```text
 uv run --env-file .env python -m scripts.discover_live_overlap
+uv run --env-file .env python -m scripts.discover_live_overlap --execute --odds-only
 uv run --env-file .env python -m scripts.discover_live_overlap --execute
 ```
 
 The first command prints the request plan and performs **zero HTTP calls**.
-The explicit `--execute` call uses the existing provider adapters to identify
-unique Premier League competition records, find fixtures in the next seven days,
-and print only strict candidate pairs based on team names and kickoff proximity.
+The second command verifies EPL fixture discovery through **only The Odds API**
+(the provider documents `/sports` and `/sports/{sport}/events` as zero-usage
+metadata endpoints), even if OddsPapi credentials are configured. This makes
+The Odds API HTTP failures diagnosable **without spending any OddsPapi credits**.
+The final command should run **only after** The Odds API check succeeds. It repeats
+the free source discovery first, then asks OddsPapi for its EPL competition and
+fixtures, up to three paid metadata requests. All calls use the existing
+adapters; no odds prices are fetched. Provider errors now identify the source
+and a sanitized HTTP status when available; response bodies, URLs containing
+keys and credentials are not printed.
 
 If discovery stops with `discover_competitions (malformed_response)`
 after exactly one OddsPapi billable call, **do not rerun the full
