@@ -184,8 +184,8 @@ def create_local_http_server(
 
         def do_GET(self) -> None:
             allowed_hosts = {
-                f"127.0.0.1:{self.server.server_port}",
-                f"localhost:{self.server.server_port}",
+                f"127.0.0.1:{self.server.server_address[1]}",
+                f"localhost:{self.server.server_address[1]}",
             }
             request_host = self.headers.get("Host", "")
             if (
