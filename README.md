@@ -97,6 +97,30 @@ while `--demo` opts into synthetic fixtures. Browser refresh spends
 See [Phase 20.1 routes, security and local tests](docs/development/phase-20-local-http-api.md).
 The next coding milestone is **Phase 20.2: the actual interactive web UI**.
 
+### Phase 20.2: interactive local web dashboard
+
+A **responsive HTML/CSS/vanilla JavaScript interface** now sits on the
+Phase 20.1 loopback Python API. Start it with:
+
+```powershell
+uv run python -m scripts.serve_dashboard_api --demo
+```
+
+Open **http://127.0.0.1:8000/**. You can review local scanner readiness,
+fictional events/quotes, provider status, theoretical ROI, apply sport,
+provider, search and ROI filters, and inspect each opportunity's quote
+origin. Use the same command *without* `--demo` for an intentionally empty
+dashboard. All demos are visibly synthetic and **not executable**;
+the UI never calls OddsPapi or The Odds API.
+
+**No investment/stake plan is invented.** The current Phase 13
+opportunity-detail API does not yet supply a verified allocation or
+post-rounding payout. The UI transparently shows that such fields are
+unavailable. Phase 20.3 will add enhanced end-to-end UI acceptance,
+and a backend-first stake projection where justified.
+
+See [Phase 20.2 launch and UI security](docs/development/phase-20-browser-dashboard.md).
+
 ## Current market scope
 
 Enabled advanced semantics remain intentionally narrow:
