@@ -75,6 +75,28 @@ have been preserved as **Phases 21, 22 and 23**, respectively. See the
 **The immediate next task remains Phase 19 public/offline evidence review;**
 no additional metered API calls are needed for roadmap planning.
 
+### Phase 20.1: local read-only HTTP API (implemented)
+
+The first Phase 20 milestone exposes the existing Python API contracts as
+a **loopback-only JSON server**, with no provider requests, bookmaker keys,
+live-odds authorization, trading or persistence. It is **not yet the
+interactive browser UI**, which is Phase 20.2.
+
+```powershell
+uv run python -m scripts.serve_dashboard_api
+# Optional synthetic demonstration with clearly fictional events/quotes:
+uv run python -m scripts.serve_dashboard_api --demo
+```
+
+Open `http://127.0.0.1:8000/` for the local API landing JSON, or
+`http://127.0.0.1:8000/api/v1/runtime` to verify the explicit data mode.
+All endpoints are under `/api/v1`; the default is an **empty** source,
+while `--demo` opts into synthetic fixtures. Browser refresh spends
+**zero** API credits. No public/LAN bind is supported.
+
+See [Phase 20.1 routes, security and local tests](docs/development/phase-20-local-http-api.md).
+The next coding milestone is **Phase 20.2: the actual interactive web UI**.
+
 ## Current market scope
 
 Enabled advanced semantics remain intentionally narrow:
