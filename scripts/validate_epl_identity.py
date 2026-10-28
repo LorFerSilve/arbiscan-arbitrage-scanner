@@ -238,9 +238,7 @@ def validate_epl_identity(
         anchor_event, anchor_ids = by_event_id[decision.matched_event_id]
         if abs(anchor_event.scheduled_start - event.scheduled_start) > _MAX_DELTA:
             continue
-        candidates.append(
-            (decision.matched_event_id, anchor_event, event, ids != anchor_ids)
-        )
+        candidates.append((decision.matched_event_id, anchor_event, event, ids != anchor_ids))
 
     # A provider cannot identify one canonical fixture through multiple IDs.
     multiplicities = Counter(row[0] for row in candidates)
