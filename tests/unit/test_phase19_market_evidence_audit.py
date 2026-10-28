@@ -23,6 +23,8 @@ def test_source_scope_distinguishes_nfl_home_rule_from_soccer() -> None:
     findings = {item.code: item for item in public_evidence_findings()}
     assert findings["oddspapi_nfl_role_observation"].level is EvidenceLevel.PUBLIC_DOCUMENTED
     assert "NFL example only" in findings["oddspapi_nfl_role_observation"].scope
+    assert findings["oddspapi_soccer_score_example"].level is EvidenceLevel.PUBLIC_DOCUMENTED
+    assert "not a universal" in findings["oddspapi_soccer_score_example"].conclusion
     assert findings["oddspapi_sport_specific_roles"].level is EvidenceLevel.MISSING_ATTESTATION
     assert "not an explicit soccer-wide" in findings["oddspapi_sport_specific_roles"].conclusion
     assert findings["fixture_metadata"].level is EvidenceLevel.USER_OBSERVED_METADATA
@@ -103,7 +105,7 @@ def test_public_provider_terms_do_not_approve_account_storage_or_distribution() 
 
 def test_audit_never_promotes_observation_or_public_rule_to_quote_eligibility() -> None:
     audit = audit_phase19_market_evidence()
-    assert len(audit.findings) == 10
+    assert len(audit.findings) == 11
     assert len(audit.blockers) == 4
     assert not audit.quote_eligible
     assert "home-away" in " ".join(audit.blockers)
