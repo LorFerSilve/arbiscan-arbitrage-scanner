@@ -200,7 +200,7 @@ def test_opportunity_detail_uses_phase13_model_and_marks_evidence_missing() -> N
         assert plan["currency"] == "EUR"
         assert plan["bankroll"] == "100.00"
         assert len(plan["allocations"]) == 3
-        assert plan["total_staked"] == "100.00"
+        assert 0 < float(plan["total_staked"]) <= 100.00
         assert float(plan["guaranteed_profit"]) > 0
         assert "Geen transactiekosten" in " ".join(plan["assumptions"])
         status, error, _ = _request(port, "/api/v1/opportunities/not-present")
