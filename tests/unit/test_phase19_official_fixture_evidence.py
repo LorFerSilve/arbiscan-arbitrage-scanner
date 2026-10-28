@@ -1,18 +1,19 @@
 """No-network regression coverage for official EPL fixture evidence."""
 
+from contextlib import redirect_stdout
 from datetime import UTC, datetime, timedelta
 from io import StringIO
-from contextlib import redirect_stdout
 
-from arbiscan.domain import Sport
-from arbiscan.normalization.football_1x2 import FixtureSideAlignment
-from arbiscan.providers import SourceCompetition, SourceEvent, SourceParticipant
 from scripts.audit_official_fixture import (
     OFFICIAL_MATCH_ID,
     audit_official_chelsea_manchester_united,
     main,
 )
 from scripts.validate_epl_identity import CanonicalReview, validate_epl_identity
+
+from arbiscan.domain import Sport
+from arbiscan.normalization.football_1x2 import FixtureSideAlignment
+from arbiscan.providers import SourceCompetition, SourceEvent, SourceParticipant
 
 _START = datetime(2026, 10, 31, 12, 30, tzinfo=UTC)
 _ODDS_COMP = SourceCompetition("soccer_epl", Sport.FOOTBALL, "EPL", "Soccer")
