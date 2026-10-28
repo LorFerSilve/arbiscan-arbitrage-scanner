@@ -84,6 +84,31 @@ See [the Phase 19 baseline](docs/development/phase-19-performance-baseline.md)
 for existing measurements, limitations and commands. No real-capture data is yet
 available in the repository.
 
+## Free-tier quota preflight (no billable odds calls)
+
+Before any authorized live-data validation, set `THE_ODDS_API_KEY` and
+`ODDSPAPI_API_KEY` in the local ignored `.env` file, then run:
+
+```text
+uv run --env-file .env python -m scripts.check_provider_quotas
+```
+
+This intentionally makes only **two metadata calls** via the existing
+production adapters: The Odds API `/sports` (no odds quota charge) and
+OddsPapi `/account` (unmetered). It prints each remaining-credit count
+when available, but never prints API keys, saves responses, or requests
+events/odds. Do **not** include the `.env` file or captured account
+responses in issues or pull requests.
+
+For the first live test, use a manual budget of at most **10 credits per
+provider** and keep automated polling disabled. This is a chosen project
+cap, not a vendor guarantee or a built-in enforcement mechanism. The
+Odds API's default `eu` region and `h2h` market normally cost one
+credit per returned odds market; **OddsPapi catalog/discovery calls also
+consume one request each**, so count every request, not just odds polls.
+Do not retain restricted OddsPapi market payloads until applicable
+data-retention/replay rights are confirmed (see [issue #76](https://github.com/LorFerSilve/arbiscan-arbitrage-scanner/issues/76)).
+
 ## Development
 
 The project uses Python 3.13, uv, Ruff, mypy, pytest, pre-commit, and GitHub Actions. See [`docs/development/setup.md`](docs/development/setup.md) for the reproducible setup and quality commands.
