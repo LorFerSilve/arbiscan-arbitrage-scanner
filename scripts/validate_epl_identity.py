@@ -183,10 +183,17 @@ def validate_epl_identity(
     not an approved independent source of canonical event truth. OddsPapi
     provides no documented home/away mapping for participant1/participant2.
     """
+    # Source-local fixture IDs are identity-bearing. Reused IDs must never
+    # establish distinct canonical events, even if teams and kickoff differ.
+    odds_id_counts = Counter(event.external_id for event in odds_events)
+    papi_id_counts = Counter(event.external_id for event in papi_events)
     anchors: list[Event] = []
     by_event_id: dict[EventId, tuple[SourceEvent, tuple[ParticipantId, ...]]] = {}
     excluded = 0
     for index, event in enumerate(odds_events):
+        if odds_id_counts[event.external_id] != 1:
+            excluded += 1
+            continue
         evidence = _prepare(event, odds_competition, odds_api=True)
         if evidence is None:
             excluded += 1
@@ -219,6 +226,8 @@ def validate_epl_identity(
     candidates: list[tuple[EventId, SourceEvent, SourceEvent, bool]] = []
     ambiguous = 0
     for event in papi_events:
+        if papi_id_counts[event.external_id] != 1:
+            continue
         if event.source_status.casefold() not in _PREMATCH:
             continue
         evidence = _prepare(event, papi_competition, odds_api=False)
