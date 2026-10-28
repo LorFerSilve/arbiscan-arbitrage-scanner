@@ -15,10 +15,6 @@ from collections.abc import Mapping
 from enum import StrEnum
 
 from arbiscan.domain import MarketKind, MarketPeriod, ParticipantId
-from arbiscan.domain.football_1x2_contract import (
-    ODDSPAPI_1X2_LABELS,
-    is_documented_oddspapi_football_1x2,
-)
 from arbiscan.normalization.markets import MarketSemantic
 
 
