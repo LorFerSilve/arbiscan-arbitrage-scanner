@@ -108,6 +108,57 @@ No terms are used to auto-set `provider_data_rights_approved=True`.
 The independent fixture evidence likewise does not override the other
 three `ReadinessEvidence` blockers.
 
+## Targeted real provider ID inspection (metadata only)
+
+After the no-network audit, the next explicitly opt-in read-only check is:
+
+```powershell
+git pull
+uv run --env-file .env python -m scripts.discover_live_overlap --execute --verify-official
+```
+
+**Cost if executed locally:** The Odds API's free sports/events listing plus
+OddsPapi `/account` (unmetered), followed by **at most three billable**
+OddsPapi metadata calls: `/sports`, `/tournaments`, `/fixtures`.
+There are **no** `/markets`, `/odds`, `/fixture`, `/settlements` calls,
+no quote calculation and no raw-feed or credential persistence.
+Errors and timeouts still count against the three-call *attempt* budget.
+See the [official quota policy](https://oddspapi.io/us/docs/requests-and-quota).
+
+The script checks the **free source first**. It contacts OddsPapi only if
+there is exactly one Chelsea (home) vs Manchester United (away) fixture,
+with valid event ID and a kickoff within five minutes of the independently
+published 31 October 2026 12:30 UTC time. It then applies the existing
+Phase-7/8 event identity, competition, ambiguity and duplicate gates.
+If unique matching fails, it stops without revealing a dubious ID.
+
+If the metadata is consistent, the terminal **observes** The Odds API's
+real `event.id`, OddsPapi's `fixtureId`, `tournamentId`,
+`participant1Id`/name and `participant2Id`/name, and the participant
+order **relative to** the official Chelsea-home reference. The Odds API
+adapter represents football participants by their *names*; these are
+**not** independently issued numerical team IDs.
+
+Output `ALIGNED` means the first *observed name* agrees with the
+independent official home team; `REVERSED` means the opposite. **Neither
+state proves OddsPapi's general participant-slot semantics.** Provider
+event IDs are also not the official Premier League match ID, so this
+remains a carefully delimited cross-source observation rather than a
+provider-issued canonical identity guarantee.
+
+The report always states **quote authorization BLOCKED**. It does not
+approve odds comparison, market settlement, storage/display rights,
+bookmaker availability or any production activation. Do not rerun this
+three-billable-call command automatically or repeatedly to recover a
+failed/missing match. Keep the printed IDs as ephemeral diagnostic
+evidence only; do not commit raw responses or API keys.
+
+Offline test (no network or provider credits):
+
+```powershell
+uv run --with pytest==9.1.1 pytest tests/unit/test_phase19_live_provider_ids.py
+```
+
 ## Remaining proof required before a paid live 1X2 sample
 
 1. Obtain the exact **current** The Odds API event ID and OddsPapi fixture

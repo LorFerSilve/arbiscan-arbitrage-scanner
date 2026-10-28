@@ -8,6 +8,7 @@ source fixture IDs, prices, bookmaker terms, licences or quote eligibility.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
@@ -113,6 +114,90 @@ def audit_official_chelsea_manchester_united(
         orientation,
         "official fixture agrees with provisional names and kickoff; "
         "provider fixture IDs and OddsPapi home/away semantics remain unverified",
+    )
+
+
+# A provider source ID is opaque, not a key or a canonical ID. Keep unsafe
+# or malformed external values out of terminal output and future route inputs.
+_SAFE_EXTERNAL_ID = re.compile(r"[A-Za-z0-9_-]{1,128}\Z")
+
+
+@dataclass(frozen=True, slots=True)
+class ProviderFixtureIdEvidence:
+    """Observed source-side identifiers linked via a provisional official audit.
+
+    Nothing in this structure certifies OddsPapi participant1/2 semantics,
+    bookmaker settlement rules or provider licence/usage permissions.
+    """
+
+    official_match_id: str
+    the_odds_api_event_id: str
+    oddspapi_fixture_id: str
+    oddspapi_competition_id: str
+    oddspapi_participant1_id: str
+    oddspapi_participant1_name: str
+    oddspapi_participant2_id: str
+    oddspapi_participant2_name: str
+    oddspapi_order_vs_official: FixtureSideAlignment
+
+    @property
+    def quote_eligible(self) -> bool:
+        return False
+
+
+def unique_official_odds_anchor(events: tuple[SourceEvent, ...]) -> SourceEvent | None:
+    """Free-source precheck before any billable OddsPapi discovery.
+
+    Reject duplicate IDs anywhere in this response, including conflicting
+    non-matching entries reusing the same source ID.
+    """
+    candidates = tuple(event for event in events if _odds_matches_official(event))
+    if len(candidates) != 1:
+        return None
+    chosen = candidates[0]
+    if sum(event.external_id == chosen.external_id for event in events) != 1:
+        return None
+    if _SAFE_EXTERNAL_ID.fullmatch(chosen.external_id) is None:
+        return None
+    return chosen
+
+
+def observed_provider_ids_for_official_fixture(
+    review: CanonicalReview,
+) -> ProviderFixtureIdEvidence | None:
+    """Expose real IDs only for one unambiguous Phase-7/8 + official schedule pair.
+
+    The returned source IDs are taken from current provider fixture metadata,
+    not from the Premier League match ID or invented name-based identifiers.
+    """
+    audit = audit_official_chelsea_manchester_united(review)
+    if not audit.reviewed_provisional_pair or audit.papi_order_relative_to_official is None:
+        return None
+    candidates = tuple(
+        (odds, papi) for odds, papi in review.provisional_pairs if _odds_matches_official(odds)
+    )
+    if len(candidates) != 1:
+        return None
+    odds, papi = candidates[0]
+    ids = (
+        odds.external_id,
+        papi.external_id,
+        papi.competition_external_id,
+        papi.participants[0].external_id,
+        papi.participants[1].external_id,
+    )
+    if any(_SAFE_EXTERNAL_ID.fullmatch(value) is None for value in ids):
+        return None
+    return ProviderFixtureIdEvidence(
+        official_match_id=OFFICIAL_MATCH_ID,
+        the_odds_api_event_id=odds.external_id,
+        oddspapi_fixture_id=papi.external_id,
+        oddspapi_competition_id=papi.competition_external_id,
+        oddspapi_participant1_id=papi.participants[0].external_id,
+        oddspapi_participant1_name=papi.participants[0].name,
+        oddspapi_participant2_id=papi.participants[1].external_id,
+        oddspapi_participant2_name=papi.participants[1].name,
+        oddspapi_order_vs_official=audit.papi_order_relative_to_official,
     )
 
 
