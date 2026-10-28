@@ -93,7 +93,7 @@ def review_bookmaker_soccer_1x2(
             disposition,
             False,
             False,
-            "no independently reviewed bookmaker-specific 1X2 rules for this slug",
+            "bookmaker-specific 1X2 rules are not independently reviewed for this slug",
         )
     if disposition is MatchDisposition.COMPLETED_REGULATION:
         return BookmakerRuleReview(
