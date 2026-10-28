@@ -216,7 +216,11 @@ def test_no_matching_free_fixture_stops_before_any_paid_papi_requests() -> None:
     assert "OddsPapi billable calls attempted = 0/3" in output
     assert "real-odds-api-123" not in output
     assert not papi.requests
-    assert len(odds.calls) == 2
+    assert len([call for call in odds.calls if call.endswith("/events")]) == 1
+    assert all(
+        call.endswith("/sports") or call.endswith("/sports/soccer_epl/events")
+        for call in odds.calls
+    )
 
 
 def test_duplicate_free_source_match_stops_before_paid_requests() -> None:
