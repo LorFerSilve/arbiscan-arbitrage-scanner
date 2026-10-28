@@ -41,9 +41,7 @@ def _event(
     )
 
 
-def _review(
-    odds: tuple[SourceEvent, ...], papi: tuple[SourceEvent, ...]
-) -> CanonicalReview:
+def _review(odds: tuple[SourceEvent, ...], papi: tuple[SourceEvent, ...]) -> CanonicalReview:
     return validate_epl_identity(_ODDS_COMP, odds, _PAPI_COMP, papi)
 
 
