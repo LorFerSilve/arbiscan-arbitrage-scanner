@@ -15,7 +15,7 @@ from collections.abc import Mapping
 from decimal import Decimal
 from enum import StrEnum
 
-from arbiscan.domain import MarketKind, MarketPeriod
+from arbiscan.domain import MarketKind, MarketPeriod, ParticipantId
 from arbiscan.normalization.markets import MarketSemantic
 
 
@@ -23,6 +23,36 @@ class Football1X2Side(StrEnum):
     HOME = "home"
     DRAW = "draw"
     AWAY = "away"
+
+class FixtureSideAlignment(StrEnum):
+    """Source participant ordering relative to a reviewed home/away reference."""
+
+    ALIGNED = "aligned"
+    REVERSED = "reversed"
+    CONFLICT = "conflict"
+
+
+def assess_oddspapi_fixture_order(
+    *,
+    reference_home: ParticipantId,
+    reference_away: ParticipantId,
+    participant1: ParticipantId,
+    participant2: ParticipantId,
+) -> FixtureSideAlignment:
+    """Compare team *identities*; cannot independently certify provider roles.
+
+    The reference must have explicit home/away roles. Agreement with another
+    source is evidence, not provider documentation or bookmaker-settlement proof.
+    """
+    if reference_home == reference_away or participant1 == participant2:
+        return FixtureSideAlignment.CONFLICT
+    if (participant1, participant2) == (reference_home, reference_away):
+        return FixtureSideAlignment.ALIGNED
+    if (participant1, participant2) == (reference_away, reference_home):
+        return FixtureSideAlignment.REVERSED
+    return FixtureSideAlignment.CONFLICT
+
+
 
 
 # Vendor IDs are contract-specific. No guessing based on outcome array order.
