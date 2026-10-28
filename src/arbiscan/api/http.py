@@ -14,7 +14,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
 from urllib.parse import parse_qsl, urlsplit
 
-from arbiscan.api.contracts import ApiError, ErrorCode, PageRequest
+from arbiscan.api.contracts import ApiError, ErrorCode, Page, PageRequest
 from arbiscan.api.openapi import openapi_document
 from arbiscan.api.service import ArbiScanApi
 
@@ -136,7 +136,11 @@ def _dispatch(
 
 
 def _serialize(value: object) -> bytes:
-    if is_dataclass(value) and not isinstance(value, type):
+    if isinstance(value, Page):
+        page_data = asdict(value)
+        page_data["has_more"] = value.has_more
+        value = page_data
+    elif is_dataclass(value) and not isinstance(value, type):
         value = asdict(value)
     return json.dumps(
         value, ensure_ascii=False, separators=(",", ":"), allow_nan=False
