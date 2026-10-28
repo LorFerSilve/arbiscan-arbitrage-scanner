@@ -192,7 +192,7 @@ def test_opportunity_detail_uses_phase13_model_and_marks_evidence_missing() -> N
     with _server(demo=True) as port:
         status, detail, _ = _request(port, "/api/v1/opportunities/synthetic-opportunity-1")
         assert status == 200
-        assert detail["opportunity"]["implied_probability_sum"] == "0.90"
+        assert float(detail["opportunity"]["implied_probability_sum"]) == 0.9
         assert len(detail["quote_ids"]) == 3
         assert detail["evidence_available"] is False
         plan = detail["stake_plan"]
