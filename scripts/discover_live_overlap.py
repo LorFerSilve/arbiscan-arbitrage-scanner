@@ -118,9 +118,7 @@ def _events_in_window(
 ) -> tuple[SourceEvent, ...]:
     """Keep only events within the requested window, without remote date filters."""
     return tuple(
-        event
-        for event in events
-        if starts_after <= event.scheduled_start <= starts_before
+        event for event in events if starts_after <= event.scheduled_start <= starts_before
     )
 
 
