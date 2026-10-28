@@ -28,6 +28,7 @@ from arbiscan.providers import (
     TheOddsApiProvider,
     UrllibAsyncHttpTransport,
 )
+from scripts.audit_official_fixture import audit_official_chelsea_manchester_united
 from scripts.validate_epl_identity import validate_epl_identity
 
 THE_ODDS_HOST = "api.the-odds-api.com"
@@ -229,6 +230,19 @@ async def run_discovery(
             f"{review.excluded_odds_events} Odds API excluded; "
             f"{review.apparent_reversed_order} apparent participant-order reversals."
         )
+        independent = audit_official_chelsea_manchester_united(review)
+        if independent.reviewed_provisional_pair:
+            print(
+                "Official Premier League fixture 2645278: provisional pair "
+                f"agrees with independent schedule; OddsPapi participant order "
+                f"relative to reference = {independent.papi_order_relative_to_official.value}. "
+                "Provider IDs and OddsPapi home/away role meaning remain unverified."
+            )
+        else:
+            print(
+                "Official Premier League fixture 2645278: "
+                "no unique schedule-consistent Phase 7/8 pair."
+            )
         print(
             "Quote-eligible canonical matches: 0. OddsPapi participant1/2 "
             "are not verified as home/away; market settlement is also unverified."
