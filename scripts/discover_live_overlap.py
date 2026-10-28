@@ -110,6 +110,20 @@ def _same_match(left: SourceEvent, right: SourceEvent) -> bool:
     return len(left_names) == 2 and left_names == right_names
 
 
+def _events_in_window(
+    events: tuple[SourceEvent, ...],
+    *,
+    starts_after: datetime,
+    starts_before: datetime,
+) -> tuple[SourceEvent, ...]:
+    """Keep only events within the requested window, without remote date filters."""
+    return tuple(
+        event
+        for event in events
+        if starts_after <= event.scheduled_start <= starts_before
+    )
+
+
 def candidate_pairs(
     odds_events: tuple[SourceEvent, ...], papi_events: tuple[SourceEvent, ...]
 ) -> tuple[tuple[SourceEvent, SourceEvent], ...]:
@@ -166,8 +180,14 @@ async def run_discovery(
             print("Stopped: soccer_epl is not active at The Odds API.")
             return 1
 
-        odds_events = await odds.discover_events(
-            api_league.external_id, starts_after=now, starts_before=ends
+        # The provider documents second-precision UTC filters; Python's
+        # datetime.isoformat() adds microseconds for "now", which can cause
+        # 422 validation errors. This zero-credit endpoint supports fetching
+        # the league's event list without optional time parameters.
+        odds_events = _events_in_window(
+            await odds.discover_events(api_league.external_id),
+            starts_after=now,
+            starts_before=ends,
         )
         if odds_only:
             print(
