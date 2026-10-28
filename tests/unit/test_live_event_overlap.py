@@ -63,7 +63,10 @@ def test_ambiguous_matches_and_larger_time_differences_fail_closed() -> None:
     a = _event("a", "Liverpool FC", "Manchester United", minutes=2)
     b = _event("b", "Liverpool", "Manchester United FC", minutes=1)
     assert candidate_pairs((odds,), (a, b)) == ()
-    assert candidate_pairs((odds,), (_event("late", "Liverpool", "Manchester United", minutes=6),)) == ()
+    assert (
+        candidate_pairs((odds,), (_event("late", "Liverpool", "Manchester United", minutes=6),))
+        == ()
+    )
 
 
 def test_papi_league_must_be_unique_in_england() -> None:
@@ -85,12 +88,8 @@ def test_transport_caps_every_billable_attempt_and_blocks_odds() -> None:
     )
 
     async def scenario() -> None:
-        await transport.get(
-            url="https://api.oddspapi.io/v4/account", query={}, timeout_seconds=1
-        )
-        await transport.get(
-            url="https://api.oddspapi.io/v4/sports", query={}, timeout_seconds=1
-        )
+        await transport.get(url="https://api.oddspapi.io/v4/account", query={}, timeout_seconds=1)
+        await transport.get(url="https://api.oddspapi.io/v4/sports", query={}, timeout_seconds=1)
         for url in (
             "https://api.oddspapi.io/v4/odds",
             "https://malicious.example/v4/account",
