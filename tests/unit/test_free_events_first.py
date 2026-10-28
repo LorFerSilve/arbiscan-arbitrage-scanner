@@ -5,11 +5,13 @@ from __future__ import annotations
 import asyncio
 from collections.abc import Mapping
 from contextlib import redirect_stdout
+from datetime import UTC, datetime, timedelta
 from io import StringIO
 
-from scripts.discover_live_overlap import run_discovery
+from scripts.discover_live_overlap import _events_in_window, run_discovery
 
-from arbiscan.providers import HttpResponse
+from arbiscan.domain import Sport
+from arbiscan.providers import HttpResponse, SourceEvent, SourceParticipant
 from tests.support.oddspapi import FixtureHttpTransport as OddsPapiFixture
 from tests.support.the_odds_api import FixtureHttpTransport as OddsApiFixture
 
@@ -91,3 +93,43 @@ def test_odds_only_success_never_contacts_papi() -> None:
     assert not papi.requests
     assert isinstance(odds, OddsApiFixture)
     assert any(request.url.endswith("/sports/soccer_epl/events") for request in odds.requests)
+    event_queries = [
+        request.query
+        for request in odds.requests
+        if request.url.endswith("/sports/soccer_epl/events")
+    ]
+    assert len(event_queries) == 1
+    assert event_queries[0].get("dateFormat") == "iso"
+    assert "commenceTimeFrom" not in event_queries[0]
+    assert "commenceTimeTo" not in event_queries[0]
+
+
+def _event_at(event_id: str, kickoff: datetime) -> SourceEvent:
+    return SourceEvent(
+        external_id=event_id,
+        sport=Sport.FOOTBALL,
+        competition_external_id="soccer_epl",
+        participants=(
+            SourceParticipant(external_id="home", name="Home"),
+            SourceParticipant(external_id="away", name="Away"),
+        ),
+        scheduled_start=kickoff,
+    )
+
+
+def test_local_window_filters_out_past_and_future_events() -> None:
+    now = datetime(2026, 10, 28, 10, 15, 30, 123456, tzinfo=UTC)
+    ends = now + timedelta(days=7)
+    events = (
+        _event_at("past", now - timedelta(seconds=1)),
+        _event_at("start", now),
+        _event_at("middle", now + timedelta(days=2)),
+        _event_at("end", ends),
+        _event_at("later", ends + timedelta(seconds=1)),
+    )
+    selected = _events_in_window(events, starts_after=now, starts_before=ends)
+    assert tuple(event.external_id for event in selected) == (
+        "start",
+        "middle",
+        "end",
+    )

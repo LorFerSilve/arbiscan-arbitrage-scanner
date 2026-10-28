@@ -125,6 +125,17 @@ The second command verifies EPL fixture discovery through **only The Odds API**
 (the provider documents `/sports` and `/sports/{sport}/events` as zero-usage
 metadata endpoints), even if OddsPapi credentials are configured. This makes
 The Odds API HTTP failures diagnosable **without spending any OddsPapi credits**.
+If the free-only run returned `The Odds API discover_events (upstream; HTTP 422)`,
+the Oct 2026 Phase-19 version of the script had been transmitting subsecond
+`commenceTimeFrom` / `commenceTimeTo` values. The free events endpoint
+documents timestamp examples with second precision. The one-shot script now
+fetches unfiltered league events (only `dateFormat=iso`) and restricts the
+results to the next seven days **in memory**, preserving the discovery window
+without requesting odds or saving provider data. The date-parameter hypothesis
+has not yet been verified against the live endpoint; rerun only the free-only
+command first. The shared provider adapter retains its stricter original
+query behavior elsewhere.
+
 The final command should run **only after** The Odds API check succeeds. It repeats
 the free source discovery first, then asks OddsPapi for its EPL competition and
 fixtures, up to three paid metadata requests. All calls use the existing
