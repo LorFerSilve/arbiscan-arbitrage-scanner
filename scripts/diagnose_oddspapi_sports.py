@@ -22,9 +22,7 @@ from arbiscan.providers import (
 )
 
 
-async def diagnose_sports(
-    api_key: str, *, upstream: AsyncHttpTransport | None = None
-) -> int:
+async def diagnose_sports(api_key: str, *, upstream: AsyncHttpTransport | None = None) -> int:
     transport = DiscoveryOnlyTransport(
         host="api.oddspapi.io",
         routes=frozenset({"/v4/account", "/v4/sports"}),
@@ -32,9 +30,7 @@ async def diagnose_sports(
         max_billable=1,
         upstream=upstream,
     )
-    adapter = OddsPapiProvider(
-        config=OddsPapiConfig(api_key=api_key), transport=transport
-    )
+    adapter = OddsPapiProvider(config=OddsPapiConfig(api_key=api_key), transport=transport)
     try:
         quota = await adapter.rate_limit()
         if quota is None or quota.remaining is None or quota.remaining < 1:
