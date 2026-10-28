@@ -114,10 +114,37 @@ class OpportunitySummaryResponse:
 
 
 @dataclass(frozen=True, slots=True)
+class StakeLegResponse:
+    """Engine-provided money amounts: never derived by browser JavaScript."""
+
+    quote_id: str
+    selection_id: str
+    provider_id: str
+    decimal_price: str
+    stake: str
+    expected_payout: str
+
+
+@dataclass(frozen=True, slots=True)
+class StakePlanResponse:
+    """Rounded allocation and conservative outcome returned by Python only."""
+
+    currency: str
+    bankroll: str
+    total_staked: str
+    guaranteed_payout: str
+    guaranteed_profit: str
+    allocations: tuple[StakeLegResponse, ...]
+    assumptions: tuple[str, ...]
+    synthetic: bool
+
+
+@dataclass(frozen=True, slots=True)
 class OpportunityDetailResponse:
     opportunity: OpportunitySummaryResponse
     quote_ids: tuple[str, ...]
     evidence_available: bool
+    stake_plan: StakePlanResponse | None = None
 
 
 @dataclass(frozen=True, slots=True)
