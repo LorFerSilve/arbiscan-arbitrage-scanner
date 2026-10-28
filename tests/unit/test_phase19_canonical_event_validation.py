@@ -183,6 +183,7 @@ def test_two_labels_for_same_club_cannot_become_valid_participants() -> None:
     assert report.unresolved_papi_events == 1
     assert report.quote_eligible_pairs == 0
 
+
 def test_reused_odds_api_event_ids_cannot_seed_multiple_canonical_events() -> None:
     odds = (
         _fixture("duplicate-id", "Chelsea", "Manchester United", odds=True),
