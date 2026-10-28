@@ -173,7 +173,8 @@ def test_regulation_score_uses_only_90_minute_goals(
 def test_invalid_regulation_scores_fail_closed(home: object, away: object) -> None:
     with pytest.raises(ValueError, match="regulation scores"):
         football_regulation_1x2_winner(
-            home_goals=home, away_goals=away  # type: ignore[arg-type]
+            home_goals=home,
+            away_goals=away,  # type: ignore[arg-type]
         )
 
 
