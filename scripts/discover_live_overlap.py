@@ -124,35 +124,40 @@ def candidate_pairs(
     )
 
 
-async def run_discovery(odds_key: str, papi_key: str) -> int:
+async def run_discovery(
+    odds_key: str,
+    papi_key: str,
+    *,
+    odds_only: bool = False,
+    odds_upstream: AsyncHttpTransport | None = None,
+    papi_upstream: AsyncHttpTransport | None = None,
+) -> int:
     odds_transport = DiscoveryOnlyTransport(
         host=THE_ODDS_HOST,
         routes=ODDS_FREE_ROUTES,
         billable_routes=frozenset(),
         max_billable=0,
+        upstream=odds_upstream,
     )
     papi_transport = DiscoveryOnlyTransport(
         host=ODDSPAPI_HOST,
         routes=PAPI_DISCOVERY_ROUTES,
         billable_routes=PAPI_PAID_ROUTES,
         max_billable=PAPI_BUDGET,
+        upstream=papi_upstream,
     )
     odds = TheOddsApiProvider(config=TheOddsApiConfig(api_key=odds_key), transport=odds_transport)
-    papi = OddsPapiProvider(config=OddsPapiConfig(api_key=papi_key), transport=papi_transport)
+    papi: OddsPapiProvider | None = None
+    if not odds_only:
+        papi = OddsPapiProvider(config=OddsPapiConfig(api_key=papi_key), transport=papi_transport)
     now = datetime.now(UTC)
     ends = now + timedelta(days=7)
 
     try:
+        # No billable OddsPapi call until The Odds API free event discovery passes.
         odds_quota = await odds.rate_limit()
-        papi_quota = await papi.rate_limit()
-        if (
-            odds_quota is None
-            or odds_quota.remaining is None
-            or papi_quota is None
-            or papi_quota.remaining is None
-            or papi_quota.remaining < PAPI_BUDGET
-        ):
-            print("Stopped: provider quota unavailable or below the discovery budget.")
+        if odds_quota is None or odds_quota.remaining is None:
+            print("Stopped: The Odds API quota metadata unavailable.")
             return 1
 
         odds_competitions = await odds.discover_competitions(Sport.FOOTBALL)
@@ -161,15 +166,28 @@ async def run_discovery(odds_key: str, papi_key: str) -> int:
             print("Stopped: soccer_epl is not active at The Odds API.")
             return 1
 
+        odds_events = await odds.discover_events(
+            api_league.external_id, starts_after=now, starts_before=ends
+        )
+        if odds_only:
+            print(
+                f"The Odds API free event discovery passed: {len(odds_events)} "
+                "EPL fixtures within 7 days. OddsPapi discovery skipped."
+            )
+            return 0
+
+        assert papi is not None  # Only constructed for full two-provider discovery.
+        papi_quota = await papi.rate_limit()
+        if papi_quota is None or papi_quota.remaining is None or papi_quota.remaining < PAPI_BUDGET:
+            print("Stopped: OddsPapi quota unavailable or below discovery budget.")
+            return 1
+
         papi_competitions = await papi.discover_competitions(Sport.FOOTBALL)
         papi_league = _england_premier_league(papi_competitions)
         if papi_league is None:
             print("Stopped: no unique England Premier League in OddsPapi catalog.")
             return 1
 
-        odds_events = await odds.discover_events(
-            api_league.external_id, starts_after=now, starts_before=ends
-        )
         papi_events = await papi.discover_events(
             papi_league.external_id, starts_after=now, starts_before=ends
         )
@@ -188,7 +206,12 @@ async def run_discovery(odds_key: str, papi_key: str) -> int:
             print("Candidates require canonical identity and settlement verification.")
         return 0
     except ProviderError as error:
-        print(f"Discovery stopped: {error.operation} ({error.kind.value}).")
+        source = "The Odds API" if error.provider_id == odds.provider.id else "OddsPapi"
+        # Source adapters return sanitized messages; expose only an HTTP code,
+        # not raw provider response content or credential-bearing request URLs.
+        http_status = re.search(r"HTTP ([1-5][0-9]{2})", str(error))
+        detail = f"; HTTP {http_status.group(1)}" if http_status else ""
+        print(f"Discovery stopped: {source} {error.operation} ({error.kind.value}{detail}).")
         return 1
     finally:
         print(
@@ -203,6 +226,11 @@ def main() -> int:
     parser.add_argument(
         "--execute", action="store_true", help="Allow a one-shot metadata discovery"
     )
+    parser.add_argument(
+        "--odds-only",
+        action="store_true",
+        help="Check only free The Odds API EPL events; use with --execute",
+    )
     args = parser.parse_args()
     if not args.execute:
         print(
@@ -213,10 +241,13 @@ def main() -> int:
         return 0
     odds_key = os.environ.get("THE_ODDS_API_KEY", "").strip()
     papi_key = os.environ.get("ODDSPAPI_API_KEY", "").strip()
-    if not odds_key or not papi_key:
-        print("Missing keys: configure THE_ODDS_API_KEY and ODDSPAPI_API_KEY in .env.")
+    if not odds_key:
+        print("Missing THE_ODDS_API_KEY in your local .env.")
         return 2
-    return asyncio.run(run_discovery(odds_key, papi_key))
+    if not args.odds_only and not papi_key:
+        print("Missing ODDSPAPI_API_KEY in your local .env for full discovery.")
+        return 2
+    return asyncio.run(run_discovery(odds_key, papi_key, odds_only=args.odds_only))
 
 
 if __name__ == "__main__":
