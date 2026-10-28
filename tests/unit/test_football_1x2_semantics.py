@@ -1,7 +1,6 @@
 """Offline source-contract tests for football home/away and regulation 1X2."""
 
 from decimal import Decimal
-
 from typing import cast
 
 from arbiscan.domain import MarketKind, MarketPeriod, ParticipantId, Sport
