@@ -87,9 +87,7 @@ def test_dashboard_assets_are_local_read_only_and_csp_protected() -> None:
         assert js_headers["Content-Type"].startswith("text/javascript")
         assert b"fetch(path" in js
         assert b"textContent" in js
-        assert b"innerHTML" not in js.replace(
-            b"never innerHTML", b""
-        )
+        assert b"innerHTML" not in js.replace(b"never innerHTML", b"")
         assert b"window.location = " not in js
         assert b"THE_ODDS_API_KEY" not in js
         assert b"ODDSPAPI_API_KEY" not in js
