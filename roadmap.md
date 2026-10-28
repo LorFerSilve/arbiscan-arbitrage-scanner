@@ -1437,6 +1437,9 @@ Perform a dedicated security pass before any serious public deployment.
 - API abuse;
 - denial of service;
 - unsafe deserialization;
+- dashboard cross-site scripting (XSS), browser-origin/CORS misconfiguration and
+  missing security headers when the local web UI is eventually deployed;
+- accidental exposure of demo data as validated live opportunities;
 - database credential exposure;
 - overly privileged GitHub Actions tokens;
 - compromised deployment secrets.
@@ -1475,6 +1478,8 @@ Containerized services using Docker, with exact deployment target chosen later b
 ## Deliverables
 
 - production Dockerfile;
+- packaging/versioning of the Phase 20 dashboard's static browser assets and
+  its Python read-only HTTP server;
 - local Docker Compose stack if useful;
 - deployment documentation;
 - environment-specific configuration;
@@ -1519,6 +1524,9 @@ ArbiScan should not be considered `v1.0` merely because it finds an arbitrage ex
 - integration tests;
 - CI quality/security gates;
 - observability and provider-health monitoring;
+- a usable, tested browser dashboard connected to **approved** backend
+  projections, with true source/stale/blocked labels and no fabricated
+  profitable live opportunities; synthetic mode remains unmistakably separate;
 - documented setup/deployment/security model;
 - no secrets in repository/history;
 - measured end-to-end latency;
