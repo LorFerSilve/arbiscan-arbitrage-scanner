@@ -11,11 +11,16 @@ in progress, not complete.**
 Phase 19 has reproducible synthetic benchmarks for detection, matching, provider
 polling, multi-source consolidation, SQLite persistence and historical replay.
 Profiling-driven indexing, matching-cache, batch-persistence and diagnostic
-improvements have landed. The most recent completed milestone (PRs #70–#72)
-validated an eight-step, fixture-backed two-provider replay for partial coverage,
-source expiry, late revisions, clock skew and recovery. These repeated polls are
-**simulated mutations of retained single-response fixtures**, not captured real
-provider traffic or evidence of production latency.
+improvements have landed. PRs #70–#72 validated an eight-step fixture-backed
+two-provider replay for partial coverage, expiry, late revisions, skew and recovery.
+Those repeated polls are **simulated mutations of retained fixtures**, not
+captured real sequential traffic or evidence of production latency. PRs #83–#87
+then added safe official-football fixture matching and 1X2 market semantics,
+cost-bounded discovery/preflight and a read-only observation of the actual
+Chelsea–Manchester United provider fixture identifiers on 2026-10-28.
+Provider participant-slot semantics, bookmaker-specific settlement and
+account/deployment data-rights **remain unapproved**; no quotes have been
+authorized for that match.
 
 The implemented core includes:
 
@@ -47,6 +52,28 @@ The project remains development software. OddsPapi is technically integrated but
 remains blocked from production activation pending the documented provider-rights
 clarifications. Phase 19 exit criteria are not met without permissioned real-world
 multi-poll validation and representative deployment-load measurements.
+
+## Planned Phase 20 — Local Web Dashboard MVP
+
+The [roadmap](roadmap.md) now includes **Phase 20: Web Dashboard MVP**, after
+the immediate Phase 19 market-identity, bookmaker-settlement and provider-rights
+review. This is a **planned** local-only browser app, not a feature currently
+available to launch.
+
+It will reuse the existing Phase 13 Python API service and Phase 15 read-only
+dashboard models, filtering, HTML rendering and alerts. The first deliverable
+uses **deterministic synthetic data**, HTML/CSS/vanilla JavaScript, and a
+small Python HTTP adapter; it requires no odds credentials or paid API
+calls. It will show scanner/provider status, events, opportunity filters,
+exact source attribution, quote freshness, ROI, stakes, payout, assumptions
+and blocked/stale states. Later live-data integration remains explicitly
+gated on Phase 19 provider, market, settlement, rights and freshness evidence.
+
+The prior security hardening, packaging and production-release phases
+have been preserved as **Phases 21, 22 and 23**, respectively. See the
+[Phase 20 specification](docs/product/phase-20-web-dashboard-mvp.md).
+**The immediate next task remains Phase 19 public/offline evidence review;**
+no additional metered API calls are needed for roadmap planning.
 
 ## Current market scope
 

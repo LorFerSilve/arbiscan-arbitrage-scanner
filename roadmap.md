@@ -860,11 +860,16 @@ At minimum:
 
 ---
 
-# Phase 15 — User-facing dashboard and alerts
+# Phase 15 — User-facing dashboard projection and alerts
+
+**Status:** Foundation implemented: immutable display models, read-only HTML
+rendering, filters, and deduplicated alert semantics. **Not** yet a complete
+interactive browser application. Phase 20 owns the full web dashboard MVP.
 
 ## Objective
 
-Provide a useful interface only after the core engine has proven correctness and reliability.
+Provide a transport-neutral, read-only display and alert contract so later
+web interfaces consume validated backend data without duplicating calculations.
 
 ## Dashboard capabilities
 
@@ -1261,6 +1266,32 @@ The next dependency is **Phase 19 — performance and scalability engineering**.
 
 # Phase 19 — Performance and scalability engineering
 
+**Status (2026-10-28):** In progress. Synthetic replay/performance baselines
+and the cross-source fixture correctness foundation exist. PRs #83–#87
+added fail-closed Premier League 1X2 identity, settlement-contract guards,
+cost-bounded metadata-only preflight and a verified *observational* pair
+of provider fixture IDs for Chelsea v Manchester United on 2026-10-31:
+The Odds API `6601f69175a02f03fb7065aacb538e01`, OddsPapi
+`id1000001772221358` (tournament 17; participant1 Chelsea FC ID 38,
+participant2 Manchester United ID 35). The source order is **ALIGNED**
+relative to the official schedule but **does not certify** OddsPapi's
+participant-slot home/away semantics or bookmaker-specific 1X2
+abandonment/void rules. Both data-use-rights approval and production
+activation remain blocked. These observations were user-run metadata,
+not sampled odds.
+
+**Immediate correctness priority before live quote work:** resolve source
+participant role semantics, bookmaker-specific settlement equivalence,
+account/deployment data rights and permissioned real-data timing/freshness
+proof. Use no further metered provider requests without explicit authorization.
+Representative performance and deployment-hardware measurements remain open.
+
+**Dashboard sequencing:** Once the Phase 19 blocker review is documented,
+start the local **Phase 20 web dashboard MVP using synthetic/read-only data**.
+Do **not** wait for full production-scale benchmarks to design the local UI.
+Do **not** interpret a usable demo dashboard as proof that Phase 19 is complete
+or that live quotes are authorized.
+
 ## Objective
 
 Optimize only after profiling demonstrates real bottlenecks.
@@ -1295,7 +1326,101 @@ Define representative workloads for:
 
 ---
 
-# Phase 20 — Security hardening and threat-model review
+# Phase 20 — Web Dashboard MVP (local, read-only)
+
+**Status:** Planned next product-interface milestone; the Phase 15 data
+projection/alerts and Phase 13 Python application API already exist.
+This phase adds a usable browser application rather than rewriting the
+scanner, provider adapters or arbitrage mathematics.
+
+## Objective
+
+Build a local web app so the user can monitor scanner health, events, odds,
+validated opportunities, ROI, stake plans and provenance without relying
+on CLI output. Begin **before** a full production release; fixture/demo
+mode requires **zero** provider credits.
+
+## Technology and architecture
+
+- Reuse the **Python** scanner backend, Phase 13 `ArbiScanApi` contracts,
+  Phase 15 dashboard projections and read-only server-side business logic.
+- Add a lightweight HTTP transport and a responsive
+  **HTML/CSS/vanilla JavaScript** frontend. Choose any additional Python
+  HTTP dependency only if warranted by an implementation ADR.
+- Local access on `127.0.0.1` by default; no public bind, no provider
+  API keys exposed to the browser, no second calculation engine.
+- Support clearly labeled **synthetic demo**, empty/no-opportunity and
+  blocked-provider states. Browser refresh must never directly consume
+  provider odds credits.
+
+## Milestones
+
+### 20.1 — API/transport and interface contract
+
+- Inventory existing `/health`, `/readiness`, `/providers/status`,
+  `/events`, `/odds`, `/opportunities`, `/opportunities/{id}` and
+  `/metrics` application-service contracts.
+- Implement versioned read-only HTTP endpoints and validate request
+  parameters; reuse backend pagination, metrics and status semantics.
+- Maintain explicit separation between provider ingestion, canonical
+  calculation, API projection and web rendering.
+
+### 20.2 — Interactive local dashboard
+
+- Scanner and provider status, last update/freshness, available sports
+  and current event/market coverage.
+- Search/sort and filters for sport, competition, provider/bookmaker,
+  ROI, profit and lifecycle status.
+- Opportunity list and detail with exact backend-calculated odds,
+  bookmaker/outcome attribution, timestamp/age, stake distribution,
+  payout/profit, assumptions, and traceable provenance.
+- Clear stale, invalidated, expired and unverified states; visible
+  data-source/demo label; zero real opportunities displayed when none
+  have been validated.
+- Responsive layout, accessible controls and local manual/polled refresh.
+
+### 20.3 — Offline acceptance and quality gate
+
+- A documented Windows-compatible local start command; no provider
+  credentials needed for demo mode.
+- Deterministic test fixtures and UI/API tests for rendering, filters,
+  source-of-truth arithmetic, errors, empty states and lifecycle changes.
+- XSS escaping, no sensitive data leakage, loopback-only default,
+  read-only routes and no automatic bet placement.
+- Zero network/odds calls in the synthetic dashboard test suite.
+
+### 20.4 — Real scanner connection (conditional follow-on)
+
+- Connect approved, canonical read-only scanner outputs only after
+  Phase 19 per-event, per-market, bookmaker settlement, rights and
+  freshness checks permit the specific data. **Never** promote a
+  provisional `ALIGNED` provider fixture to a live arbitrage.
+- Keep ingestion quota limits independent of browser refresh rate;
+  unknown or blocked opportunities stay non-actionable.
+- Alerts/channels beyond the existing Phase 15 alert contract are
+  optional later work, not required for the local MVP.
+
+## Exit criteria
+
+- A user can open ArbiScan in a normal browser and inspect a
+  credible, responsive **local** dashboard with synthetic fixture
+  data, provider/event health and detailed opportunity provenance.
+- All displayed odds, ROI, payouts and stakes come from the Python
+  backend; the frontend does not recompute financial decisions.
+- The UI clearly distinguishes demo, blocked, stale and approved data.
+- Local-only/security and regression tests pass in CI with **zero
+  provider API requests**.
+- A separately gated live-data integration can be delivered without
+  replacing the UI architecture.
+
+**Important:** Completing this local MVP does not complete Phase 19's
+production performance/scale criteria, authorize source rights or
+trigger Phase 23 release approval. A full implementation outline lives in
+[`docs/product/phase-20-web-dashboard-mvp.md`](docs/product/phase-20-web-dashboard-mvp.md).
+
+---
+
+# Phase 21 — Security hardening and threat-model review
 
 ## Objective
 
@@ -1312,6 +1437,9 @@ Perform a dedicated security pass before any serious public deployment.
 - API abuse;
 - denial of service;
 - unsafe deserialization;
+- dashboard cross-site scripting (XSS), browser-origin/CORS misconfiguration and
+  missing security headers when the local web UI is eventually deployed;
+- accidental exposure of demo data as validated live opportunities;
 - database credential exposure;
 - overly privileged GitHub Actions tokens;
 - compromised deployment secrets.
@@ -1337,7 +1465,7 @@ Perform a dedicated security pass before any serious public deployment.
 
 ---
 
-# Phase 21 — Packaging, deployment, and release engineering
+# Phase 22 — Packaging, deployment, and release engineering
 
 ## Objective
 
@@ -1350,6 +1478,8 @@ Containerized services using Docker, with exact deployment target chosen later b
 ## Deliverables
 
 - production Dockerfile;
+- packaging/versioning of the Phase 20 dashboard's static browser assets and
+  its Python read-only HTTP server;
 - local Docker Compose stack if useful;
 - deployment documentation;
 - environment-specific configuration;
@@ -1375,7 +1505,7 @@ Containerized services using Docker, with exact deployment target chosen later b
 
 ---
 
-# Phase 22 — Production readiness and v1.0 criteria
+# Phase 23 — Production readiness and v1.0 criteria
 
 ArbiScan should not be considered `v1.0` merely because it finds an arbitrage example.
 
@@ -1394,6 +1524,9 @@ ArbiScan should not be considered `v1.0` merely because it finds an arbitrage ex
 - integration tests;
 - CI quality/security gates;
 - observability and provider-health monitoring;
+- a usable, tested browser dashboard connected to **approved** backend
+  projections, with true source/stale/blocked labels and no fabricated
+  profitable live opportunities; synthetic mode remains unmistakably separate;
 - documented setup/deployment/security model;
 - no secrets in repository/history;
 - measured end-to-end latency;
@@ -1536,35 +1669,62 @@ Phase 13 API
    ↓
 Phase 14 Observability/resilience
    ↓
-Phase 15 Dashboard/alerts
+Phase 15 Dashboard projection/alerts (delivered foundation)
    ↓
-Phase 16+ Expansion, historical analysis, scaling, hardening, deployment
+Phase 16–18 Provider expansion, market support and historical replay
+   ↓
+Phase 19 Live-data correctness, provider-rights/settlement gates and
+         measured performance (in progress)
+   ↓
+Phase 20 Local web dashboard MVP (synthetic first; live data gated)
+   ↓
+Phase 21 Security hardening → Phase 22 Deployment → Phase 23 v1.0
 ```
 
 The critical architectural rule is that **provider integrations do not define the domain model**. The canonical domain and arbitrage mathematics must exist first; external data is adapted into them afterward.
 
 ---
 
-# Current project status
+# Current project status — 2026-10-28
 
-- Repository created and public.
-- `main` is protected by an active ruleset.
-- Pull requests, resolved review conversations, linear history, and squash merges are
-  required for default-branch changes.
-- Phases 0 through 18 are merged to `main`.
-- Phase 19 is **partially implemented**: synthetic performance baselines and
-  profiling-driven improvements are merged; PRs #70–#72 added fixture-backed
-  cross-provider correctness checks and deterministic simulated multi-poll replay.
-- The last completed development milestone is PR #72 (2026-10-23). The eight replay
-  polls mutate checked-in responses; they are **not real sequential feed captures**.
-- Phase 19 is not complete: its next dependency is authorized, time-ordered,
-  matching-event observations from independent providers. Validate real source-time
-  semantics, partial coverage, delayed revisions, outage/recovery and fail-closed
-  behavior before investigating remaining p95 outliers or declaring production SLOs.
-- Representative provider/load distributions, a chosen deployment target and
-  deployment-hardware measurements are still needed for Phase 19 exit criteria.
-- OddsPapi remains production-blocked by the documented rights/compliance gate.
-- The product remains scanner-only; no automated wager execution is enabled.
+- Repository and protected `main` use reviewed PRs, resolved review
+  conversations, CI gates and squash merges.
+- Phases 0–18 are implemented. Phase 13 established the read-only Python
+  application API; Phase 15 established **dashboard projection, HTML
+  rendering, filters and alert semantics**, not a full interactive web app.
+- Phase 19 is **in progress**: synthetic performance and replay work,
+  PRs #70–#72 fixture-backed multi-source tests, and PRs #83–#87
+  independent official Premier League fixture evidence, OddsPapi 1X2
+  mapping, one-event quote-preflight controls and actual source **metadata
+  IDs** are on `main`.
+- As of 2026-10-28, the user's own tightly bounded diagnostic observed
+  Chelsea v Manchester United (31 October 2026, 12:30 UTC): The Odds API
+  `6601f69175a02f03fb7065aacb538e01`, OddsPapi
+  `id1000001772221358`, participant1 Chelsea ID `38`,
+  participant2 Manchester United ID `35`. The order was **ALIGNED**
+  with the official schedule but not independently proven to be a
+  universal OddsPapi home/away role. **No odds were fetched**.
+- The remaining **immediate Phase 19 correctness gates** are documented
+  provider-role meaning, bookmaker-specific regulation/void/abandonment
+  settlement equivalence and permitted account/data use. No live quote
+  promotion or arbitrage is authorized. The full Phase 19 exit criteria
+  also require authorized time-ordered cross-provider observations and
+  representative measured performance/scale.
+- **New agreed product sequence:** finish/document the critical Phase 19
+  blockers, then build **Phase 20 local Web Dashboard MVP** with synthetic
+  data. The local UI can progress while non-UI production-scale evidence
+  is still pending; it must not show synthetic signals as live ones.
+- Existing roadmap phases have been preserved and **renumbered**:
+  previous Phase 20 security → **Phase 21**; previous Phase 21 packaging
+  → **Phase 22**; previous Phase 22 release criteria → **Phase 23**.
+- ArbiScan remains scanner-only: no automated wagering, no bookmaker
+  credentials in the browser, and OddsPapi remains production-blocked
+  until its rights/compliance gate is explicitly resolved.
 
-**Next milestone: complete Phase 19 real-data correctness and measured-scale
-validation before Phase 20 security hardening.**
+**Next concrete task:** Phase 19 source-role and bookmaker-specific
+settlement/rights **evidence audit** for the observed Chelsea–Manchester
+United provider IDs. Do this with public documentation and offline
+adversarial fixtures first; **no further billable API requests** without
+separate approval. After documenting what is verified and what remains
+blocked, start **Phase 20.1** (local Python HTTP/UI contract) and
+**Phase 20.2** (responsive synthetic-data browser dashboard).
