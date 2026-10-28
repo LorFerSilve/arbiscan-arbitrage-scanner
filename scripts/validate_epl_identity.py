@@ -31,16 +31,16 @@ from arbiscan.matching import (
     NormalizedEventEvidence,
     ParticipantOrderPolicy,
 )
-from arbiscan.normalization.football_1x2 import (
-    FixtureSideAlignment,
-    assess_oddspapi_fixture_order,
-)
 from arbiscan.normalization import (
     CompetitionAlias,
     CompetitionNormalizer,
     ParticipantAlias,
     ParticipantNormalizer,
     prepare_event_evidence,
+)
+from arbiscan.normalization.football_1x2 import (
+    FixtureSideAlignment,
+    assess_oddspapi_fixture_order,
 )
 from arbiscan.providers import SourceCompetition, SourceEvent
 from arbiscan.providers.oddspapi import ODDSPAPI_PROVIDER_ID
