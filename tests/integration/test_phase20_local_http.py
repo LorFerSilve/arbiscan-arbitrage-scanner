@@ -18,9 +18,7 @@ from arbiscan.api.synthetic import SyntheticApiDataSource
 
 
 @contextmanager
-def _server(
-    *, demo: bool = False, source: SyntheticApiDataSource | None = None
-) -> Iterator[int]:
+def _server(*, demo: bool = False, source: SyntheticApiDataSource | None = None) -> Iterator[int]:
     api = ArbiScanApi(source or SyntheticApiDataSource(demo=demo), version="test-1")
     with create_local_http_server(
         api=api, mode="synthetic" if demo else "empty", version="test-1", port=0
@@ -221,9 +219,7 @@ def test_strict_local_host_and_origin_guards_block_dns_rebinding() -> None:
 def test_unknown_paths_and_get_with_request_body_are_rejected() -> None:
     with _server() as port:
         assert _request(port, "/api/v1/unknown")[0] == 404
-        status, error, _ = _request(
-            port, "/api/v1/health", headers={"Content-Length": "42"}
-        )
+        status, error, _ = _request(port, "/api/v1/health", headers={"Content-Length": "42"})
         assert status == 400
         assert error["code"] == "bad_request"
 
@@ -232,9 +228,7 @@ def test_loopback_only_server_rejects_remote_bind() -> None:
     api = ArbiScanApi(SyntheticApiDataSource(), version="test-1")
     for host in ("0.0.0.0", "::", "localhost", "192.168.1.42"):
         with pytest.raises(ValueError, match="127.0.0.1"):
-            create_local_http_server(
-                api=api, mode="empty", version="test-1", port=0, host=host
-            )
+            create_local_http_server(api=api, mode="empty", version="test-1", port=0, host=host)
 
 
 def test_no_external_provider_requests_even_after_repeated_http_refresh() -> None:
