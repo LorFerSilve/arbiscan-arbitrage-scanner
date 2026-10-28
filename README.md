@@ -140,6 +140,24 @@ uv run --with pytest==9.1.1 pytest tests/unit/test_phase20_stake_projection.py
 
 See [Phase 20.3 testing and accessibility checklist](docs/development/phase-20-browser-acceptance.md).
 
+### Phase 19: external role/settlement/rights attestation checklist
+
+An updated review found [OddsPapi's soccer-specific first-participant
+home-score example](https://oddspapi.io/blog/football-data-api-betting-predictions/).
+It strengthens the public evidence but does **not** establish a universal
+V4 soccer fixture contract. A new **offline-only** intake checks the
+provenance and coverage of future provider/bookmaker replies without
+allowing self-approval or paid odds requests:
+
+```powershell
+uv run python -m scripts.review_phase19_attestations
+uv run python -m scripts.review_phase19_attestations --template
+```
+
+For the exact provider questions, submission guidance and confidential
+metadata format, see [Phase 19 external attestation packet](docs/providers/phase-19-external-attestation-packet.md).
+The original Phase 19 live-quote gates **remain closed**.
+
 ## Current market scope
 
 Enabled advanced semantics remain intentionally narrow:
