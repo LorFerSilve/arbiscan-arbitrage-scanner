@@ -6,11 +6,11 @@ accidentally present a real, unverified football fixture as actionable.
 
 from __future__ import annotations
 
+from arbiscan.api.demo_stakes import calculate_demo_projection
 from arbiscan.api.contracts import (
     EventSummaryResponse,
     OddsResponse,
     OpportunityDetailResponse,
-    OpportunitySummaryResponse,
     ProviderStatusResponse,
     SportResponse,
 )
@@ -55,14 +55,11 @@ _DEMO_QUOTES = (
         observed_at="2030-06-01T11:59:00+00:00",
     ),
 )
-# 1/2.5 + 1/4 + 1/4 = 0.90, so the unrounded synthetic
-# profit rate is 1/0.90 - 1 = 0.111111...; this is NOT live.
-_DEMO_OPPORTUNITY = OpportunitySummaryResponse(
+# The mathematical margin, allocation, payout and profit all come from
+# arbiscan.arbitrage, never manually approximated in the browser.
+_DEMO_OPPORTUNITY, _DEMO_STAKE_PLAN = calculate_demo_projection(
+    _DEMO_QUOTES,
     opportunity_id="synthetic-opportunity-1",
-    event_id=_DEMO_EVENT.event_id,
-    market_id="synthetic-regulation-1x2",
-    implied_probability_sum="0.90",
-    guaranteed_profit_rate="0.111111111111111111",
     detected_at="2030-06-01T11:59:30+00:00",
 )
 
@@ -104,6 +101,7 @@ class SyntheticApiDataSource:
             opportunity=_DEMO_OPPORTUNITY,
             quote_ids=tuple(quote.quote_id for quote in _DEMO_QUOTES),
             evidence_available=False,
+            stake_plan=_DEMO_STAKE_PLAN,
         )
 
     def metrics(self) -> dict[str, int | float]:
