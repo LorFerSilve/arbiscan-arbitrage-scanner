@@ -17,6 +17,7 @@ from scripts.prepare_live_odds import (
     main,
     quota_ready,
 )
+
 from arbiscan.providers import HttpResponse, HttpTransportError
 from tests.support.oddspapi import FixtureHttpTransport as PapiFixtureTransport
 from tests.support.the_odds_api import FixtureHttpTransport as OddsFixtureTransport
