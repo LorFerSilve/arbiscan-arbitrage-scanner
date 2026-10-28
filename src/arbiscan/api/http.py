@@ -56,9 +56,7 @@ def _page(params: dict[str, str]) -> PageRequest:
 
 def _openapi(version: str) -> dict[str, Any]:
     document = openapi_document(version=version)
-    document["paths"] = {
-        API_PREFIX + path: methods for path, methods in document["paths"].items()
-    }
+    document["paths"] = {API_PREFIX + path: methods for path, methods in document["paths"].items()}
     document["paths"][API_PREFIX + "/runtime"] = {
         "get": {"summary": "Local synthetic/empty mode and disabled live access"}
     }
@@ -116,7 +114,9 @@ def _dispatch(
         if path.endswith("/sports"):
             return HTTPStatus.OK, api.sports(page)
         if path.endswith("/events"):
-            return HTTPStatus.OK, api.events(page, sport=params.get("sport"), status=params.get("status"))
+            return HTTPStatus.OK, api.events(
+                page, sport=params.get("sport"), status=params.get("status")
+            )
         if path.endswith("/odds"):
             return HTTPStatus.OK, api.odds(
                 page, event_id=params.get("event_id"), provider_id=params.get("provider_id")
@@ -142,9 +142,9 @@ def _serialize(value: object) -> bytes:
         value = page_data
     elif is_dataclass(value) and not isinstance(value, type):
         value = asdict(value)
-    return json.dumps(
-        value, ensure_ascii=False, separators=(",", ":"), allow_nan=False
-    ).encode("utf-8")
+    return json.dumps(value, ensure_ascii=False, separators=(",", ":"), allow_nan=False).encode(
+        "utf-8"
+    )
 
 
 def create_local_http_server(
@@ -173,7 +173,9 @@ def create_local_http_server(
             self.send_header("Content-Length", str(len(data)))
             self.send_header("Cache-Control", "no-store")
             self.send_header("X-Content-Type-Options", "nosniff")
-            self.send_header("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'")
+            self.send_header(
+                "Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'"
+            )
             self.send_header("Referrer-Policy", "no-referrer")
             self.send_header("Cross-Origin-Resource-Policy", "same-origin")
             self.send_header("X-Arbiscan-Data-Mode", mode)
@@ -186,17 +188,19 @@ def create_local_http_server(
                 f"localhost:{self.server.server_port}",
             }
             request_host = self.headers.get("Host", "")
-            if request_host not in allowed_hosts or self.headers.get(
-                "Origin", f"http://{request_host}"
-            ) != f"http://{request_host}":
+            if (
+                request_host not in allowed_hosts
+                or self.headers.get("Origin", f"http://{request_host}") != f"http://{request_host}"
+            ):
                 self._send(
                     HTTPStatus.FORBIDDEN,
                     asdict(ApiError(ErrorCode.FORBIDDEN, "Local origin required")),
                 )
                 return
-            if self.headers.get("Transfer-Encoding") or self.headers.get(
-                "Content-Length", "0"
-            ) != "0":
+            if (
+                self.headers.get("Transfer-Encoding")
+                or self.headers.get("Content-Length", "0") != "0"
+            ):
                 self._send(
                     HTTPStatus.BAD_REQUEST,
                     asdict(ApiError(ErrorCode.BAD_REQUEST, "GET request body not accepted")),
