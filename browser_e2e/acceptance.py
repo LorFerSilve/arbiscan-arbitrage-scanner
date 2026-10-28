@@ -77,7 +77,7 @@ def test_demo(page: Page, base: str) -> None:
     page.keyboard.press("Escape")
     expect(drawer.is_hidden(), "Escape didn't close drawer")
     page.locator("#refresh").click()
-    page.locator("#refresh").wait_for(state="enabled")
+    page.wait_for_function("!document.querySelector('#refresh').disabled")
     expect(page.locator("#opportunity-rows tr").count() == 1, "refresh lost demo data")
 
     # Responsive/mobile checks use the real browser's layout engine.
@@ -95,7 +95,7 @@ def test_demo(page: Page, base: str) -> None:
 
 def test_empty(page: Page, base: str) -> None:
     page.goto(base, wait_until="networkidle")
-    page.locator("#notice-tag").wait_for()
+    page.wait_for_function("document.querySelector('#notice-tag').textContent.includes('EMPTY')")
     expect("EMPTY" in page.locator("#notice-tag").inner_text(), "empty mode not marked")
     expect(page.locator("#metric-actionable").inner_text() == "0", "empty shows live signal")
     expect(page.locator("#opportunity-rows tr").count() == 0, "empty has invented rows")
